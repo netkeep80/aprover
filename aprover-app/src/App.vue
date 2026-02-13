@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
-import { parse, ParseError } from './core/parser';
-import { normalize, normalizeFile, toCanonicalString } from './core/normalizer';
-import { createProverState, verify, type ProofResult } from './core/prover';
-import { astToString, type File } from './core/ast';
+import { ref, watch } from 'vue'
+import { parse, ParseError } from './core/parser'
+import { normalize } from './core/normalizer'
+import { createProverState, verify, type ProofResult } from './core/prover'
+import { astToString } from './core/ast'
 
 const input = ref(`// МТС — Ассоциативный прувер
 // Примеры аксиом и формул
@@ -27,38 +27,38 @@ a -> b -> c = (a -> b) -> c.
 // Степени
 a^2 = a -> a.
 a^3 = (a -> a) -> a.
-`);
+`)
 
-const error = ref<string | null>(null);
-const results = ref<{ stmt: string; result: ProofResult }[]>([]);
+const error = ref<string | null>(null)
+const results = ref<{ stmt: string; result: ProofResult }[]>([])
 
 const parseAndVerify = () => {
-  error.value = null;
-  results.value = [];
+  error.value = null
+  results.value = []
 
   try {
-    const file = parse(input.value);
-    const state = createProverState();
+    const file = parse(input.value)
+    const state = createProverState()
 
     for (const stmt of file.statements) {
-      const stmtStr = astToString(stmt.expr);
-      const normalized = normalize(stmt.expr);
-      const result = verify(normalized, state);
-      results.value.push({ stmt: stmtStr, result });
+      const stmtStr = astToString(stmt.expr)
+      const normalized = normalize(stmt.expr)
+      const result = verify(normalized, state)
+      results.value.push({ stmt: stmtStr, result })
     }
   } catch (e) {
     if (e instanceof ParseError) {
-      error.value = e.message;
+      error.value = e.message
     } else if (e instanceof Error) {
-      error.value = e.message;
+      error.value = e.message
     } else {
-      error.value = 'Unknown error';
+      error.value = 'Unknown error'
     }
   }
-};
+}
 
 // Auto-verify on input change
-watch(input, parseAndVerify, { immediate: true });
+watch(input, parseAndVerify, { immediate: true })
 </script>
 
 <template>
@@ -176,14 +176,16 @@ main {
   }
 }
 
-.editor-panel, .results-panel {
+.editor-panel,
+.results-panel {
   background: var(--panel-bg);
   border-radius: 8px;
   padding: 1rem;
   border: 1px solid var(--border-color);
 }
 
-.editor-panel h2, .results-panel h2 {
+.editor-panel h2,
+.results-panel h2 {
   font-size: 1rem;
   color: #94a3b8;
   margin-bottom: 1rem;
