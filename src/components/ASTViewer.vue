@@ -507,8 +507,8 @@ export default {
 
 .ast-empty {
   display: flex;
-  align-items: center;
-  justify-content: center;
+  align-items: left;
+  justify-content: left;
   flex: 1;
   color: #64748b;
 }
@@ -524,7 +524,7 @@ export default {
 
 .tree-node-content {
   display: flex;
-  align-items: center;
+  align-items: left;
   gap: 0.25rem;
   padding: 0.25rem 0.5rem;
   border-radius: 3px;
