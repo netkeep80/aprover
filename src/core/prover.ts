@@ -614,6 +614,108 @@ function collapseInfinity(node: ASTNode): ASTNode {
 }
 
 /**
+ * Recursively expand Male expressions using axiom A5: ♂x = (♂x -> x)
+ *
+ * This function repeatedly applies A5 to expand expressions like:
+ * - ♂v
+ * - (♂v -> v) -> v
+ * - ((♂v -> v) -> v) -> v
+ * - etc.
+ *
+ * All of these can be unified with ♂v because:
+ * 1. ♂v = (♂v -> v) by A5
+ * 2. Substituting ♂v: ♂v = ((♂v -> v) -> v)
+ * 3. Therefore: ♂v = (((♂v -> v) -> v) -> v)
+ * 4. And so on recursively...
+ */
+function expandMale(node: ASTNode): ASTNode {
+  // Base case: ♂x expression
+  if (isMaleExpr(node)) {
+    return node
+  }
+
+  // Recursive case: (a -> b) where a can expand to the full ♂x -> x pattern
+  if (isLinkExpr(node)) {
+    // Try to collapse this link to ♂x if it matches the pattern (♂x -> x)
+    // and recursively if it matches ((♂x -> x) -> x), etc.
+    const collapsedLeft = expandMale(node.left)
+
+    // Check if left is ♂x and right is x (the operand of ♂x)
+    if (isMaleExpr(collapsedLeft)) {
+      const x = collapsedLeft.operand
+      if (astEqual(node.right, x)) {
+        // This is (♂x -> x), which equals ♂x by A5
+        return collapsedLeft
+      }
+    }
+
+    // Recursively try to collapse children
+    const collapsedRight = expandMale(node.right)
+    if (collapsedLeft !== node.left || collapsedRight !== node.right) {
+      return {
+        type: 'Link',
+        left: collapsedLeft,
+        right: collapsedRight,
+      } as LinkExpr
+    }
+  }
+
+  // Other node types: return as-is
+  return node
+}
+
+/**
+ * Recursively expand Female expressions using axiom A6: x♀ = (x -> x♀)
+ *
+ * This function repeatedly applies A6 to expand expressions like:
+ * - r♀
+ * - r -> r♀
+ * - r -> (r -> r♀)
+ * - etc.
+ *
+ * All of these can be unified with r♀ because:
+ * 1. r♀ = (r -> r♀) by A6
+ * 2. Substituting r♀: r♀ = (r -> (r -> r♀))
+ * 3. Therefore: r♀ = (r -> (r -> (r -> r♀)))
+ * 4. And so on recursively...
+ */
+function expandFemale(node: ASTNode): ASTNode {
+  // Base case: x♀ expression
+  if (isFemaleExpr(node)) {
+    return node
+  }
+
+  // Recursive case: (a -> b) where b can expand to the full x -> x♀ pattern
+  if (isLinkExpr(node)) {
+    // Try to collapse this link to x♀ if it matches the pattern (x -> x♀)
+    // and recursively if it matches (x -> (x -> x♀)), etc.
+    const collapsedRight = expandFemale(node.right)
+
+    // Check if right is x♀ and left is x (the operand of x♀)
+    if (isFemaleExpr(collapsedRight)) {
+      const x = collapsedRight.operand
+      if (astEqual(node.left, x)) {
+        // This is (x -> x♀), which equals x♀ by A6
+        return collapsedRight
+      }
+    }
+
+    // Recursively try to collapse children
+    const collapsedLeft = expandFemale(node.left)
+    if (collapsedLeft !== node.left || collapsedRight !== node.right) {
+      return {
+        type: 'Link',
+        left: collapsedLeft,
+        right: collapsedRight,
+      } as LinkExpr
+    }
+  }
+
+  // Other node types: return as-is
+  return node
+}
+
+/**
  * Generate hints for failed equality verification
  */
 function generateEqualityHints(
@@ -873,6 +975,84 @@ export function checkEquality(left: ASTNode, right: ASTNode, state: ProverState)
         success: true,
         message: 'Применена аксиома А6 (обратное направление)',
         steps: ['x♀ : (x -> x♀)'],
+        proofSteps,
+        appliedAxioms,
+      }
+    }
+  }
+
+  // Try recursive expansion for Male expressions using axiom A5: ♂x = (♂x -> x)
+  const expandedMaleLeft = expandMale(expLeft)
+  const expandedMaleRight = expandMale(expRight)
+  const maleLeftWasExpanded = !astEqual(expLeft, expandedMaleLeft)
+  const maleRightWasExpanded = !astEqual(expRight, expandedMaleRight)
+
+  if (maleLeftWasExpanded || maleRightWasExpanded) {
+    // Build detailed explanation of expansion steps
+    let details = ''
+    if (maleLeftWasExpanded && maleRightWasExpanded) {
+      details = `Обе стороны сворачиваются в ♂x:\n  ${expLeftStr} → ${toCanonicalString(expandedMaleLeft)}\n  ${expRightStr} → ${toCanonicalString(expandedMaleRight)}`
+    } else if (maleLeftWasExpanded) {
+      details = `Левая сторона сворачивается в ♂x: ${expLeftStr} → ${toCanonicalString(expandedMaleLeft)}`
+    } else {
+      details = `Правая сторона сворачивается в ♂x: ${expRightStr} → ${toCanonicalString(expandedMaleRight)}`
+    }
+
+    proofSteps.push({
+      index: proofSteps.length + 1,
+      action: 'Рекурсивное свёртывание по А5',
+      before: `${expLeftStr} = ${expRightStr}`,
+      after: `${toCanonicalString(expandedMaleLeft)} = ${toCanonicalString(expandedMaleRight)}`,
+      axiom: AXIOMS.A5,
+      details,
+    })
+
+    // Check equality after expansion
+    if (astEqual(expandedMaleLeft, expandedMaleRight)) {
+      appliedAxioms.push(AXIOMS.A5)
+      return {
+        success: true,
+        message: 'Применена аксиома А5: ♂x = (♂x → x) с рекурсивным свёртыванием',
+        steps: ['♂x : (♂x -> x) recursively applied'],
+        proofSteps,
+        appliedAxioms,
+      }
+    }
+  }
+
+  // Try recursive expansion for Female expressions using axiom A6: x♀ = (x -> x♀)
+  const expandedFemaleLeft = expandFemale(expLeft)
+  const expandedFemaleRight = expandFemale(expRight)
+  const femaleLeftWasExpanded = !astEqual(expLeft, expandedFemaleLeft)
+  const femaleRightWasExpanded = !astEqual(expRight, expandedFemaleRight)
+
+  if (femaleLeftWasExpanded || femaleRightWasExpanded) {
+    // Build detailed explanation of expansion steps
+    let details = ''
+    if (femaleLeftWasExpanded && femaleRightWasExpanded) {
+      details = `Обе стороны сворачиваются в x♀:\n  ${expLeftStr} → ${toCanonicalString(expandedFemaleLeft)}\n  ${expRightStr} → ${toCanonicalString(expandedFemaleRight)}`
+    } else if (femaleLeftWasExpanded) {
+      details = `Левая сторона сворачивается в x♀: ${expLeftStr} → ${toCanonicalString(expandedFemaleLeft)}`
+    } else {
+      details = `Правая сторона сворачивается в x♀: ${expRightStr} → ${toCanonicalString(expandedFemaleRight)}`
+    }
+
+    proofSteps.push({
+      index: proofSteps.length + 1,
+      action: 'Рекурсивное свёртывание по А6',
+      before: `${expLeftStr} = ${expRightStr}`,
+      after: `${toCanonicalString(expandedFemaleLeft)} = ${toCanonicalString(expandedFemaleRight)}`,
+      axiom: AXIOMS.A6,
+      details,
+    })
+
+    // Check equality after expansion
+    if (astEqual(expandedFemaleLeft, expandedFemaleRight)) {
+      appliedAxioms.push(AXIOMS.A6)
+      return {
+        success: true,
+        message: 'Применена аксиома А6: x♀ = (x → x♀) с рекурсивным свёртыванием',
+        steps: ['x♀ : (x -> x♀) recursively applied'],
         proofSteps,
         appliedAxioms,
       }

@@ -434,4 +434,94 @@ describe('Prover', () => {
       expect(result.appliedAxioms!.some(a => a.id === 'A4')).toBe(true)
     })
   })
+
+  describe('Male expansion (issue #53)', () => {
+    it('should verify ♂v = ♂v -> v -> v -> v (left-associative)', () => {
+      const eq = normalize(parseExpr('♂v = ♂v -> v -> v -> v'))
+      const result = verify(eq, state())
+      expect(result.success).toBe(true)
+      expect(result.appliedAxioms!.some(a => a.id === 'A5')).toBe(true)
+    })
+
+    it('should verify ♂v = (♂v -> v) -> v', () => {
+      const eq = normalize(parseExpr('♂v = (♂v -> v) -> v'))
+      const result = verify(eq, state())
+      expect(result.success).toBe(true)
+      expect(result.appliedAxioms!.some(a => a.id === 'A5')).toBe(true)
+    })
+
+    it('should verify ♂v = ((♂v -> v) -> v) -> v', () => {
+      const eq = normalize(parseExpr('♂v = ((♂v -> v) -> v) -> v'))
+      const result = verify(eq, state())
+      expect(result.success).toBe(true)
+      expect(result.appliedAxioms!.some(a => a.id === 'A5')).toBe(true)
+    })
+
+    it('should verify (♂v -> v) -> v = ♂v (reverse direction)', () => {
+      const eq = normalize(parseExpr('(♂v -> v) -> v = ♂v'))
+      const result = verify(eq, state())
+      expect(result.success).toBe(true)
+      expect(result.appliedAxioms!.some(a => a.id === 'A5')).toBe(true)
+    })
+
+    it('should verify ((♂v -> v) -> v) -> v = ♂v (deep nesting)', () => {
+      const eq = normalize(parseExpr('((♂v -> v) -> v) -> v = ♂v'))
+      const result = verify(eq, state())
+      expect(result.success).toBe(true)
+      expect(result.appliedAxioms!.some(a => a.id === 'A5')).toBe(true)
+    })
+
+    it('should verify ♂a = ♂a -> a -> a -> a (3-level nesting)', () => {
+      const eq = normalize(parseExpr('♂a = ♂a -> a -> a -> a'))
+      const result = verify(eq, state())
+      expect(result.success).toBe(true)
+      expect(result.appliedAxioms!.some(a => a.id === 'A5')).toBe(true)
+    })
+
+    it('should still respect the original ♂x = ♂x -> x case', () => {
+      // This is a regression test to ensure the simple case still works
+      const eq = normalize(parseExpr('♂a = ♂a -> a'))
+      const result = verify(eq, state())
+      expect(result.success).toBe(true)
+      expect(result.appliedAxioms!.some(a => a.id === 'A5')).toBe(true)
+    })
+  })
+
+  describe('Female expansion (issue #53)', () => {
+    it('should verify r♀ = r -> (r -> r♀)', () => {
+      const eq = normalize(parseExpr('r♀ = r -> (r -> r♀)'))
+      const result = verify(eq, state())
+      expect(result.success).toBe(true)
+      expect(result.appliedAxioms!.some(a => a.id === 'A6')).toBe(true)
+    })
+
+    it('should verify r♀ = r -> (r -> (r -> r♀))', () => {
+      const eq = normalize(parseExpr('r♀ = r -> (r -> (r -> r♀))'))
+      const result = verify(eq, state())
+      expect(result.success).toBe(true)
+      expect(result.appliedAxioms!.some(a => a.id === 'A6')).toBe(true)
+    })
+
+    it('should verify r -> (r -> r♀) = r♀ (reverse direction)', () => {
+      const eq = normalize(parseExpr('r -> (r -> r♀) = r♀'))
+      const result = verify(eq, state())
+      expect(result.success).toBe(true)
+      expect(result.appliedAxioms!.some(a => a.id === 'A6')).toBe(true)
+    })
+
+    it('should verify r -> (r -> (r -> r♀)) = r♀ (deep nesting)', () => {
+      const eq = normalize(parseExpr('r -> (r -> (r -> r♀)) = r♀'))
+      const result = verify(eq, state())
+      expect(result.success).toBe(true)
+      expect(result.appliedAxioms!.some(a => a.id === 'A6')).toBe(true)
+    })
+
+    it('should still respect the original x♀ = x -> x♀ case', () => {
+      // This is a regression test to ensure the simple case still works
+      const eq = normalize(parseExpr('r♀ = r -> r♀'))
+      const result = verify(eq, state())
+      expect(result.success).toBe(true)
+      expect(result.appliedAxioms!.some(a => a.id === 'A6')).toBe(true)
+    })
+  })
 })
