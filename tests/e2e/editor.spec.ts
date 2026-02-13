@@ -20,11 +20,11 @@ test.describe('aprover Web Interface', () => {
   test('should have editor and results panels', async ({ page }) => {
     await expect(page.locator('.editor-panel')).toBeVisible()
     await expect(page.locator('.results-panel')).toBeVisible()
-    await expect(page.locator('.code-editor')).toBeVisible()
+    await expect(page.locator('.code-input')).toBeVisible()
   })
 
   test('should have default MTS formulas in editor', async ({ page }) => {
-    const editor = page.locator('.code-editor')
+    const editor = page.locator('.code-input')
     const value = await editor.inputValue()
     expect(value).toContain('МТС')
     expect(value).toContain('∞')
@@ -41,7 +41,7 @@ test.describe('aprover Web Interface', () => {
   })
 
   test('should update results when editor content changes', async ({ page }) => {
-    const editor = page.locator('.code-editor')
+    const editor = page.locator('.code-input')
 
     // Clear editor and enter a simple valid formula
     await editor.fill('∞ = ∞.')
@@ -52,70 +52,70 @@ test.describe('aprover Web Interface', () => {
   })
 
   test('should show success indicator for valid equality', async ({ page }) => {
-    const editor = page.locator('.code-editor')
+    const editor = page.locator('.code-input')
     await editor.fill('a = a.')
 
     const resultItem = page.locator('.result-item')
     await expect(resultItem).toHaveClass(/success/)
-    await expect(page.locator('.status')).toHaveText('✓')
+    await expect(page.locator('.result-status')).toHaveText('✓')
   })
 
   test('should show failure indicator for invalid equality', async ({ page }) => {
-    const editor = page.locator('.code-editor')
+    const editor = page.locator('.code-input')
     // Using different structures that cannot be unified:
     // ♂∞ (male of infinity) cannot equal ∞♀ (female of infinity)
     await editor.fill('♂∞ = ∞♀.')
 
     const resultItem = page.locator('.result-item')
     await expect(resultItem).toHaveClass(/failure/)
-    await expect(page.locator('.status')).toHaveText('✗')
+    await expect(page.locator('.result-status')).toHaveText('✗')
   })
 
   test('should show error for invalid syntax', async ({ page }) => {
-    const editor = page.locator('.code-editor')
+    const editor = page.locator('.code-input')
     await editor.fill('invalid syntax !!!')
 
-    await expect(page.locator('.error-box')).toBeVisible()
+    await expect(page.locator('.error-panel')).toBeVisible()
   })
 
   test('should verify infinity axiom (А4)', async ({ page }) => {
-    const editor = page.locator('.code-editor')
+    const editor = page.locator('.code-input')
     await editor.fill('∞ = ∞ -> ∞.')
 
     await expect(page.locator('.result-item.success')).toBeVisible()
-    await expect(page.locator('.status')).toHaveText('✓')
+    await expect(page.locator('.result-status')).toHaveText('✓')
   })
 
   test('should verify male self-closing axiom (А5)', async ({ page }) => {
-    const editor = page.locator('.code-editor')
+    const editor = page.locator('.code-input')
     await editor.fill('♂v = ♂v -> v.')
 
     await expect(page.locator('.result-item.success')).toBeVisible()
   })
 
   test('should verify female self-closing axiom (А6)', async ({ page }) => {
-    const editor = page.locator('.code-editor')
+    const editor = page.locator('.code-input')
     await editor.fill('r♀ = r -> r♀.')
 
     await expect(page.locator('.result-item.success')).toBeVisible()
   })
 
   test('should verify inversion axiom (А7)', async ({ page }) => {
-    const editor = page.locator('.code-editor')
+    const editor = page.locator('.code-input')
     await editor.fill('!♂x = x♀.')
 
     await expect(page.locator('.result-item.success')).toBeVisible()
   })
 
   test('should verify power expansion', async ({ page }) => {
-    const editor = page.locator('.code-editor')
+    const editor = page.locator('.code-input')
     await editor.fill('a^2 = a -> a.')
 
     await expect(page.locator('.result-item.success')).toBeVisible()
   })
 
   test('should verify multiple formulas', async ({ page }) => {
-    const editor = page.locator('.code-editor')
+    const editor = page.locator('.code-input')
     await editor.fill(`
 ∞ = ∞ -> ∞.
 ♂v = ♂v -> v.
@@ -131,14 +131,14 @@ r♀ = r -> r♀.
   })
 
   test('should verify inequality', async ({ page }) => {
-    const editor = page.locator('.code-editor')
+    const editor = page.locator('.code-input')
     await editor.fill('♂∞ != ∞♀.')
 
     await expect(page.locator('.result-item.success')).toBeVisible()
   })
 
   test('should handle left associativity (А11)', async ({ page }) => {
-    const editor = page.locator('.code-editor')
+    const editor = page.locator('.code-input')
     await editor.fill('a -> b -> c = (a -> b) -> c.')
 
     await expect(page.locator('.result-item.success')).toBeVisible()
@@ -151,5 +151,24 @@ r♀ = r -> r♀.
       'href',
       'https://github.com/netkeep80/aprover'
     )
+  })
+
+  test('should have AST viewer panel', async ({ page }) => {
+    // AST viewer should be visible by default
+    await expect(page.locator('.ast-panel')).toBeVisible()
+    await expect(page.locator('.ast-viewer')).toBeVisible()
+  })
+
+  test('should toggle AST viewer visibility', async ({ page }) => {
+    // Initially visible
+    await expect(page.locator('.ast-panel')).toBeVisible()
+
+    // Click toggle button to hide
+    await page.locator('.toggle-btn').click()
+    await expect(page.locator('.ast-panel')).not.toBeVisible()
+
+    // Click toggle button to show again
+    await page.locator('.toggle-btn').click()
+    await expect(page.locator('.ast-panel')).toBeVisible()
   })
 })
