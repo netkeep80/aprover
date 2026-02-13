@@ -399,6 +399,7 @@ const fileExtBadge = computed(() => {
   color: var(--text-color);
   pointer-events: none;
   overflow: auto;
+  text-align: left;
 }
 
 .code-input {
@@ -417,6 +418,7 @@ const fileExtBadge = computed(() => {
   line-height: 1.6;
   resize: none;
   outline: none;
+  text-align: left;
 }
 
 .code-input::placeholder {

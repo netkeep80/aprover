@@ -530,6 +530,7 @@ export default {
   border-radius: 3px;
   cursor: pointer;
   transition: background-color 0.15s;
+  text-align: left;
 }
 
 .tree-node-content:hover {
