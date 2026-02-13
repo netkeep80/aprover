@@ -16,6 +16,28 @@ const emit = defineEmits<{
   'cursor-position': [loc: SourceLocation | null]
 }>()
 
+// Symbol insertion functionality
+const insertSymbol = (symbol: string) => {
+  const textarea = textareaRef.value
+  if (!textarea) return
+
+  const start = textarea.selectionStart
+  const end = textarea.selectionEnd
+  const currentValue = props.modelValue
+
+  // Insert symbol at cursor position
+  const newValue = currentValue.substring(0, start) + symbol + currentValue.substring(end)
+
+  emit('update:modelValue', newValue)
+
+  // Restore focus and cursor position after the inserted symbol
+  setTimeout(() => {
+    textarea.focus()
+    const newCursorPos = start + symbol.length
+    textarea.setSelectionRange(newCursorPos, newCursorPos)
+  }, 0)
+}
+
 const textareaRef = ref<HTMLTextAreaElement | null>(null)
 
 const localValue = computed({
@@ -436,6 +458,21 @@ const handleMouseLeave = () => {
     <div class="editor-header">
       <span class="file-icon">{{ fileExtBadge }}</span>
       <span class="file-name">{{ displayFileName }}</span>
+      <div class="symbol-buttons">
+        <button
+          class="symbol-btn"
+          title="Вставить символ ∞ (бесконечность)"
+          @click="insertSymbol('∞')"
+        >
+          ∞
+        </button>
+        <button class="symbol-btn" title="Вставить символ ♂ (начало)" @click="insertSymbol('♂')">
+          ♂
+        </button>
+        <button class="symbol-btn" title="Вставить символ ♀ (конец)" @click="insertSymbol('♀')">
+          ♀
+        </button>
+      </div>
     </div>
     <div class="editor-content" @mousemove="handleMouseMove" @mouseleave="handleMouseLeave">
       <div class="highlight-layer" v-html="highlightedContent"></div>
@@ -476,6 +513,7 @@ const handleMouseLeave = () => {
   background: var(--accent-color);
   border-bottom: 1px solid var(--border-color);
   font-size: 0.85rem;
+  justify-content: space-between;
 }
 
 .file-icon {
@@ -671,5 +709,59 @@ const handleMouseLeave = () => {
 
 .drop-icon {
   font-size: 2rem;
+}
+
+/* Symbol insertion buttons */
+.symbol-buttons {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-left: auto;
+}
+
+.symbol-btn {
+  background: rgba(102, 126, 234, 0.2);
+  color: var(--text-color);
+  border: 1px solid rgba(102, 126, 234, 0.4);
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.symbol-btn:hover {
+  background: rgba(102, 126, 234, 0.35);
+  border-color: rgba(102, 126, 234, 0.6);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.symbol-btn:active {
+  transform: translateY(0);
+}
+
+/* Highlight the special symbols with their syntax highlighting colors */
+.symbol-btn:nth-child(1) {
+  /* ∞ - infinity */
+  color: #fbbf24;
+  font-weight: bold;
+}
+
+.symbol-btn:nth-child(2) {
+  /* ♂ - male */
+  color: #60a5fa;
+  font-weight: bold;
+}
+
+.symbol-btn:nth-child(3) {
+  /* ♀ - female */
+  color: #f472b6;
+  font-weight: bold;
 }
 </style>
