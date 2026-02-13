@@ -72,6 +72,9 @@ const showConversion = ref(false)
 const conversionSteps = ref<ConversionStep[]>([])
 const originalAstrContent = ref<string | null>(null)
 
+// Application version from package.json (injected by Vite at build time)
+const appVersion = __APP_VERSION__
+
 const toggleAST = () => {
   showAST.value = !showAST.value
 }
@@ -346,7 +349,7 @@ onUnmounted(() => {
     <header class="app-header">
       <div class="header-left">
         <h1>aprover</h1>
-        <span class="version">v0.3.0</span>
+        <span class="version">v{{ appVersion }}</span>
       </div>
       <p class="subtitle">Ассоциативный прувер для формальной нотации Метатеории Связей (МТС)</p>
       <div class="header-right">
