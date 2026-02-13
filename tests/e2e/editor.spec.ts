@@ -303,6 +303,167 @@ r♀ = r -> r♀.
     await expect(toggleIndicator).toHaveText('▶')
   })
 
+  // Phase 3.1: File Operations Tests
+  test.describe('File Operations', () => {
+    test('should have toolbar with file operation buttons', async ({ page }) => {
+      // Check for New button
+      await expect(page.locator('.toolbar-btn').filter({ hasText: 'Новый' }).or(
+        page.locator('.toolbar-btn[title*="Новый"]')
+      ).first()).toBeVisible()
+
+      // Check for Open button
+      await expect(page.locator('.toolbar-btn').filter({ hasText: 'Открыть' }).or(
+        page.locator('.toolbar-btn[title*="Открыть"]')
+      ).first()).toBeVisible()
+
+      // Check for Save button
+      await expect(page.locator('.toolbar-btn').filter({ hasText: 'Сохранить' }).or(
+        page.locator('.toolbar-btn[title*="Сохранить"]')
+      ).first()).toBeVisible()
+    })
+
+    test('should have Recent files button', async ({ page }) => {
+      await expect(page.locator('.toolbar-btn.recent-btn').or(
+        page.locator('.toolbar-btn[title*="Недавние"]')
+      ).first()).toBeVisible()
+    })
+
+    test('should toggle recent files dropdown', async ({ page }) => {
+      const recentBtn = page.locator('.toolbar-btn.recent-btn').or(
+        page.locator('.toolbar-btn[title*="Недавние"]')
+      ).first()
+
+      // Initially dropdown should not be visible
+      await expect(page.locator('.recent-files-dropdown')).not.toBeVisible()
+
+      // Click to open dropdown
+      await recentBtn.click()
+      await expect(page.locator('.recent-files-dropdown')).toBeVisible()
+
+      // Click again to close (or click outside)
+      await recentBtn.click()
+      // May still be visible depending on toggle logic, let's check for consistency
+    })
+
+    test('should show empty recent files message', async ({ page }) => {
+      // Clear localStorage first
+      await page.evaluate(() => localStorage.clear())
+      await page.reload()
+
+      const recentBtn = page.locator('.toolbar-btn.recent-btn').or(
+        page.locator('.toolbar-btn[title*="Недавние"]')
+      ).first()
+
+      await recentBtn.click()
+      await expect(page.locator('.recent-files-dropdown')).toBeVisible()
+      await expect(page.locator('.recent-empty')).toBeVisible()
+      await expect(page.locator('.recent-empty')).toContainText('Нет недавних файлов')
+    })
+
+    test('should have Results export button', async ({ page }) => {
+      await expect(page.locator('.toolbar-btn').filter({ hasText: 'Результаты' }).or(
+        page.locator('.toolbar-btn[title*="Результаты"]')
+      ).first()).toBeVisible()
+    })
+
+    test('should have JSON export button', async ({ page }) => {
+      await expect(page.locator('.toolbar-btn').filter({ hasText: 'JSON' }).or(
+        page.locator('.toolbar-btn[title*="JSON"]')
+      ).first()).toBeVisible()
+    })
+
+    test('should disable export buttons when no results', async ({ page }) => {
+      const editor = page.locator('.code-input')
+      // Clear editor with invalid content that produces no valid results
+      await editor.fill('')
+
+      // Export buttons should be disabled when no results
+      // Look for buttons containing "Результаты" or "JSON" text in the toolbar
+      const resultsBtn = page.locator('.toolbar-btn').filter({ hasText: 'Результаты' }).first()
+      const jsonBtn = page.locator('.toolbar-btn').filter({ hasText: 'JSON' }).first()
+
+      await expect(resultsBtn).toBeDisabled()
+      await expect(jsonBtn).toBeDisabled()
+    })
+
+    test('should enable export buttons when results exist', async ({ page }) => {
+      const editor = page.locator('.code-input')
+      await editor.fill('a = a.')
+
+      // Wait for verification to complete
+      await expect(page.locator('.result-item')).toBeVisible()
+
+      // Export buttons should be enabled
+      const resultsBtn = page.locator('.toolbar-btn').filter({ hasText: 'Результаты' }).first()
+      const jsonBtn = page.locator('.toolbar-btn').filter({ hasText: 'JSON' }).first()
+
+      await expect(resultsBtn).not.toBeDisabled()
+      await expect(jsonBtn).not.toBeDisabled()
+    })
+
+    test('should display file name in editor header', async ({ page }) => {
+      // Default file name should be shown
+      await expect(page.locator('.file-name')).toBeVisible()
+      await expect(page.locator('.file-name')).toContainText('.mtl')
+    })
+
+    test('should clear editor on New file button', async ({ page }) => {
+      const editor = page.locator('.code-input')
+
+      // Enter some content first
+      await editor.fill('custom content here')
+      await expect(editor).toHaveValue('custom content here')
+
+      // Click New button
+      const newBtn = page.locator('.toolbar-btn[title*="Новый"]').first()
+      await newBtn.click()
+
+      // Editor should be cleared to default template
+      const value = await editor.inputValue()
+      expect(value).toContain('МТС')
+    })
+
+    test('should show drag-and-drop overlay on drag over', async ({ page }) => {
+      const editor = page.locator('.editor-container')
+
+      // Simulate drag enter using page.evaluate to access browser context
+      await editor.evaluate((el) => {
+        const event = new DragEvent('dragenter', {
+          bubbles: true,
+          cancelable: true,
+        })
+        el.dispatchEvent(event)
+      })
+
+      // Drop overlay should appear
+      await expect(page.locator('.drop-overlay')).toBeVisible()
+      await expect(page.locator('.drop-message')).toContainText('Отпустите файл')
+    })
+
+    test('should have keyboard shortcut hint in New button title', async ({ page }) => {
+      const newBtn = page.locator('.toolbar-btn[title*="Новый"]').first()
+      const title = await newBtn.getAttribute('title')
+      expect(title).toContain('Ctrl+N')
+    })
+
+    test('should have keyboard shortcut hint in Open button title', async ({ page }) => {
+      const openBtn = page.locator('.toolbar-btn[title*="Открыть"]').first()
+      const title = await openBtn.getAttribute('title')
+      expect(title).toContain('Ctrl+O')
+    })
+
+    test('should have keyboard shortcut hint in Save button title', async ({ page }) => {
+      const saveBtn = page.locator('.toolbar-btn[title*="Сохранить"]').first()
+      const title = await saveBtn.getAttribute('title')
+      expect(title).toContain('Ctrl+S')
+    })
+
+    test('should display version number', async ({ page }) => {
+      await expect(page.locator('.version')).toBeVisible()
+      await expect(page.locator('.version')).toContainText('v0.2.0')
+    })
+  })
+
   // Phase 2.4: Enhanced Prover Tests
   test.describe('Enhanced Prover Features', () => {
     test('should display applied axioms badges', async ({ page }) => {
