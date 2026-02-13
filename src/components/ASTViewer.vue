@@ -1,10 +1,14 @@
 <script setup lang="ts">
-import { defineProps, ref, computed } from 'vue'
-import type { ASTNode, File } from '../core/ast'
+import { defineProps, defineEmits, ref, computed, watch } from 'vue'
+import type { ASTNode, File, SourceLocation } from '../core/ast'
 
 const props = defineProps<{
   ast: File | null
   error: string | null
+}>()
+
+const emit = defineEmits<{
+  'node-hover': [loc: SourceLocation | null]
 }>()
 
 interface TreeNode {
@@ -13,9 +17,13 @@ interface TreeNode {
   type: string
   children: TreeNode[]
   expanded: boolean
+  loc?: SourceLocation
 }
 
 const expandedNodes = ref<Set<string>>(new Set())
+
+// Track if we've initialized expansion for current AST
+const lastAstRef = ref<File | null>(null)
 
 function toggleNode(id: string) {
   if (expandedNodes.value.has(id)) {
@@ -30,6 +38,90 @@ function isExpanded(id: string): boolean {
   return expandedNodes.value.has(id)
 }
 
+// Expand all nodes
+function expandAll() {
+  if (!treeData.value) return
+  const collectIds = (node: TreeNode): string[] => {
+    const ids = [node.id]
+    for (const child of node.children) {
+      ids.push(...collectIds(child))
+    }
+    return ids
+  }
+  expandedNodes.value = new Set(collectIds(treeData.value))
+}
+
+// Collapse all nodes (except root)
+function collapseAll() {
+  expandedNodes.value = new Set(['0'])
+}
+
+// Collect all node IDs up to a certain depth
+function collectInitialExpansion(node: ASTNode, path: string = '0', depth: number = 0): string[] {
+  const result: string[] = []
+  if (depth <= 3) {
+    result.push(path)
+  }
+
+  switch (node.type) {
+    case 'File':
+      ;(node as { statements: ASTNode[] }).statements.forEach((stmt, i) => {
+        result.push(...collectInitialExpansion(stmt, `${path}-${i}`, depth + 1))
+      })
+      break
+    case 'Statement':
+      result.push(
+        ...collectInitialExpansion((node as { expr: ASTNode }).expr, `${path}-0`, depth + 1)
+      )
+      break
+    case 'Link':
+    case 'NotLink':
+      result.push(
+        ...collectInitialExpansion((node as { left: ASTNode }).left, `${path}-0`, depth + 1)
+      )
+      result.push(
+        ...collectInitialExpansion((node as { right: ASTNode }).right, `${path}-1`, depth + 1)
+      )
+      break
+    case 'Definition':
+      result.push(
+        ...collectInitialExpansion((node as { name: ASTNode }).name, `${path}-0`, depth + 1)
+      )
+      result.push(
+        ...collectInitialExpansion((node as { form: ASTNode }).form, `${path}-1`, depth + 1)
+      )
+      break
+    case 'Equality':
+    case 'Inequality':
+      result.push(
+        ...collectInitialExpansion((node as { left: ASTNode }).left, `${path}-0`, depth + 1)
+      )
+      result.push(
+        ...collectInitialExpansion((node as { right: ASTNode }).right, `${path}-1`, depth + 1)
+      )
+      break
+    case 'Male':
+    case 'Female':
+    case 'Not':
+      result.push(
+        ...collectInitialExpansion((node as { operand: ASTNode }).operand, `${path}-0`, depth + 1)
+      )
+      break
+    case 'Power':
+      result.push(
+        ...collectInitialExpansion((node as { base: ASTNode }).base, `${path}-0`, depth + 1)
+      )
+      break
+    case 'Set':
+      ;(node as { elements: ASTNode[] }).elements.forEach((el, i) => {
+        result.push(...collectInitialExpansion(el, `${path}-${i}`, depth + 1))
+      })
+      break
+  }
+
+  return result
+}
+
 function astNodeToTreeNode(node: ASTNode, path: string = '0'): TreeNode {
   const result: TreeNode = {
     id: path,
@@ -37,11 +129,7 @@ function astNodeToTreeNode(node: ASTNode, path: string = '0'): TreeNode {
     type: node.type,
     children: [],
     expanded: true,
-  }
-
-  // Auto-expand first few levels
-  if (path.split('-').length <= 3) {
-    expandedNodes.value.add(path)
+    loc: node.loc,
   }
 
   switch (node.type) {
@@ -160,10 +248,42 @@ function getNodeTypeClass(type: string): string {
   }
 }
 
+// Format location for tooltip
+function formatLocation(loc?: SourceLocation): string {
+  if (!loc) return ''
+  if (loc.start.line === loc.end.line) {
+    return `Line ${loc.start.line}, col ${loc.start.column}-${loc.end.column}`
+  }
+  return `Lines ${loc.start.line}-${loc.end.line}`
+}
+
+// Handle mouse enter on node
+function handleNodeEnter(loc?: SourceLocation) {
+  emit('node-hover', loc || null)
+}
+
+// Handle mouse leave from node
+function handleNodeLeave() {
+  emit('node-hover', null)
+}
+
 const treeData = computed<TreeNode | null>(() => {
   if (!props.ast) return null
   return astNodeToTreeNode(props.ast)
 })
+
+// Initialize expansion when AST changes
+watch(
+  () => props.ast,
+  newAst => {
+    if (newAst && newAst !== lastAstRef.value) {
+      lastAstRef.value = newAst
+      const initialIds = collectInitialExpansion(newAst)
+      expandedNodes.value = new Set(initialIds)
+    }
+  },
+  { immediate: true }
+)
 </script>
 
 <template>
@@ -171,6 +291,16 @@ const treeData = computed<TreeNode | null>(() => {
     <div class="ast-header">
       <span class="ast-icon">AST</span>
       <span class="ast-title">Abstract Syntax Tree</span>
+      <div class="ast-controls">
+        <button class="ast-btn" @click="expandAll" title="Expand all nodes">
+          <span class="btn-icon">⊞</span>
+          <span class="btn-text">Expand All</span>
+        </button>
+        <button class="ast-btn" @click="collapseAll" title="Collapse all nodes">
+          <span class="btn-icon">⊟</span>
+          <span class="btn-text">Collapse All</span>
+        </button>
+      </div>
     </div>
 
     <div v-if="error" class="ast-error">
@@ -185,6 +315,9 @@ const treeData = computed<TreeNode | null>(() => {
           :is-expanded="isExpanded"
           :toggle-node="toggleNode"
           :get-node-type-class="getNodeTypeClass"
+          :format-location="formatLocation"
+          :on-node-enter="handleNodeEnter"
+          :on-node-leave="handleNodeLeave"
         />
       </div>
     </div>
@@ -205,11 +338,15 @@ const TreeNodeComponent = defineComponent({
     isExpanded: { type: Function, required: true },
     toggleNode: { type: Function, required: true },
     getNodeTypeClass: { type: Function, required: true },
+    formatLocation: { type: Function, required: true },
+    onNodeEnter: { type: Function, required: true },
+    onNodeLeave: { type: Function, required: true },
   },
   render() {
     const node = this.node as TreeNode
     const hasChildren = node.children.length > 0
     const expanded = this.isExpanded(node.id)
+    const locTooltip = this.formatLocation(node.loc)
 
     return h('div', { class: 'tree-node' }, [
       h(
@@ -217,6 +354,9 @@ const TreeNodeComponent = defineComponent({
         {
           class: ['tree-node-content', this.getNodeTypeClass(node.type)],
           onClick: () => hasChildren && this.toggleNode(node.id),
+          onMouseenter: () => this.onNodeEnter(node.loc),
+          onMouseleave: () => this.onNodeLeave(),
+          title: locTooltip,
         },
         [
           hasChildren
@@ -228,6 +368,13 @@ const TreeNodeComponent = defineComponent({
             : h('span', { class: 'tree-toggle tree-leaf' }, '•'),
           h('span', { class: 'tree-label' }, node.label),
           h('span', { class: 'tree-type' }, node.type),
+          locTooltip
+            ? h(
+                'span',
+                { class: 'tree-loc' },
+                `[${node.loc?.start.line}:${node.loc?.start.column}]`
+              )
+            : null,
         ]
       ),
       hasChildren && expanded
@@ -240,6 +387,9 @@ const TreeNodeComponent = defineComponent({
                 isExpanded: this.isExpanded,
                 toggleNode: this.toggleNode,
                 getNodeTypeClass: this.getNodeTypeClass,
+                formatLocation: this.formatLocation,
+                onNodeEnter: this.onNodeEnter,
+                onNodeLeave: this.onNodeLeave,
               })
             )
           )
@@ -285,6 +435,47 @@ export default {
 
 .ast-title {
   color: #94a3b8;
+}
+
+.ast-controls {
+  display: flex;
+  gap: 0.25rem;
+  margin-left: auto;
+}
+
+.ast-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: transparent;
+  color: #94a3b8;
+  border: 1px solid var(--border-color);
+  padding: 0.2rem 0.5rem;
+  border-radius: 3px;
+  font-family: inherit;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.ast-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-color);
+  border-color: #4a5568;
+}
+
+.btn-icon {
+  font-size: 0.85rem;
+}
+
+.btn-text {
+  display: none;
+}
+
+@media (min-width: 1400px) {
+  .btn-text {
+    display: inline;
+  }
 }
 
 .ast-content {
@@ -342,7 +533,7 @@ export default {
 }
 
 .tree-node-content:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(102, 126, 234, 0.2);
 }
 
 .tree-toggle {
@@ -367,6 +558,13 @@ export default {
   color: #64748b;
   font-size: 0.75rem;
   margin-left: 0.5rem;
+}
+
+.tree-loc {
+  color: #4a5568;
+  font-size: 0.65rem;
+  margin-left: auto;
+  font-style: italic;
 }
 
 .tree-children {

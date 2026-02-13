@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { defineEmits, defineProps, ref, watch, computed } from 'vue'
+import type { SourceLocation } from '../core/ast'
 
 const props = defineProps<{
   modelValue: string
+  highlightedLoc?: SourceLocation | null
 }>()
 
 const emit = defineEmits<{
@@ -93,7 +95,13 @@ function tokenizeLine(code: string): Token[] {
     }
 
     // Definition colon (surrounded by whitespace)
-    if (char === ':' && pos > 0 && pos < code.length - 1 && /\s/.test(code[pos - 1]) && /\s/.test(code[pos + 1])) {
+    if (
+      char === ':' &&
+      pos > 0 &&
+      pos < code.length - 1 &&
+      /\s/.test(code[pos - 1]) &&
+      /\s/.test(code[pos + 1])
+    ) {
       tokens.push({ type: 'define', value: char })
       pos++
       continue
@@ -131,7 +139,11 @@ function tokenizeLine(code: string): Token[] {
     }
 
     // Numbers (0 and 1 as special constants)
-    if ((char === '0' || char === '1') && (pos === 0 || !/[a-zA-Zа-яА-ЯёЁ0-9_]/.test(code[pos - 1])) && (pos === code.length - 1 || !/[a-zA-Zа-яА-ЯёЁ0-9_]/.test(code[pos + 1]))) {
+    if (
+      (char === '0' || char === '1') &&
+      (pos === 0 || !/[a-zA-Zа-яА-ЯёЁ0-9_]/.test(code[pos - 1])) &&
+      (pos === code.length - 1 || !/[a-zA-Zа-яА-ЯёЁ0-9_]/.test(code[pos + 1]))
+    ) {
       tokens.push({ type: 'number', value: char })
       pos++
       continue
@@ -159,39 +171,76 @@ function tokenizeLine(code: string): Token[] {
 
 // Escape HTML special characters
 function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }
 
 // Convert tokens to highlighted HTML
 function tokensToHtml(tokens: Token[]): string {
-  return tokens.map(token => {
-    const escaped = escapeHtml(token.value)
-    if (token.type === 'text') {
-      return escaped
-    }
-    return `<span class="${token.type}">${escaped}</span>`
-  }).join('')
+  return tokens
+    .map(token => {
+      const escaped = escapeHtml(token.value)
+      if (token.type === 'text') {
+        return escaped
+      }
+      return `<span class="${token.type}">${escaped}</span>`
+    })
+    .join('')
+}
+
+// Create a highlight marker for AST node selection
+function applyHighlightMarker(
+  html: string,
+  lineIndex: number,
+  loc: SourceLocation | null | undefined
+): string {
+  if (!loc) return html
+
+  const startLine = loc.start.line - 1 // 0-indexed
+  const endLine = loc.end.line - 1
+
+  if (lineIndex < startLine || lineIndex > endLine) {
+    return html
+  }
+
+  // For simplicity, highlight the entire line content if it's within the range
+  // A more precise implementation would track character positions
+  if (lineIndex === startLine && lineIndex === endLine) {
+    // Single line highlight - highlight from start column to end column
+    return `<span class="ast-highlight">${html}</span>`
+  } else if (lineIndex === startLine) {
+    // First line of multi-line - highlight from start column to end
+    return `<span class="ast-highlight">${html}</span>`
+  } else if (lineIndex === endLine) {
+    // Last line of multi-line - highlight from start to end column
+    return `<span class="ast-highlight">${html}</span>`
+  } else {
+    // Middle lines - highlight entire line
+    return `<span class="ast-highlight">${html}</span>`
+  }
 }
 
 const highlightedContent = computed(() => {
   const text = props.modelValue
+  const loc = props.highlightedLoc
 
   // Process line by line to handle comments correctly
   const lines = text.split('\n')
-  const processedLines = lines.map(line => {
+  const processedLines = lines.map((line, lineIndex) => {
+    let result: string
     // Check for comment
     const commentIndex = line.indexOf('//')
     if (commentIndex !== -1) {
       const beforeComment = line.substring(0, commentIndex)
       const comment = line.substring(commentIndex)
       const tokens = tokenizeLine(beforeComment)
-      return tokensToHtml(tokens) + `<span class="comment">${escapeHtml(comment)}</span>`
+      result = tokensToHtml(tokens) + `<span class="comment">${escapeHtml(comment)}</span>`
+    } else {
+      const tokens = tokenizeLine(line)
+      result = tokensToHtml(tokens)
     }
-    const tokens = tokenizeLine(line)
-    return tokensToHtml(tokens)
+
+    // Apply AST node highlight if applicable
+    return applyHighlightMarker(result, lineIndex, loc)
   })
 
   return processedLines.join('\n')
@@ -387,5 +436,11 @@ watch(
 
 :deep(.dot) {
   color: #94a3b8;
+}
+
+:deep(.ast-highlight) {
+  background: rgba(102, 126, 234, 0.3);
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px rgba(102, 126, 234, 0.5);
 }
 </style>
