@@ -373,4 +373,65 @@ describe('Prover', () => {
       })
     })
   })
+
+  describe('Infinity collapse (issue #51)', () => {
+    it('should verify ∞ = ∞ -> ∞ -> ∞ (left-associative)', () => {
+      const eq = normalize(parseExpr('∞ = ∞ -> ∞ -> ∞'))
+      const result = verify(eq, state())
+      expect(result.success).toBe(true)
+      expect(result.appliedAxioms!.some(a => a.id === 'A4')).toBe(true)
+    })
+
+    it('should verify ∞ = (∞ -> ∞) -> ∞', () => {
+      const eq = normalize(parseExpr('∞ = (∞ -> ∞) -> ∞'))
+      const result = verify(eq, state())
+      expect(result.success).toBe(true)
+      expect(result.appliedAxioms!.some(a => a.id === 'A4')).toBe(true)
+    })
+
+    it('should verify ∞ = ∞ -> ∞ -> ∞ -> ∞ (3-level nesting)', () => {
+      const eq = normalize(parseExpr('∞ = ∞ -> ∞ -> ∞ -> ∞'))
+      const result = verify(eq, state())
+      expect(result.success).toBe(true)
+      expect(result.appliedAxioms!.some(a => a.id === 'A4')).toBe(true)
+    })
+
+    it('should verify (∞ -> ∞) -> ∞ = ∞ (reverse direction)', () => {
+      const eq = normalize(parseExpr('(∞ -> ∞) -> ∞ = ∞'))
+      const result = verify(eq, state())
+      expect(result.success).toBe(true)
+      expect(result.appliedAxioms!.some(a => a.id === 'A4')).toBe(true)
+    })
+
+    it('should verify ((∞ -> ∞) -> ∞) -> ∞ = ∞ (deep nesting)', () => {
+      const eq = normalize(parseExpr('((∞ -> ∞) -> ∞) -> ∞ = ∞'))
+      const result = verify(eq, state())
+      expect(result.success).toBe(true)
+      expect(result.appliedAxioms!.some(a => a.id === 'A4')).toBe(true)
+    })
+
+    it('should verify ∞ -> ∞ -> ∞ -> ∞ -> ∞ = ∞ (4-level nesting)', () => {
+      const eq = normalize(parseExpr('∞ -> ∞ -> ∞ -> ∞ -> ∞ = ∞'))
+      const result = verify(eq, state())
+      expect(result.success).toBe(true)
+    })
+
+    it('should verify symmetric case: ∞ = ∞ -> ∞ and ∞ -> ∞ = ∞', () => {
+      const eq1 = normalize(parseExpr('∞ = ∞ -> ∞'))
+      const result1 = verify(eq1, state())
+      expect(result1.success).toBe(true)
+
+      const eq2 = normalize(parseExpr('∞ -> ∞ = ∞'))
+      const result2 = verify(eq2, state())
+      expect(result2.success).toBe(true)
+    })
+
+    it('should still respect the original ∞ = ∞ -> ∞ case', () => {
+      // This is a regression test to ensure the simple case still works
+      const eq = normalize(parseExpr('∞ = ∞ -> ∞'))
+      const result = verify(eq, state())
+      expect(result.success).toBe(true)
+      expect(result.appliedAxioms!.some(a => a.id === 'A4')).toBe(true)
+    })
+  })
 })
