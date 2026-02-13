@@ -158,4 +158,4 @@ npm run build
 
 ## Лицензия
 
-MIT
+Unlicense
