@@ -307,31 +307,47 @@ r♀ = r -> r♀.
   test.describe('File Operations', () => {
     test('should have toolbar with file operation buttons', async ({ page }) => {
       // Check for New button
-      await expect(page.locator('.toolbar-btn').filter({ hasText: 'Новый' }).or(
-        page.locator('.toolbar-btn[title*="Новый"]')
-      ).first()).toBeVisible()
+      await expect(
+        page
+          .locator('.toolbar-btn')
+          .filter({ hasText: 'Новый' })
+          .or(page.locator('.toolbar-btn[title*="Новый"]'))
+          .first()
+      ).toBeVisible()
 
       // Check for Open button
-      await expect(page.locator('.toolbar-btn').filter({ hasText: 'Открыть' }).or(
-        page.locator('.toolbar-btn[title*="Открыть"]')
-      ).first()).toBeVisible()
+      await expect(
+        page
+          .locator('.toolbar-btn')
+          .filter({ hasText: 'Открыть' })
+          .or(page.locator('.toolbar-btn[title*="Открыть"]'))
+          .first()
+      ).toBeVisible()
 
       // Check for Save button
-      await expect(page.locator('.toolbar-btn').filter({ hasText: 'Сохранить' }).or(
-        page.locator('.toolbar-btn[title*="Сохранить"]')
-      ).first()).toBeVisible()
+      await expect(
+        page
+          .locator('.toolbar-btn')
+          .filter({ hasText: 'Сохранить' })
+          .or(page.locator('.toolbar-btn[title*="Сохранить"]'))
+          .first()
+      ).toBeVisible()
     })
 
     test('should have Recent files button', async ({ page }) => {
-      await expect(page.locator('.toolbar-btn.recent-btn').or(
-        page.locator('.toolbar-btn[title*="Недавние"]')
-      ).first()).toBeVisible()
+      await expect(
+        page
+          .locator('.toolbar-btn.recent-btn')
+          .or(page.locator('.toolbar-btn[title*="Недавние"]'))
+          .first()
+      ).toBeVisible()
     })
 
     test('should toggle recent files dropdown', async ({ page }) => {
-      const recentBtn = page.locator('.toolbar-btn.recent-btn').or(
-        page.locator('.toolbar-btn[title*="Недавние"]')
-      ).first()
+      const recentBtn = page
+        .locator('.toolbar-btn.recent-btn')
+        .or(page.locator('.toolbar-btn[title*="Недавние"]'))
+        .first()
 
       // Initially dropdown should not be visible
       await expect(page.locator('.recent-files-dropdown')).not.toBeVisible()
@@ -350,9 +366,10 @@ r♀ = r -> r♀.
       await page.evaluate(() => localStorage.clear())
       await page.reload()
 
-      const recentBtn = page.locator('.toolbar-btn.recent-btn').or(
-        page.locator('.toolbar-btn[title*="Недавние"]')
-      ).first()
+      const recentBtn = page
+        .locator('.toolbar-btn.recent-btn')
+        .or(page.locator('.toolbar-btn[title*="Недавние"]'))
+        .first()
 
       await recentBtn.click()
       await expect(page.locator('.recent-files-dropdown')).toBeVisible()
@@ -361,15 +378,23 @@ r♀ = r -> r♀.
     })
 
     test('should have Results export button', async ({ page }) => {
-      await expect(page.locator('.toolbar-btn').filter({ hasText: 'Результаты' }).or(
-        page.locator('.toolbar-btn[title*="Результаты"]')
-      ).first()).toBeVisible()
+      await expect(
+        page
+          .locator('.toolbar-btn')
+          .filter({ hasText: 'Результаты' })
+          .or(page.locator('.toolbar-btn[title*="Результаты"]'))
+          .first()
+      ).toBeVisible()
     })
 
     test('should have JSON export button', async ({ page }) => {
-      await expect(page.locator('.toolbar-btn').filter({ hasText: 'JSON' }).or(
-        page.locator('.toolbar-btn[title*="JSON"]')
-      ).first()).toBeVisible()
+      await expect(
+        page
+          .locator('.toolbar-btn')
+          .filter({ hasText: 'JSON' })
+          .or(page.locator('.toolbar-btn[title*="JSON"]'))
+          .first()
+      ).toBeVisible()
     })
 
     test('should disable export buttons when no results', async ({ page }) => {
@@ -427,7 +452,7 @@ r♀ = r -> r♀.
       const editor = page.locator('.editor-container')
 
       // Simulate drag enter using page.evaluate to access browser context
-      await editor.evaluate((el) => {
+      await editor.evaluate(el => {
         const event = new DragEvent('dragenter', {
           bubbles: true,
           cancelable: true,

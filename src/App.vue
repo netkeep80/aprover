@@ -12,6 +12,7 @@ import {
   readFileContent,
   getFilePreview,
   isSupportedFile,
+  getFileExtension,
   getRecentFiles,
   addRecentFile,
   removeRecentFile,
@@ -23,6 +24,7 @@ import {
   openFileDialog,
   type FileMetadata,
 } from './core/fileIO'
+import { stringAnumFileToMtl, visualizeConversion, type ConversionStep } from './core/stringAnum'
 
 const input = ref(`// МТС — Ассоциативный прувер
 // Примеры аксиом и формул
@@ -60,9 +62,15 @@ const highlightedLoc = ref<SourceLocation | null>(null)
 
 // File operations state
 const currentFileName = ref<string | null>(null)
+const currentFileType = ref<'mtl' | 'astr' | 'anum'>('mtl')
 const showRecentFiles = ref(false)
 const recentFiles = ref<FileMetadata[]>([])
 const isDragOver = ref(false)
+
+// String anumber conversion state
+const showConversion = ref(false)
+const conversionSteps = ref<ConversionStep[]>([])
+const originalAstrContent = ref<string | null>(null)
 
 const toggleAST = () => {
   showAST.value = !showAST.value
@@ -130,8 +138,39 @@ const loadFile = async (file: globalThis.File) => {
 
   try {
     const content = await readFileContent(file)
-    input.value = content
+    const ext = getFileExtension(file.name)
+
     currentFileName.value = file.name
+
+    if (ext === '.astr') {
+      // Convert string anumber to formal notation
+      currentFileType.value = 'astr'
+      originalAstrContent.value = content
+
+      // Generate conversion visualization for first non-empty line
+      const lines = content.split('\n').filter(l => l.trim() && !l.trim().startsWith('//'))
+      if (lines.length > 0) {
+        conversionSteps.value = visualizeConversion(lines[0].trim())
+        showConversion.value = true
+      }
+
+      // Convert to .mtl format
+      const mtlContent = stringAnumFileToMtl(content)
+      input.value = mtlContent
+    } else if (ext === '.anum') {
+      // TODO: Phase 3.3 - quaternary notation support
+      currentFileType.value = 'anum'
+      error.value = 'Четверичная нотация (.anum) пока не поддерживается. Ожидается в Этапе 3.3.'
+      return
+    } else {
+      // .mtl file - direct load
+      currentFileType.value = 'mtl'
+      originalAstrContent.value = null
+      showConversion.value = false
+      conversionSteps.value = []
+      input.value = content
+    }
+
     const preview = getFilePreview(content)
     addRecentFile(file.name, file.size, preview)
     loadRecentFiles()
@@ -168,10 +207,18 @@ const handleExportJson = () => {
 
 const handleNewFile = () => {
   currentFileName.value = null
+  currentFileType.value = 'mtl'
+  originalAstrContent.value = null
+  showConversion.value = false
+  conversionSteps.value = []
   input.value = `// МТС — Ассоциативный прувер
 // Введите формулы для верификации
 
 `
+}
+
+const toggleConversion = () => {
+  showConversion.value = !showConversion.value
 }
 
 const toggleRecentFiles = () => {
@@ -299,7 +346,7 @@ onUnmounted(() => {
     <header class="app-header">
       <div class="header-left">
         <h1>aprover</h1>
-        <span class="version">v0.2.0</span>
+        <span class="version">v0.3.0</span>
       </div>
       <p class="subtitle">Ассоциативный прувер для формальной нотации Метатеории Связей (МТС)</p>
       <div class="header-right">
@@ -374,11 +421,53 @@ onUnmounted(() => {
           </button>
         </div>
         <div class="toolbar-separator"></div>
+        <button
+          v-if="currentFileType === 'astr'"
+          class="toggle-btn"
+          :class="{ active: showConversion }"
+          title="Показать процесс конвертации"
+          @click="toggleConversion"
+        >
+          {{ showConversion ? 'Hide Conv' : 'Show Conv' }}
+        </button>
         <button class="toggle-btn" :class="{ active: showAST }" @click="toggleAST">
           {{ showAST ? 'Hide AST' : 'Show AST' }}
         </button>
+        <span v-if="currentFileType !== 'mtl'" class="file-type-badge" :class="currentFileType">
+          {{ currentFileType.toUpperCase() }}
+        </span>
       </div>
     </header>
+
+    <!-- Conversion panel for .astr files -->
+    <div v-if="showConversion && conversionSteps.length > 0" class="conversion-panel">
+      <div class="conversion-header">
+        <span class="conversion-title">🔄 Конвертация строковых ачисел</span>
+        <span class="conversion-subtitle"
+          >Процесс преобразования: строка → цепочка формальных запросов</span
+        >
+      </div>
+      <div class="conversion-steps">
+        <div
+          v-for="(step, index) in conversionSteps"
+          :key="index"
+          class="conversion-step"
+          :class="{ initial: index === 0 }"
+        >
+          <div class="step-number">{{ index === 0 ? '∞' : index }}</div>
+          <div class="step-content">
+            <div v-if="step.char" class="step-char">
+              <span class="char-label">Символ:</span>
+              <span class="char-value">'{{ step.char }}'</span>
+            </div>
+            <div class="step-description">{{ step.description }}</div>
+            <div class="step-formal">
+              <code>{{ step.formal }}</code>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <main class="app-main" :class="{ 'with-ast': showAST }">
       <div class="panel editor-panel">
@@ -767,5 +856,141 @@ body {
 
 .footer-links a:hover {
   text-decoration: underline;
+}
+
+/* File type badge */
+.file-type-badge {
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  margin-left: 0.5rem;
+}
+
+.file-type-badge.astr {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+}
+
+.file-type-badge.anum {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: white;
+}
+
+/* Conversion panel */
+.conversion-panel {
+  background: var(--panel-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  margin-bottom: 0.5rem;
+  overflow: hidden;
+}
+
+.conversion-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+}
+
+.conversion-title {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.conversion-subtitle {
+  font-size: 0.75rem;
+  opacity: 0.9;
+}
+
+.conversion-steps {
+  display: flex;
+  overflow-x: auto;
+  padding: 1rem;
+  gap: 0.5rem;
+}
+
+.conversion-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 150px;
+  padding: 0.75rem;
+  background: var(--accent-color);
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  position: relative;
+}
+
+.conversion-step:not(:last-child)::after {
+  content: '→';
+  position: absolute;
+  right: -1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #64748b;
+  font-size: 1.2rem;
+}
+
+.conversion-step.initial {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-color: #667eea;
+}
+
+.step-number {
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 50%;
+  font-weight: 600;
+  font-size: 0.85rem;
+  margin-bottom: 0.5rem;
+}
+
+.step-content {
+  text-align: center;
+  width: 100%;
+}
+
+.step-char {
+  margin-bottom: 0.25rem;
+}
+
+.char-label {
+  font-size: 0.7rem;
+  color: #94a3b8;
+}
+
+.char-value {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+  color: #fbbf24;
+  margin-left: 0.25rem;
+}
+
+.step-description {
+  font-size: 0.7rem;
+  color: #94a3b8;
+  margin-bottom: 0.5rem;
+}
+
+.step-formal {
+  font-size: 0.75rem;
+  word-break: break-all;
+}
+
+.step-formal code {
+  background: rgba(0, 0, 0, 0.3);
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 </style>
