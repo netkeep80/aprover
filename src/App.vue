@@ -60,6 +60,9 @@ const showAST = ref(true)
 // Highlighted source location (from AST node hover)
 const highlightedLoc = ref<SourceLocation | null>(null)
 
+// Highlighted AST node (from editor cursor position)
+const highlightedNodeLoc = ref<SourceLocation | null>(null)
+
 // File operations state
 const currentFileName = ref<string | null>(null)
 const currentFileType = ref<'mtl' | 'astr' | 'anum'>('mtl')
@@ -82,6 +85,11 @@ const toggleAST = () => {
 // Handle AST node hover for source highlighting
 const handleNodeHover = (loc: SourceLocation | null) => {
   highlightedLoc.value = loc
+}
+
+// Handle editor cursor position for AST node highlighting
+const handleCursorPosition = (loc: SourceLocation | null) => {
+  highlightedNodeLoc.value = loc
 }
 
 const parseAndVerify = () => {
@@ -480,11 +488,17 @@ onUnmounted(() => {
           :file-name="currentFileName || undefined"
           :is-drag-over="isDragOver"
           @file-drop="handleFileDrop"
+          @cursor-position="handleCursorPosition"
         />
       </div>
 
       <div v-if="showAST" class="panel ast-panel">
-        <ASTViewer :ast="ast" :error="error" @node-hover="handleNodeHover" />
+        <ASTViewer
+          :ast="ast"
+          :error="error"
+          :highlighted-node-loc="highlightedNodeLoc"
+          @node-hover="handleNodeHover"
+        />
       </div>
 
       <div class="panel results-panel">

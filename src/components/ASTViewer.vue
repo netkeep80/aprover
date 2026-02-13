@@ -5,6 +5,7 @@ import type { ASTNode, File, SourceLocation } from '../core/ast'
 const props = defineProps<{
   ast: File | null
   error: string | null
+  highlightedNodeLoc?: SourceLocation | null
 }>()
 
 const emit = defineEmits<{
@@ -267,6 +268,39 @@ function handleNodeLeave() {
   emit('node-hover', null)
 }
 
+// Check if a node location contains the cursor position
+function isNodeHighlighted(nodeLoc?: SourceLocation): boolean {
+  if (!nodeLoc || !props.highlightedNodeLoc) return false
+
+  const cursor = props.highlightedNodeLoc.start
+  const nodeStart = nodeLoc.start
+  const nodeEnd = nodeLoc.end
+
+  // Check if cursor is within node's location range
+  // Line-based check first
+  if (cursor.line < nodeStart.line || cursor.line > nodeEnd.line) {
+    return false
+  }
+
+  // If on the same line, check column
+  if (cursor.line === nodeStart.line && cursor.line === nodeEnd.line) {
+    return cursor.column >= nodeStart.column && cursor.column <= nodeEnd.column
+  }
+
+  // If on start line
+  if (cursor.line === nodeStart.line) {
+    return cursor.column >= nodeStart.column
+  }
+
+  // If on end line
+  if (cursor.line === nodeEnd.line) {
+    return cursor.column <= nodeEnd.column
+  }
+
+  // In between lines
+  return true
+}
+
 const treeData = computed<TreeNode | null>(() => {
   if (!props.ast) return null
   return astNodeToTreeNode(props.ast)
@@ -319,6 +353,7 @@ watch(
           :format-location="formatLocation"
           :on-node-enter="handleNodeEnter"
           :on-node-leave="handleNodeLeave"
+          :is-node-highlighted="isNodeHighlighted"
         />
       </div>
     </div>
@@ -343,6 +378,7 @@ const TreeNodeComponent = defineComponent({
     formatLocation: { type: Function, required: true },
     onNodeEnter: { type: Function, required: true },
     onNodeLeave: { type: Function, required: true },
+    isNodeHighlighted: { type: Function, required: true },
   },
   render() {
     const node = this.node as TreeNode
@@ -350,12 +386,17 @@ const TreeNodeComponent = defineComponent({
     const expanded = this.isExpanded(node.id)
     const locTooltip = this.formatLocation(node.loc)
     const indentSize = this.depth * 1.1 // 1.1rem per depth level
+    const highlighted = this.isNodeHighlighted(node.loc)
 
     return h('div', { class: 'tree-node', style: { marginLeft: `${indentSize}rem` } }, [
       h(
         'div',
         {
-          class: ['tree-node-content', this.getNodeTypeClass(node.type)],
+          class: [
+            'tree-node-content',
+            this.getNodeTypeClass(node.type),
+            highlighted ? 'highlighted' : '',
+          ],
           onClick: () => hasChildren && this.toggleNode(node.id),
           onMouseenter: () => this.onNodeEnter(node.loc),
           onMouseleave: () => this.onNodeLeave(),
@@ -394,6 +435,7 @@ const TreeNodeComponent = defineComponent({
                 formatLocation: this.formatLocation,
                 onNodeEnter: this.onNodeEnter,
                 onNodeLeave: this.onNodeLeave,
+                isNodeHighlighted: this.isNodeHighlighted,
               })
             )
           )
@@ -543,6 +585,12 @@ export default {
   background: rgba(102, 126, 234, 0.2);
 }
 
+.tree-node-content.highlighted {
+  background: rgba(102, 126, 234, 0.35);
+  border-radius: 3px;
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.5);
+}
+
 .tree-toggle {
   width: 1rem;
   color: #64748b;
@@ -578,36 +626,44 @@ export default {
   /* Children indentation is now handled by individual nodes */
 }
 
-/* Node type colors */
+/* Node type colors - Enhanced for better visibility */
 .node-structural .tree-label {
   color: #94a3b8;
+  font-weight: 500;
 }
 
 .node-link .tree-label {
   color: #f472b6;
+  font-weight: 600;
 }
 
 .node-define .tree-label {
   color: #60a5fa;
+  font-weight: 600;
 }
 
 .node-equality .tree-label {
   color: #34d399;
+  font-weight: 600;
 }
 
 .node-symbol .tree-label {
   color: #fbbf24;
+  font-weight: 600;
 }
 
 .node-not .tree-label {
   color: #f87171;
+  font-weight: 600;
 }
 
 .node-number .tree-label {
   color: #a78bfa;
+  font-weight: 600;
 }
 
 .node-identifier .tree-label {
   color: #67e8f9;
+  font-weight: 500;
 }
 </style>

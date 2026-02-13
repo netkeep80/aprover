@@ -12,6 +12,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   'update:modelValue': [value: string]
   'file-drop': [file: File]
+  'cursor-position': [loc: SourceLocation | null]
 }>()
 
 const textareaRef = ref<HTMLTextAreaElement | null>(null)
@@ -309,6 +310,48 @@ const fileExtBadge = computed(() => {
   const ext = name.split('.').pop()?.toUpperCase()
   return ext || 'MTL'
 })
+
+// Track cursor position for AST highlighting
+const handleMouseMove = (e: MouseEvent) => {
+  const textarea = textareaRef.value
+  if (!textarea) return
+
+  // Get cursor position in textarea
+  const rect = textarea.getBoundingClientRect()
+  const x = e.clientX - rect.left + textarea.scrollLeft
+  const y = e.clientY - rect.top + textarea.scrollTop
+
+  // Calculate line and column from mouse position
+  const lines = props.modelValue.split('\n')
+  const lineHeight = parseFloat(getComputedStyle(textarea).lineHeight)
+  const charWidth = parseFloat(getComputedStyle(textarea).fontSize) * 0.6 // approximate
+
+  const lineIndex = Math.floor(y / lineHeight)
+  const colIndex = Math.floor(x / charWidth) - 1 // adjust for padding
+
+  if (lineIndex >= 0 && lineIndex < lines.length) {
+    const line = lines[lineIndex]
+    const column = Math.max(0, Math.min(colIndex, line.length))
+
+    // Calculate absolute offset
+    let offset = 0
+    for (let i = 0; i < lineIndex; i++) {
+      offset += lines[i].length + 1 // +1 for newline
+    }
+    offset += column
+
+    const loc: SourceLocation = {
+      start: { line: lineIndex + 1, column, offset },
+      end: { line: lineIndex + 1, column, offset },
+    }
+
+    emit('cursor-position', loc)
+  }
+}
+
+const handleMouseLeave = () => {
+  emit('cursor-position', null)
+}
 </script>
 
 <template>
@@ -324,7 +367,7 @@ const fileExtBadge = computed(() => {
       <span class="file-icon">{{ fileExtBadge }}</span>
       <span class="file-name">{{ displayFileName }}</span>
     </div>
-    <div class="editor-content">
+    <div class="editor-content" @mousemove="handleMouseMove" @mouseleave="handleMouseLeave">
       <div class="highlight-layer" v-html="highlightedContent"></div>
       <textarea
         ref="textareaRef"
