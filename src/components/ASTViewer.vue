@@ -516,6 +516,8 @@ export default {
 .tree-root {
   font-family: 'JetBrains Mono', 'Fira Code', monospace;
   font-size: 0.85rem;
+  align-items: left;
+  text-align: left;
 }
 
 .tree-node {
