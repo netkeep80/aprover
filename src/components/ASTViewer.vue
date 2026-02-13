@@ -585,7 +585,7 @@ export default {
   background: rgba(102, 126, 234, 0.2);
 }
 
-.tree-node-content.highlighted {
+:deep(.tree-node-content.highlighted) {
   background: rgba(102, 126, 234, 0.35);
   border-radius: 3px;
   box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.5);
@@ -627,42 +627,42 @@ export default {
 }
 
 /* Node type colors - Enhanced for better visibility */
-.node-structural .tree-label {
+:deep(.node-structural .tree-label) {
   color: #94a3b8;
   font-weight: 500;
 }
 
-.node-link .tree-label {
+:deep(.node-link .tree-label) {
   color: #f472b6;
   font-weight: 600;
 }
 
-.node-define .tree-label {
+:deep(.node-define .tree-label) {
   color: #60a5fa;
   font-weight: 600;
 }
 
-.node-equality .tree-label {
+:deep(.node-equality .tree-label) {
   color: #34d399;
   font-weight: 600;
 }
 
-.node-symbol .tree-label {
+:deep(.node-symbol .tree-label) {
   color: #fbbf24;
   font-weight: 600;
 }
 
-.node-not .tree-label {
+:deep(.node-not .tree-label) {
   color: #f87171;
   font-weight: 600;
 }
 
-.node-number .tree-label {
+:deep(.node-number .tree-label) {
   color: #a78bfa;
   font-weight: 600;
 }
 
-.node-identifier .tree-label {
+:deep(.node-identifier .tree-label) {
   color: #67e8f9;
   font-weight: 500;
 }
