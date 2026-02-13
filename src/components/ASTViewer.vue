@@ -312,6 +312,7 @@ watch(
       <div class="tree-root">
         <TreeNodeComponent
           :node="treeData"
+          :depth="0"
           :is-expanded="isExpanded"
           :toggle-node="toggleNode"
           :get-node-type-class="getNodeTypeClass"
@@ -335,6 +336,7 @@ const TreeNodeComponent = defineComponent({
   name: 'TreeNodeComponent',
   props: {
     node: { type: Object, required: true },
+    depth: { type: Number, required: true },
     isExpanded: { type: Function, required: true },
     toggleNode: { type: Function, required: true },
     getNodeTypeClass: { type: Function, required: true },
@@ -347,8 +349,9 @@ const TreeNodeComponent = defineComponent({
     const hasChildren = node.children.length > 0
     const expanded = this.isExpanded(node.id)
     const locTooltip = this.formatLocation(node.loc)
+    const indentSize = this.depth * 1.5 // 1.5rem per depth level
 
-    return h('div', { class: 'tree-node' }, [
+    return h('div', { class: 'tree-node', style: { marginLeft: `${indentSize}rem` } }, [
       h(
         'div',
         {
@@ -384,6 +387,7 @@ const TreeNodeComponent = defineComponent({
             node.children.map((child: TreeNode) =>
               h(TreeNodeComponent, {
                 node: child,
+                depth: this.depth + 1,
                 isExpanded: this.isExpanded,
                 toggleNode: this.toggleNode,
                 getNodeTypeClass: this.getNodeTypeClass,
@@ -521,7 +525,7 @@ export default {
 }
 
 .tree-node {
-  margin-left: 0.5rem;
+  /* margin-left is now dynamic based on depth */
 }
 
 .tree-node-content {
@@ -571,9 +575,7 @@ export default {
 }
 
 .tree-children {
-  border-left: 1px solid var(--border-color);
-  margin-left: 0.5rem;
-  padding-left: 0.5rem;
+  /* Children indentation is now handled by individual nodes */
 }
 
 /* Node type colors */
