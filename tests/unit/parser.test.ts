@@ -180,12 +180,6 @@ describe('Parser', () => {
   })
 
   describe('File parsing', () => {
-    it('should parse multiple statements with periods', () => {
-      const file = parse('a = b. c = d.')
-      expect(file.type).toBe('File')
-      expect(file.statements.length).toBe(2)
-    })
-
     it('should parse multiple statements with commas', () => {
       const file = parse('a = b, c = d')
       expect(file.type).toBe('File')
@@ -204,8 +198,8 @@ describe('Parser', () => {
       expect(file.statements.length).toBe(3)
     })
 
-    it('should parse mixed separators', () => {
-      const file = parse('a = b.\nc = d,\ne = f')
+    it('should parse mixed separators (commas and newlines)', () => {
+      const file = parse('a = b\nc = d,\ne = f')
       expect(file.type).toBe('File')
       expect(file.statements.length).toBe(3)
     })
@@ -225,14 +219,14 @@ describe('Parser', () => {
   describe('Partial parsing with error recovery', () => {
     it('should return partial AST when error occurs after valid statements', () => {
       const input = `
-a = b.
-c = d.
+a = b
+c = d
 e = f)
       `.trim()
 
       const result = parseWithRecovery(input)
 
-      // Should have parsed three statements successfully (e = f is valid without period)
+      // Should have parsed three statements successfully (e = f is valid)
       expect(result.file).not.toBeNull()
       expect(result.file?.statements.length).toBe(3)
 
@@ -245,7 +239,7 @@ e = f)
     it('should return null file when error occurs on first statement', () => {
       const input = `
 )
-a = b.
+a = b
       `.trim()
 
       const result = parseWithRecovery(input)
@@ -260,22 +254,22 @@ a = b.
 
     it('should handle error from issue #48 example', () => {
       const input = `
-∞ = ∞ -> ∞.
-♂v = ♂v -> v.
-r♀ = r -> r♀.
-!♂x = x♀.
-!x♀ = ♂x.)
-a -> b -> c = (a -> b) -> c.
+∞ = ∞ -> ∞
+♂v = ♂v -> v
+r♀ = r -> r♀
+!♂x = x♀
+!x♀ = ♂x)
+a -> b -> c = (a -> b) -> c
       `.trim()
 
       const result = parseWithRecovery(input)
 
-      // Line 5 is "!x♀ = ♂x.)" which parses as "!x♀ = ♂x." followed by stray ")"
+      // Line 5 is "!x♀ = ♂x)" which parses as "!x♀ = ♂x" followed by stray ")"
       // So 5 valid statements should be parsed (lines 1-5)
       expect(result.file).not.toBeNull()
       expect(result.file?.statements.length).toBe(5)
 
-      // Should have error on the closing paren after the dot
+      // Should have error on the closing paren
       expect(result.error).not.toBeNull()
       expect(result.error?.message).toContain('RPAREN')
       expect(result.errorLocation?.start.line).toBe(5)
@@ -283,8 +277,8 @@ a -> b -> c = (a -> b) -> c.
 
     it('should return no error when parsing is fully successful', () => {
       const input = `
-a = b.
-c = d.
+a = b
+c = d
       `.trim()
 
       const result = parseWithRecovery(input)
@@ -299,14 +293,14 @@ c = d.
     })
 
     it('should provide correct error location', () => {
-      const input = 'a = b.\nc = d).'
+      const input = 'a = b\nc = d)'
 
       const result = parseWithRecovery(input)
 
       // Should have parsed two statements (a = b and c = d are valid)
       expect(result.file?.statements.length).toBe(2)
 
-      // Error should be on line 2 (the ').' part)
+      // Error should be on line 2 (the ')' part)
       expect(result.errorLocation?.start.line).toBe(2)
       expect(result.error?.message).toContain('RPAREN')
     })

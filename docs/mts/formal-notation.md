@@ -46,7 +46,7 @@
 
 ```ebnf
 File      = { Stmt } ;
-Stmt      = Expr , [ "." | "," ] ;  (* separators are optional *)
+Stmt      = Expr , [ "," ] ;  (* comma separator is optional *)
 
 Expr      = DefExpr | EqExpr | NeqExpr | Term ;
 

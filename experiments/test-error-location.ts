@@ -33,7 +33,12 @@ if (result.errorLocation) {
 
   console.log('\nError context:')
   console.log('Line', errorLine + 1, ':', lines[errorLine])
-  console.log('Error at column', errorCol, '-> character:', JSON.stringify(lines[errorLine][errorCol]))
+  console.log(
+    'Error at column',
+    errorCol,
+    '-> character:',
+    JSON.stringify(lines[errorLine][errorCol])
+  )
 
   // Show visual pointer
   const pointer = ' '.repeat(errorCol) + '^'
