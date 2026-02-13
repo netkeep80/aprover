@@ -5,10 +5,13 @@ import type { SourceLocation } from '../core/ast'
 const props = defineProps<{
   modelValue: string
   highlightedLoc?: SourceLocation | null
+  fileName?: string
+  isDragOver?: boolean
 }>()
 
 const emit = defineEmits<{
   'update:modelValue': [value: string]
+  'file-drop': [file: File]
 }>()
 
 const textareaRef = ref<HTMLTextAreaElement | null>(null)
@@ -262,13 +265,64 @@ watch(
     // Trigger re-render of highlighted content
   }
 )
+
+// Drag and drop handling
+const isDragging = ref(false)
+
+const handleDragEnter = (e: DragEvent) => {
+  e.preventDefault()
+  e.stopPropagation()
+  isDragging.value = true
+}
+
+const handleDragLeave = (e: DragEvent) => {
+  e.preventDefault()
+  e.stopPropagation()
+  isDragging.value = false
+}
+
+const handleDragOver = (e: DragEvent) => {
+  e.preventDefault()
+  e.stopPropagation()
+}
+
+const handleDrop = (e: DragEvent) => {
+  e.preventDefault()
+  e.stopPropagation()
+  isDragging.value = false
+
+  const files = e.dataTransfer?.files
+  if (files && files.length > 0) {
+    const file = files[0]
+    emit('file-drop', file)
+  }
+}
+
+// Computed display file name
+const displayFileName = computed(() => {
+  return props.fileName || 'input.mtl'
+})
+
+// File extension badge
+const fileExtBadge = computed(() => {
+  const name = displayFileName.value
+  const ext = name.split('.').pop()?.toUpperCase()
+  return ext || 'MTL'
+})
 </script>
 
 <template>
-  <div class="editor-container">
+  <div
+    class="editor-container"
+    :class="{ 'drag-over': isDragging || isDragOver }"
+    @dragenter="handleDragEnter"
+    @dragleave="handleDragLeave"
+    @dragover="handleDragOver"
+    @drop="handleDrop"
+  >
     <div class="editor-header">
-      <span class="file-icon">MTL</span>
-      <span class="file-name">input.mtl</span>
+      <span class="file-icon">{{ fileExtBadge }}</span>
+      <span class="file-name">{{ displayFileName }}</span>
     </div>
     <div class="editor-content">
       <div class="highlight-layer" v-html="highlightedContent"></div>
@@ -277,9 +331,15 @@ watch(
         v-model="localValue"
         class="code-input"
         spellcheck="false"
-        placeholder="// Введите формулы МТС...&#10;// Например:&#10;∞ = ∞ -> ∞."
+        placeholder="// Введите формулы МТС...&#10;// Например:&#10;∞ = ∞ -> ∞.&#10;&#10;// Или перетащите файл .mtl сюда"
         @scroll="handleScroll"
       ></textarea>
+      <div v-if="isDragging || isDragOver" class="drop-overlay">
+        <div class="drop-message">
+          <span class="drop-icon">📁</span>
+          <span>Отпустите файл для загрузки</span>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -442,5 +502,39 @@ watch(
   background: rgba(102, 126, 234, 0.3);
   border-radius: 2px;
   box-shadow: 0 0 0 1px rgba(102, 126, 234, 0.5);
+}
+
+/* Drag and drop overlay */
+.editor-container.drag-over {
+  border-color: #667eea;
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.3);
+}
+
+.drop-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(102, 126, 234, 0.15);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  border-radius: 4px;
+}
+
+.drop-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-color);
+  font-size: 1rem;
+}
+
+.drop-icon {
+  font-size: 2rem;
 }
 </style>

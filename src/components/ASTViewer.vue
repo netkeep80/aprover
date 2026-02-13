@@ -292,11 +292,11 @@ watch(
       <span class="ast-icon">AST</span>
       <span class="ast-title">Abstract Syntax Tree</span>
       <div class="ast-controls">
-        <button class="ast-btn" @click="expandAll" title="Expand all nodes">
+        <button class="ast-btn" title="Expand all nodes" @click="expandAll">
           <span class="btn-icon">⊞</span>
           <span class="btn-text">Expand All</span>
         </button>
-        <button class="ast-btn" @click="collapseAll" title="Collapse all nodes">
+        <button class="ast-btn" title="Collapse all nodes" @click="collapseAll">
           <span class="btn-icon">⊟</span>
           <span class="btn-text">Collapse All</span>
         </button>
