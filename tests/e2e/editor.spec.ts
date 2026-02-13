@@ -302,4 +302,183 @@ r♀ = r -> r♀.
     await statementNode.click()
     await expect(toggleIndicator).toHaveText('▶')
   })
+
+  // Phase 2.4: Enhanced Prover Tests
+  test.describe('Enhanced Prover Features', () => {
+    test('should display applied axioms badges', async ({ page }) => {
+      const editor = page.locator('.code-input')
+      await editor.fill('∞ = ∞ -> ∞.')
+
+      // Wait for results
+      await expect(page.locator('.result-item.success')).toBeVisible()
+
+      // Check for applied axioms section
+      await expect(page.locator('.applied-axioms')).toBeVisible()
+      await expect(page.locator('.axiom-badge')).toBeVisible()
+    })
+
+    test('should show axiom badges with correct labels', async ({ page }) => {
+      const editor = page.locator('.code-input')
+      await editor.fill('∞ = ∞ -> ∞.')
+
+      await expect(page.locator('.result-item.success')).toBeVisible()
+
+      // Should have A4 axiom badge for infinity
+      const axiomBadge = page.locator('.axiom-badge')
+      await expect(axiomBadge.filter({ hasText: 'A4' })).toBeVisible()
+    })
+
+    test('should show expand toggle for results with details', async ({ page }) => {
+      const editor = page.locator('.code-input')
+      await editor.fill('♂v = ♂v -> v.')
+
+      await expect(page.locator('.result-item.success')).toBeVisible()
+
+      // Should have expand toggle indicator
+      await expect(page.locator('.expand-toggle')).toBeVisible()
+    })
+
+    test('should expand proof steps on click', async ({ page }) => {
+      const editor = page.locator('.code-input')
+      await editor.fill('∞ = ∞ -> ∞.')
+
+      await expect(page.locator('.result-item.success')).toBeVisible()
+
+      // Click on result header to expand
+      await page.locator('.result-header').first().click()
+
+      // Should show proof details
+      await expect(page.locator('.proof-details')).toBeVisible()
+      await expect(page.locator('.proof-steps-list')).toBeVisible()
+    })
+
+    test('should display proof step index numbers', async ({ page }) => {
+      const editor = page.locator('.code-input')
+      await editor.fill('a = a.')
+
+      await expect(page.locator('.result-item.success')).toBeVisible()
+
+      // Click to expand
+      await page.locator('.result-header').first().click()
+
+      // Should have step indices
+      await expect(page.locator('.step-index').first()).toBeVisible()
+      await expect(page.locator('.step-index').first()).toContainText('1.')
+    })
+
+    test('should display proof step actions', async ({ page }) => {
+      const editor = page.locator('.code-input')
+      await editor.fill('a = a.')
+
+      await expect(page.locator('.result-item.success')).toBeVisible()
+
+      // Click to expand
+      await page.locator('.result-header').first().click()
+
+      // Should have step actions
+      await expect(page.locator('.step-action').first()).toBeVisible()
+    })
+
+    test('should collapse proof steps on second click', async ({ page }) => {
+      const editor = page.locator('.code-input')
+      await editor.fill('a = a.')
+
+      await expect(page.locator('.result-item.success')).toBeVisible()
+
+      // Click to expand
+      await page.locator('.result-header').first().click()
+      await expect(page.locator('.proof-details')).toBeVisible()
+
+      // Click to collapse
+      await page.locator('.result-header').first().click()
+      await expect(page.locator('.proof-details')).not.toBeVisible()
+    })
+
+    test('should display hints for failed verification', async ({ page }) => {
+      const editor = page.locator('.code-input')
+      // This should fail: male and female are dual but not equal
+      await editor.fill('♂∞ = ∞♀.')
+
+      await expect(page.locator('.result-item.failure')).toBeVisible()
+
+      // Should show hints section
+      await expect(page.locator('.hints-section')).toBeVisible()
+      await expect(page.locator('.hint-item').first()).toBeVisible()
+    })
+
+    test('should display hint icons', async ({ page }) => {
+      const editor = page.locator('.code-input')
+      await editor.fill('♂∞ = ∞♀.')
+
+      await expect(page.locator('.result-item.failure')).toBeVisible()
+
+      // Should have lightbulb icon
+      await expect(page.locator('.hint-icon').first()).toBeVisible()
+    })
+
+    test('should display related axiom in hints when applicable', async ({ page }) => {
+      const editor = page.locator('.code-input')
+      await editor.fill('♂∞ = ∞♀.')
+
+      await expect(page.locator('.result-item.failure')).toBeVisible()
+
+      // Should have axiom reference in hints
+      const hintAxiom = page.locator('.hint-axiom')
+      await expect(hintAxiom.first()).toBeVisible()
+    })
+
+    test('should show A5 axiom for male self-closing', async ({ page }) => {
+      const editor = page.locator('.code-input')
+      await editor.fill('♂v = ♂v -> v.')
+
+      await expect(page.locator('.result-item.success')).toBeVisible()
+
+      // Should show A5 axiom badge
+      await expect(page.locator('.axiom-badge').filter({ hasText: 'A5' })).toBeVisible()
+    })
+
+    test('should show A6 axiom for female self-closing', async ({ page }) => {
+      const editor = page.locator('.code-input')
+      await editor.fill('r♀ = r -> r♀.')
+
+      await expect(page.locator('.result-item.success')).toBeVisible()
+
+      // Should show A6 axiom badge
+      await expect(page.locator('.axiom-badge').filter({ hasText: 'A6' })).toBeVisible()
+    })
+
+    test('should show A1 axiom for structural equality', async ({ page }) => {
+      const editor = page.locator('.code-input')
+      await editor.fill('a = a.')
+
+      await expect(page.locator('.result-item.success')).toBeVisible()
+
+      // Should show A1 axiom badge
+      await expect(page.locator('.axiom-badge').filter({ hasText: 'A1' })).toBeVisible()
+    })
+
+    test('should show axiom tooltip on hover', async ({ page }) => {
+      const editor = page.locator('.code-input')
+      await editor.fill('∞ = ∞ -> ∞.')
+
+      await expect(page.locator('.result-item.success')).toBeVisible()
+
+      // Axiom badge should have title attribute for tooltip
+      const axiomBadge = page.locator('.axiom-badge').first()
+      const title = await axiomBadge.getAttribute('title')
+      expect(title).toBeTruthy()
+      expect(title).toContain(':')
+    })
+
+    test('should display axioms label', async ({ page }) => {
+      const editor = page.locator('.code-input')
+      await editor.fill('a = a.')
+
+      await expect(page.locator('.result-item.success')).toBeVisible()
+
+      // Should show "Применённые аксиомы:" label
+      await expect(page.locator('.axioms-label')).toBeVisible()
+      await expect(page.locator('.axioms-label')).toContainText('Применённые аксиомы')
+    })
+  })
 })
