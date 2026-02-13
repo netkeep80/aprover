@@ -472,6 +472,15 @@ const handleMouseLeave = () => {
         <button class="symbol-btn" title="Вставить символ ♀ (конец)" @click="insertSymbol('♀')">
           ♀
         </button>
+        <button class="symbol-btn" title="Вставить символ ♀ (конец)" @click="insertSymbol('♀')">
+          ♀
+        </button>
+        <button class="symbol-btn" title="Вставить символ ¬ (инверсия)" @click="insertSymbol('¬')">
+          ¬
+        </button>
+        <button class="symbol-btn" title="Вставить символ ≠ (неравенство)" @click="insertSymbol('≠')">
+          ≠
+        </button>
       </div>
     </div>
     <div class="editor-content" @mousemove="handleMouseMove" @mouseleave="handleMouseLeave">
