@@ -233,19 +233,20 @@ function applyErrorHighlight(
 ): string {
   if (!errorLoc) return html
 
-  const errorLine = errorLoc.start.line - 1 // 0-indexed
-  const errorCol = errorLoc.start.column
+  const errorLine = errorLoc.start.line - 1 // Convert to 0-indexed line
+  const errorCol = errorLoc.start.column - 1 // Convert to 0-indexed column (lexer uses 1-based)
 
   if (lineIndex !== errorLine) {
     return html
   }
 
   // Find the position in the HTML to insert error highlight
-  // We need to highlight the character at errorCol
+  // We need to highlight the character at errorCol (0-indexed)
   // Since html may contain <span> tags, we need to count actual characters
   let charCount = 0
   let insertPos = 0
   let inTag = false
+  let foundPosition = false
 
   for (let i = 0; i < html.length; i++) {
     if (html[i] === '<') {
@@ -258,6 +259,7 @@ function applyErrorHighlight(
     if (!inTag) {
       if (charCount === errorCol) {
         insertPos = i
+        foundPosition = true
         break
       }
       charCount++
@@ -265,7 +267,7 @@ function applyErrorHighlight(
   }
 
   // If we found the position, wrap the character at that position in error highlight
-  if (insertPos > 0 && insertPos < html.length) {
+  if (foundPosition && insertPos < html.length) {
     // Find the end of the current character (might be inside a span)
     let endPos = insertPos + 1
     // If the character is part of an HTML entity, extend to the end of entity

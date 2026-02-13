@@ -337,12 +337,7 @@ watch(
       </div>
     </div>
 
-    <div v-if="error" class="ast-error">
-      <span class="error-icon">!</span>
-      <span>Parse error</span>
-    </div>
-
-    <div v-else-if="treeData" class="ast-content">
+    <div v-if="treeData" class="ast-content">
       <div class="tree-root">
         <TreeNodeComponent
           :node="treeData"
@@ -356,6 +351,15 @@ watch(
           :is-node-highlighted="isNodeHighlighted"
         />
       </div>
+      <div v-if="error" class="ast-error-footer">
+        <span class="error-icon">!</span>
+        <span>Parse error</span>
+      </div>
+    </div>
+
+    <div v-else-if="error" class="ast-error">
+      <span class="error-icon">!</span>
+      <span>Parse error</span>
     </div>
 
     <div v-else class="ast-empty">
@@ -536,6 +540,18 @@ export default {
   gap: 0.5rem;
   padding: 1rem;
   color: var(--error-color);
+}
+
+.ast-error-footer {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  margin-top: 0.5rem;
+  background: rgba(248, 113, 113, 0.1);
+  border-top: 1px solid var(--error-color);
+  color: var(--error-color);
+  font-size: 0.85rem;
 }
 
 .error-icon {
