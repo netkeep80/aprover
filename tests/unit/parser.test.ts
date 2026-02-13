@@ -180,10 +180,34 @@ describe('Parser', () => {
   })
 
   describe('File parsing', () => {
-    it('should parse multiple statements', () => {
+    it('should parse multiple statements with periods', () => {
       const file = parse('a = b. c = d.')
       expect(file.type).toBe('File')
       expect(file.statements.length).toBe(2)
+    })
+
+    it('should parse multiple statements with commas', () => {
+      const file = parse('a = b, c = d')
+      expect(file.type).toBe('File')
+      expect(file.statements.length).toBe(2)
+    })
+
+    it('should parse multiple statements with newlines', () => {
+      const file = parse('a = b\nc = d')
+      expect(file.type).toBe('File')
+      expect(file.statements.length).toBe(2)
+    })
+
+    it('should parse multiple statements without separators', () => {
+      const file = parse('a = b\nc = d\ne = f')
+      expect(file.type).toBe('File')
+      expect(file.statements.length).toBe(3)
+    })
+
+    it('should parse mixed separators', () => {
+      const file = parse('a = b.\nc = d,\ne = f')
+      expect(file.type).toBe('File')
+      expect(file.statements.length).toBe(3)
     })
 
     it('should parse empty file', () => {
@@ -193,10 +217,6 @@ describe('Parser', () => {
   })
 
   describe('Error handling', () => {
-    it('should throw on missing dot', () => {
-      expect(() => parse('a = b')).toThrow(ParseError)
-    })
-
     it('should throw on unexpected token', () => {
       expect(() => parseExpr(')')).toThrow(ParseError)
     })
@@ -212,9 +232,9 @@ e = f)
 
       const result = parseWithRecovery(input)
 
-      // Should have parsed first two statements successfully
+      // Should have parsed three statements successfully (e = f is valid without period)
       expect(result.file).not.toBeNull()
-      expect(result.file?.statements.length).toBe(2)
+      expect(result.file?.statements.length).toBe(3)
 
       // Should have error information
       expect(result.error).not.toBeNull()
@@ -283,10 +303,10 @@ c = d.
 
       const result = parseWithRecovery(input)
 
-      // Should have parsed first statement
-      expect(result.file?.statements.length).toBe(1)
+      // Should have parsed two statements (a = b and c = d are valid)
+      expect(result.file?.statements.length).toBe(2)
 
-      // Error should be on line 2
+      // Error should be on line 2 (the ').' part)
       expect(result.errorLocation?.start.line).toBe(2)
       expect(result.error?.message).toContain('RPAREN')
     })

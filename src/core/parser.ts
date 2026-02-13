@@ -4,7 +4,7 @@
  *
  * Grammar (simplified):
  * File      ::= { Stmt }
- * Stmt      ::= Expr "."
+ * Stmt      ::= Expr [ "." | "," ]  // separators are optional
  * Expr      ::= DefExpr | EqExpr | NeqExpr | Term
  * DefExpr   ::= Term ":" Term
  * EqExpr    ::= Term "=" Term
@@ -164,15 +164,28 @@ export class Parser {
     }
   }
 
-  /** Parse statement: Expr "." */
+  /** Parse statement: Expr ["." | "," | newline]
+   * Periods, commas, and newlines are optional separators between statements.
+   * They are consumed if present but not required.
+   */
   private parseStatement(): Statement {
     const expr = this.parseExpr()
-    const dot = this.expect('DOT')
+
+    // Optional separator: consume period or comma if present
+    // Newlines are already consumed by whitespace skipping in lexer
+    if (this.checkAny('DOT', 'COMMA')) {
+      const separator = this.advance()
+      return {
+        type: 'Statement',
+        expr,
+        loc: this.mergeLoc(expr.loc!, separator.loc),
+      }
+    }
 
     return {
       type: 'Statement',
       expr,
-      loc: this.mergeLoc(expr.loc!, dot.loc),
+      loc: expr.loc!,
     }
   }
 
