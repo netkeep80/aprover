@@ -4,6 +4,7 @@ import type { ProofResult, VerificationHint } from '../core/prover'
 
 const props = defineProps<{
   results: { stmt: string; result: ProofResult }[]
+  hasError?: boolean
 }>()
 
 // Track which results have expanded proof details

@@ -5,6 +5,7 @@ import type { SourceLocation } from '../core/ast'
 const props = defineProps<{
   modelValue: string
   highlightedLoc?: SourceLocation | null
+  errorLoc?: SourceLocation | null
   fileName?: string
   isDragOver?: boolean
 }>()
@@ -223,9 +224,71 @@ function applyHighlightMarker(
   }
 }
 
+// Apply error highlighting to the character at error position
+function applyErrorHighlight(
+  html: string,
+  line: string,
+  lineIndex: number,
+  errorLoc: SourceLocation | null | undefined
+): string {
+  if (!errorLoc) return html
+
+  const errorLine = errorLoc.start.line - 1 // 0-indexed
+  const errorCol = errorLoc.start.column
+
+  if (lineIndex !== errorLine) {
+    return html
+  }
+
+  // Find the position in the HTML to insert error highlight
+  // We need to highlight the character at errorCol
+  // Since html may contain <span> tags, we need to count actual characters
+  let charCount = 0
+  let insertPos = 0
+  let inTag = false
+
+  for (let i = 0; i < html.length; i++) {
+    if (html[i] === '<') {
+      inTag = true
+    } else if (html[i] === '>') {
+      inTag = false
+      continue
+    }
+
+    if (!inTag) {
+      if (charCount === errorCol) {
+        insertPos = i
+        break
+      }
+      charCount++
+    }
+  }
+
+  // If we found the position, wrap the character at that position in error highlight
+  if (insertPos > 0 && insertPos < html.length) {
+    // Find the end of the current character (might be inside a span)
+    let endPos = insertPos + 1
+    // If the character is part of an HTML entity, extend to the end of entity
+    if (html[insertPos] === '&') {
+      while (endPos < html.length && html[endPos] !== ';') {
+        endPos++
+      }
+      if (html[endPos] === ';') endPos++
+    }
+
+    const before = html.substring(0, insertPos)
+    const char = html.substring(insertPos, endPos)
+    const after = html.substring(endPos)
+    return `${before}<span class="error-highlight">${char}</span>${after}`
+  }
+
+  return html
+}
+
 const highlightedContent = computed(() => {
   const text = props.modelValue
   const loc = props.highlightedLoc
+  const errLoc = props.errorLoc
 
   // Process line by line to handle comments correctly
   const lines = text.split('\n')
@@ -243,8 +306,13 @@ const highlightedContent = computed(() => {
       result = tokensToHtml(tokens)
     }
 
+    // Apply error highlight first (so it's on top)
+    result = applyErrorHighlight(result, line, lineIndex, errLoc)
+
     // Apply AST node highlight if applicable
-    return applyHighlightMarker(result, lineIndex, loc)
+    result = applyHighlightMarker(result, lineIndex, loc)
+
+    return result
   })
 
   return processedLines.join('\n')
@@ -547,6 +615,26 @@ const handleMouseLeave = () => {
   background: rgba(102, 126, 234, 0.3);
   border-radius: 2px;
   box-shadow: 0 0 0 1px rgba(102, 126, 234, 0.5);
+}
+
+:deep(.error-highlight) {
+  background: rgba(248, 113, 113, 0.4);
+  border-radius: 2px;
+  box-shadow: 0 0 0 2px var(--error-color);
+  padding: 0 2px;
+  animation: pulse-error 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-error {
+  0%,
+  100% {
+    box-shadow: 0 0 0 2px var(--error-color);
+  }
+  50% {
+    box-shadow:
+      0 0 0 2px var(--error-color),
+      0 0 8px 2px var(--error-color);
+  }
 }
 
 /* Drag and drop overlay */

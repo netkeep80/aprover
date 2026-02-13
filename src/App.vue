@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch, computed, onMounted, onUnmounted } from 'vue'
-import { parse, ParseError } from './core/parser'
+import { parseWithRecovery, ParseError } from './core/parser'
 import { normalize } from './core/normalizer'
 import { createProverState, verify, type ProofResult } from './core/prover'
 import { astToString, type File, type SourceLocation } from './core/ast'
@@ -51,6 +51,7 @@ a^3 = (a -> a) -> a.
 `)
 
 const error = ref<string | null>(null)
+const errorLocation = ref<SourceLocation | null>(null)
 const ast = ref<File | null>(null)
 const results = ref<{ stmt: string; result: ProofResult }[]>([])
 
@@ -94,23 +95,36 @@ const handleCursorPosition = (loc: SourceLocation | null) => {
 
 const parseAndVerify = () => {
   error.value = null
+  errorLocation.value = null
   ast.value = null
   results.value = []
 
   try {
-    const file = parse(input.value)
-    ast.value = file
-    const state = createProverState()
+    // Use parseWithRecovery to get partial results even on error
+    const parseResult = parseWithRecovery(input.value)
 
-    for (const stmt of file.statements) {
-      const stmtStr = astToString(stmt.expr)
-      const normalized = normalize(stmt.expr)
-      const result = verify(normalized, state)
-      results.value.push({ stmt: stmtStr, result })
+    // Set error information if present
+    if (parseResult.error) {
+      error.value = parseResult.error.message
+      errorLocation.value = parseResult.errorLocation || null
+    }
+
+    // Process partial AST if available
+    if (parseResult.file) {
+      ast.value = parseResult.file
+      const state = createProverState()
+
+      for (const stmt of parseResult.file.statements) {
+        const stmtStr = astToString(stmt.expr)
+        const normalized = normalize(stmt.expr)
+        const result = verify(normalized, state)
+        results.value.push({ stmt: stmtStr, result })
+      }
     }
   } catch (e) {
     if (e instanceof ParseError) {
       error.value = e.message
+      errorLocation.value = e.token.loc
     } else if (e instanceof Error) {
       error.value = e.message
     } else {
@@ -485,6 +499,7 @@ onUnmounted(() => {
         <Editor
           v-model="input"
           :highlighted-loc="highlightedLoc"
+          :error-loc="errorLocation"
           :file-name="currentFileName || undefined"
           :is-drag-over="isDragOver"
           @file-drop="handleFileDrop"
@@ -503,7 +518,7 @@ onUnmounted(() => {
 
       <div class="panel results-panel">
         <ErrorPanel :error="error" />
-        <ProverPanel v-if="!error" :results="results" />
+        <ProverPanel :results="results" :has-error="!!error" />
       </div>
     </main>
 

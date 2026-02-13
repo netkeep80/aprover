@@ -53,6 +53,13 @@ export class ParseError extends Error {
   }
 }
 
+/** Parse result with partial AST and optional error */
+export interface ParseResult {
+  file: File | null
+  error: ParseError | null
+  errorLocation?: SourceLocation
+}
+
 /** Parser class */
 export class Parser {
   private tokens: Token[]
@@ -117,6 +124,43 @@ export class Parser {
       type: 'File',
       statements,
       loc: this.mergeLoc(startLoc, this.current().loc),
+    }
+  }
+
+  /** Parse file with error recovery - returns partial AST on error */
+  parseFileWithRecovery(): ParseResult {
+    const statements: Statement[] = []
+    const startLoc = this.current().loc
+    let error: ParseError | null = null
+    let errorLocation: SourceLocation | undefined
+
+    while (!this.check('EOF')) {
+      try {
+        statements.push(this.parseStatement())
+      } catch (e) {
+        if (e instanceof ParseError) {
+          error = e
+          errorLocation = e.token.loc
+          // Stop parsing on first error
+          break
+        }
+        throw e
+      }
+    }
+
+    const file: File | null =
+      statements.length > 0
+        ? {
+            type: 'File',
+            statements,
+            loc: this.mergeLoc(startLoc, this.current().loc),
+          }
+        : null
+
+    return {
+      file,
+      error,
+      errorLocation,
     }
   }
 
@@ -376,6 +420,14 @@ export function parse(input: string): File {
   const tokens = lexer.tokenize()
   const parser = new Parser(tokens)
   return parser.parseFile()
+}
+
+/** Convenience function to parse with error recovery */
+export function parseWithRecovery(input: string): ParseResult {
+  const lexer = new Lexer(input)
+  const tokens = lexer.tokenize()
+  const parser = new Parser(tokens)
+  return parser.parseFileWithRecovery()
 }
 
 /** Parse single expression (without trailing dot) */
