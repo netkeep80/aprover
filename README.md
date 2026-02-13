@@ -1,4 +1,5 @@
 # aprover
+**Публичный URL**: [https://netkeep80.github.io/aprover/](https://netkeep80.github.io/aprover/)
 
 Ассоциативный прувер для формальной нотации Метатеории Связей (МТС)
 
