@@ -20,25 +20,181 @@ const localValue = computed({
 // For now, we just use the textarea with proper styling
 // Future: implement CodeMirror or Monaco integration
 
+// Token-based syntax highlighting to avoid HTML attribute conflicts
+interface Token {
+  type: string
+  value: string
+}
+
+// Tokenize a line of code (not including comments)
+function tokenizeLine(code: string): Token[] {
+  const tokens: Token[] = []
+  let pos = 0
+
+  while (pos < code.length) {
+    // Multi-character operators (check first)
+    if (code.slice(pos, pos + 3) === '!->') {
+      tokens.push({ type: 'operator', value: '!->' })
+      pos += 3
+      continue
+    }
+    if (code.slice(pos, pos + 2) === '->') {
+      tokens.push({ type: 'operator', value: '->' })
+      pos += 2
+      continue
+    }
+    if (code.slice(pos, pos + 2) === '!=') {
+      tokens.push({ type: 'equality', value: '!=' })
+      pos += 2
+      continue
+    }
+    if (code.slice(pos, pos + 2) === '¬=') {
+      tokens.push({ type: 'equality', value: '¬=' })
+      pos += 2
+      continue
+    }
+
+    const char = code[pos]
+
+    // Special symbols
+    if (char === '∞') {
+      tokens.push({ type: 'symbol infinity', value: char })
+      pos++
+      continue
+    }
+    if (char === '♂') {
+      tokens.push({ type: 'symbol male', value: char })
+      pos++
+      continue
+    }
+    if (char === '♀') {
+      tokens.push({ type: 'symbol female', value: char })
+      pos++
+      continue
+    }
+    if (char === '≠') {
+      tokens.push({ type: 'equality', value: char })
+      pos++
+      continue
+    }
+
+    // Standalone negation
+    if ((char === '!' || char === '¬') && code[pos + 1] !== '-' && code[pos + 1] !== '=') {
+      tokens.push({ type: 'negation', value: char })
+      pos++
+      continue
+    }
+
+    // Power operator
+    if (char === '^') {
+      tokens.push({ type: 'power', value: char })
+      pos++
+      continue
+    }
+
+    // Definition colon (surrounded by whitespace)
+    if (char === ':' && pos > 0 && pos < code.length - 1 && /\s/.test(code[pos - 1]) && /\s/.test(code[pos + 1])) {
+      tokens.push({ type: 'define', value: char })
+      pos++
+      continue
+    }
+
+    // Equality sign (standalone)
+    if (char === '=') {
+      tokens.push({ type: 'equality', value: char })
+      pos++
+      continue
+    }
+
+    // Brackets
+    if (char === '(' || char === ')') {
+      tokens.push({ type: 'bracket paren', value: char })
+      pos++
+      continue
+    }
+    if (char === '{' || char === '}') {
+      tokens.push({ type: 'bracket brace', value: char })
+      pos++
+      continue
+    }
+    if (char === '[' || char === ']') {
+      tokens.push({ type: 'bracket square', value: char })
+      pos++
+      continue
+    }
+
+    // Dot (statement terminator)
+    if (char === '.' && (pos === code.length - 1 || /\s/.test(code[pos + 1]))) {
+      tokens.push({ type: 'dot', value: char })
+      pos++
+      continue
+    }
+
+    // Numbers (0 and 1 as special constants)
+    if ((char === '0' || char === '1') && (pos === 0 || !/[a-zA-Zа-яА-ЯёЁ0-9_]/.test(code[pos - 1])) && (pos === code.length - 1 || !/[a-zA-Zа-яА-ЯёЁ0-9_]/.test(code[pos + 1]))) {
+      tokens.push({ type: 'number', value: char })
+      pos++
+      continue
+    }
+
+    // Identifiers
+    if (/[a-zA-Zа-яА-ЯёЁ_]/.test(char)) {
+      let id = char
+      pos++
+      while (pos < code.length && /[a-zA-Zа-яА-ЯёЁ0-9_]/.test(code[pos])) {
+        id += code[pos]
+        pos++
+      }
+      tokens.push({ type: 'identifier', value: id })
+      continue
+    }
+
+    // Plain text (whitespace, etc.)
+    tokens.push({ type: 'text', value: char })
+    pos++
+  }
+
+  return tokens
+}
+
+// Escape HTML special characters
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+}
+
+// Convert tokens to highlighted HTML
+function tokensToHtml(tokens: Token[]): string {
+  return tokens.map(token => {
+    const escaped = escapeHtml(token.value)
+    if (token.type === 'text') {
+      return escaped
+    }
+    return `<span class="${token.type}">${escaped}</span>`
+  }).join('')
+}
+
 const highlightedContent = computed(() => {
   const text = props.modelValue
-  return (
-    text
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      // Highlight comments
-      .replace(/(\/\/.*$)/gm, '<span class="comment">$1</span>')
-      // Highlight operators
-      .replace(/(->|!->)/g, '<span class="operator">$1</span>')
-      // Highlight special symbols
-      .replace(/([∞♂♀])/g, '<span class="symbol">$1</span>')
-      // Highlight definition and equality
-      .replace(/(\s)(:)(\s)/g, '$1<span class="define">$2</span>$3')
-      .replace(/(!=|=)/g, '<span class="equality">$1</span>')
-      // Highlight numbers
-      .replace(/\b([01])\b/g, '<span class="number">$1</span>')
-  )
+
+  // Process line by line to handle comments correctly
+  const lines = text.split('\n')
+  const processedLines = lines.map(line => {
+    // Check for comment
+    const commentIndex = line.indexOf('//')
+    if (commentIndex !== -1) {
+      const beforeComment = line.substring(0, commentIndex)
+      const comment = line.substring(commentIndex)
+      const tokens = tokenizeLine(beforeComment)
+      return tokensToHtml(tokens) + `<span class="comment">${escapeHtml(comment)}</span>`
+    }
+    const tokens = tokenizeLine(line)
+    return tokensToHtml(tokens)
+  })
+
+  return processedLines.join('\n')
 })
 
 // Sync scroll between textarea and highlight layer
@@ -166,21 +322,70 @@ watch(
 
 :deep(.operator) {
   color: #f472b6;
+  font-weight: 500;
 }
 
 :deep(.symbol) {
+  font-weight: bold;
+}
+
+:deep(.symbol.infinity) {
   color: #fbbf24;
+}
+
+:deep(.symbol.male) {
+  color: #60a5fa;
+}
+
+:deep(.symbol.female) {
+  color: #f472b6;
+}
+
+:deep(.negation) {
+  color: #ef4444;
+  font-weight: bold;
+}
+
+:deep(.power) {
+  color: #8b5cf6;
 }
 
 :deep(.define) {
   color: #60a5fa;
+  font-weight: bold;
 }
 
 :deep(.equality) {
   color: #34d399;
+  font-weight: 500;
+}
+
+:deep(.bracket) {
+  color: #94a3b8;
+}
+
+:deep(.bracket.paren) {
+  color: #fbbf24;
+}
+
+:deep(.bracket.brace) {
+  color: #f472b6;
+}
+
+:deep(.bracket.square) {
+  color: #60a5fa;
 }
 
 :deep(.number) {
   color: #a78bfa;
+  font-weight: bold;
+}
+
+:deep(.identifier) {
+  color: #e2e8f0;
+}
+
+:deep(.dot) {
+  color: #94a3b8;
 }
 </style>
