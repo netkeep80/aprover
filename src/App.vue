@@ -3,7 +3,7 @@ import { ref, watch, computed } from 'vue'
 import { parse, ParseError } from './core/parser'
 import { normalize } from './core/normalizer'
 import { createProverState, verify, type ProofResult } from './core/prover'
-import { astToString, type File } from './core/ast'
+import { astToString, type File, type SourceLocation } from './core/ast'
 import Editor from './components/Editor.vue'
 import ASTViewer from './components/ASTViewer.vue'
 import ProverPanel from './components/ProverPanel.vue'
@@ -40,8 +40,16 @@ const results = ref<{ stmt: string; result: ProofResult }[]>([])
 // Panel visibility state
 const showAST = ref(true)
 
+// Highlighted source location (from AST node hover)
+const highlightedLoc = ref<SourceLocation | null>(null)
+
 const toggleAST = () => {
   showAST.value = !showAST.value
+}
+
+// Handle AST node hover for source highlighting
+const handleNodeHover = (loc: SourceLocation | null) => {
+  highlightedLoc.value = loc
 }
 
 const parseAndVerify = () => {
@@ -99,11 +107,11 @@ const stats = computed(() => {
 
     <main class="app-main" :class="{ 'with-ast': showAST }">
       <div class="panel editor-panel">
-        <Editor v-model="input" />
+        <Editor v-model="input" :highlighted-loc="highlightedLoc" />
       </div>
 
       <div v-if="showAST" class="panel ast-panel">
-        <ASTViewer :ast="ast" :error="error" />
+        <ASTViewer :ast="ast" :error="error" @node-hover="handleNodeHover" />
       </div>
 
       <div class="panel results-panel">

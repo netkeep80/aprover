@@ -171,4 +171,135 @@ r♀ = r -> r♀.
     await page.locator('.toggle-btn').click()
     await expect(page.locator('.ast-panel')).toBeVisible()
   })
+
+  test('should have AST expand/collapse controls', async ({ page }) => {
+    // AST viewer should have expand/collapse buttons
+    await expect(page.locator('.ast-controls')).toBeVisible()
+    await expect(page.locator('.ast-btn').first()).toBeVisible()
+    await expect(page.locator('.ast-btn').nth(1)).toBeVisible()
+  })
+
+  test('should collapse all AST nodes', async ({ page }) => {
+    // Enter a formula to generate AST
+    const editor = page.locator('.code-input')
+    await editor.fill('a -> b.')
+
+    // Wait for AST to render
+    await expect(page.locator('.tree-root')).toBeVisible()
+
+    // Click collapse all button
+    await page.locator('.ast-btn').nth(1).click()
+
+    // After collapse, the Statement level should show collapsed indicator
+    // (Statement is a child of File, and collapse all keeps only File expanded)
+    const statementToggle = page
+      .locator('.tree-node-content')
+      .filter({ hasText: 'Statement' })
+      .first()
+      .locator('.tree-toggle')
+    await expect(statementToggle).toHaveText('▶')
+  })
+
+  test('should expand all AST nodes after collapse', async ({ page }) => {
+    // Enter a formula to generate AST
+    const editor = page.locator('.code-input')
+    await editor.fill('a -> b.')
+
+    // Wait for AST to render
+    await expect(page.locator('.tree-root')).toBeVisible()
+
+    // Collapse all first
+    await page.locator('.ast-btn').nth(1).click()
+
+    // Now expand all
+    await page.locator('.ast-btn').first().click()
+
+    // Tree children should be visible again
+    const treeChildren = page.locator('.tree-children')
+    await expect(treeChildren.first()).toBeVisible()
+  })
+
+  test('should display node location in AST tree', async ({ page }) => {
+    // Enter a simple formula
+    const editor = page.locator('.code-input')
+    await editor.fill('a = a.')
+
+    // Wait for AST to render
+    await expect(page.locator('.tree-root')).toBeVisible()
+
+    // Check that location info is displayed (format: [line:column])
+    await expect(page.locator('.tree-loc').first()).toBeVisible()
+    await expect(page.locator('.tree-loc').first()).toContainText('[')
+  })
+
+  test('should highlight source code when hovering AST node', async ({ page }) => {
+    // Enter a simple formula
+    const editor = page.locator('.code-input')
+    await editor.fill('a = a.')
+
+    // Wait for AST to render
+    await expect(page.locator('.tree-root')).toBeVisible()
+
+    // Find a tree node (e.g., the Identifier node)
+    const treeNodes = page.locator('.tree-node-content')
+    const identifierNode = treeNodes.filter({ hasText: 'Identifier' }).first()
+
+    // Hover over the node
+    await identifierNode.hover()
+
+    // Check that the highlight appears in the editor
+    await expect(page.locator('.ast-highlight')).toBeVisible()
+  })
+
+  test('should remove highlight when mouse leaves AST node', async ({ page }) => {
+    // Enter a simple formula
+    const editor = page.locator('.code-input')
+    await editor.fill('a = a.')
+
+    // Wait for AST to render
+    await expect(page.locator('.tree-root')).toBeVisible()
+
+    // Find a tree node
+    const treeNodes = page.locator('.tree-node-content')
+    const identifierNode = treeNodes.filter({ hasText: 'Identifier' }).first()
+
+    // Hover over the node
+    await identifierNode.hover()
+    await expect(page.locator('.ast-highlight')).toBeVisible()
+
+    // Move mouse away (hover over header)
+    await page.locator('.app-header').hover()
+
+    // Highlight should disappear
+    await expect(page.locator('.ast-highlight')).not.toBeVisible()
+  })
+
+  test('should toggle individual AST nodes', async ({ page }) => {
+    // Enter a formula with nested structure
+    const editor = page.locator('.code-input')
+    await editor.fill('a -> b.')
+
+    // Wait for AST to render with children visible
+    await expect(page.locator('.tree-root')).toBeVisible()
+    const treeChildren = page.locator('.tree-children')
+    await expect(treeChildren.first()).toBeVisible()
+
+    // First collapse all to get to a known state
+    await page.locator('.ast-btn').nth(1).click()
+
+    // Now expand Statement node by clicking on it
+    const statementNode = page
+      .locator('.tree-node-content')
+      .filter({ hasText: 'Statement' })
+      .first()
+    await statementNode.click()
+
+    // After clicking collapsed node, it should expand (show ▼)
+    const toggleIndicator = statementNode.locator('.tree-toggle')
+    await expect(toggleIndicator).toHaveText('▼')
+
+    // Click again to collapse
+    await statementNode.click()
+    await expect(toggleIndicator).toHaveText('▶')
+  })
 })
