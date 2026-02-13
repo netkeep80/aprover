@@ -349,7 +349,7 @@ const TreeNodeComponent = defineComponent({
     const hasChildren = node.children.length > 0
     const expanded = this.isExpanded(node.id)
     const locTooltip = this.formatLocation(node.loc)
-    const indentSize = this.depth * 1.2 // 1.2rem per depth level
+    const indentSize = this.depth * 1.1 // 1.1rem per depth level
 
     return h('div', { class: 'tree-node', style: { marginLeft: `${indentSize}rem` } }, [
       h(
