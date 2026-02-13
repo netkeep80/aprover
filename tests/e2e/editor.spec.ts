@@ -44,7 +44,7 @@ test.describe('aprover Web Interface', () => {
     const editor = page.locator('.code-input')
 
     // Clear editor and enter a simple valid formula
-    await editor.fill('∞ = ∞.')
+    await editor.fill('∞ = ∞')
 
     // Wait for results to update
     await expect(page.locator('.result-item')).toHaveCount(1)
@@ -53,7 +53,7 @@ test.describe('aprover Web Interface', () => {
 
   test('should show success indicator for valid equality', async ({ page }) => {
     const editor = page.locator('.code-input')
-    await editor.fill('a = a.')
+    await editor.fill('a = a')
 
     const resultItem = page.locator('.result-item')
     await expect(resultItem).toHaveClass(/success/)
@@ -64,7 +64,7 @@ test.describe('aprover Web Interface', () => {
     const editor = page.locator('.code-input')
     // Using different structures that cannot be unified:
     // ♂∞ (male of infinity) cannot equal ∞♀ (female of infinity)
-    await editor.fill('♂∞ = ∞♀.')
+    await editor.fill('♂∞ = ∞♀')
 
     const resultItem = page.locator('.result-item')
     await expect(resultItem).toHaveClass(/failure/)
@@ -80,7 +80,7 @@ test.describe('aprover Web Interface', () => {
 
   test('should verify infinity axiom (А4)', async ({ page }) => {
     const editor = page.locator('.code-input')
-    await editor.fill('∞ = ∞ -> ∞.')
+    await editor.fill('∞ = ∞ -> ∞')
 
     await expect(page.locator('.result-item.success')).toBeVisible()
     await expect(page.locator('.result-status')).toHaveText('✓')
@@ -88,28 +88,28 @@ test.describe('aprover Web Interface', () => {
 
   test('should verify male self-closing axiom (А5)', async ({ page }) => {
     const editor = page.locator('.code-input')
-    await editor.fill('♂v = ♂v -> v.')
+    await editor.fill('♂v = ♂v -> v')
 
     await expect(page.locator('.result-item.success')).toBeVisible()
   })
 
   test('should verify female self-closing axiom (А6)', async ({ page }) => {
     const editor = page.locator('.code-input')
-    await editor.fill('r♀ = r -> r♀.')
+    await editor.fill('r♀ = r -> r♀')
 
     await expect(page.locator('.result-item.success')).toBeVisible()
   })
 
   test('should verify inversion axiom (А7)', async ({ page }) => {
     const editor = page.locator('.code-input')
-    await editor.fill('!♂x = x♀.')
+    await editor.fill('!♂x = x♀')
 
     await expect(page.locator('.result-item.success')).toBeVisible()
   })
 
   test('should verify power expansion', async ({ page }) => {
     const editor = page.locator('.code-input')
-    await editor.fill('a^2 = a -> a.')
+    await editor.fill('a^2 = a -> a')
 
     await expect(page.locator('.result-item.success')).toBeVisible()
   })
@@ -117,9 +117,9 @@ test.describe('aprover Web Interface', () => {
   test('should verify multiple formulas', async ({ page }) => {
     const editor = page.locator('.code-input')
     await editor.fill(`
-∞ = ∞ -> ∞.
-♂v = ♂v -> v.
-r♀ = r -> r♀.
+∞ = ∞ -> ∞
+♂v = ♂v -> v
+r♀ = r -> r♀
 `)
 
     const results = page.locator('.result-item')
@@ -132,14 +132,14 @@ r♀ = r -> r♀.
 
   test('should verify inequality', async ({ page }) => {
     const editor = page.locator('.code-input')
-    await editor.fill('♂∞ != ∞♀.')
+    await editor.fill('♂∞ != ∞♀')
 
     await expect(page.locator('.result-item.success')).toBeVisible()
   })
 
   test('should handle left associativity (А11)', async ({ page }) => {
     const editor = page.locator('.code-input')
-    await editor.fill('a -> b -> c = (a -> b) -> c.')
+    await editor.fill('a -> b -> c = (a -> b) -> c')
 
     await expect(page.locator('.result-item.success')).toBeVisible()
   })
@@ -182,7 +182,7 @@ r♀ = r -> r♀.
   test('should collapse all AST nodes', async ({ page }) => {
     // Enter a formula to generate AST
     const editor = page.locator('.code-input')
-    await editor.fill('a -> b.')
+    await editor.fill('a -> b')
 
     // Wait for AST to render
     await expect(page.locator('.tree-root')).toBeVisible()
@@ -203,7 +203,7 @@ r♀ = r -> r♀.
   test('should expand all AST nodes after collapse', async ({ page }) => {
     // Enter a formula to generate AST
     const editor = page.locator('.code-input')
-    await editor.fill('a -> b.')
+    await editor.fill('a -> b')
 
     // Wait for AST to render
     await expect(page.locator('.tree-root')).toBeVisible()
@@ -222,7 +222,7 @@ r♀ = r -> r♀.
   test('should display node location in AST tree', async ({ page }) => {
     // Enter a simple formula
     const editor = page.locator('.code-input')
-    await editor.fill('a = a.')
+    await editor.fill('a = a')
 
     // Wait for AST to render
     await expect(page.locator('.tree-root')).toBeVisible()
@@ -235,7 +235,7 @@ r♀ = r -> r♀.
   test('should highlight source code when hovering AST node', async ({ page }) => {
     // Enter a simple formula
     const editor = page.locator('.code-input')
-    await editor.fill('a = a.')
+    await editor.fill('a = a')
 
     // Wait for AST to render
     await expect(page.locator('.tree-root')).toBeVisible()
@@ -254,7 +254,7 @@ r♀ = r -> r♀.
   test('should remove highlight when mouse leaves AST node', async ({ page }) => {
     // Enter a simple formula
     const editor = page.locator('.code-input')
-    await editor.fill('a = a.')
+    await editor.fill('a = a')
 
     // Wait for AST to render
     await expect(page.locator('.tree-root')).toBeVisible()
@@ -277,7 +277,7 @@ r♀ = r -> r♀.
   test('should toggle individual AST nodes', async ({ page }) => {
     // Enter a formula with nested structure
     const editor = page.locator('.code-input')
-    await editor.fill('a -> b.')
+    await editor.fill('a -> b')
 
     // Wait for AST to render with children visible
     await expect(page.locator('.tree-root')).toBeVisible()
@@ -413,7 +413,7 @@ r♀ = r -> r♀.
 
     test('should enable export buttons when results exist', async ({ page }) => {
       const editor = page.locator('.code-input')
-      await editor.fill('a = a.')
+      await editor.fill('a = a')
 
       // Wait for verification to complete
       await expect(page.locator('.result-item')).toBeVisible()
@@ -493,7 +493,7 @@ r♀ = r -> r♀.
   test.describe('Enhanced Prover Features', () => {
     test('should display applied axioms badges', async ({ page }) => {
       const editor = page.locator('.code-input')
-      await editor.fill('∞ = ∞ -> ∞.')
+      await editor.fill('∞ = ∞ -> ∞')
 
       // Wait for results
       await expect(page.locator('.result-item.success')).toBeVisible()
@@ -505,7 +505,7 @@ r♀ = r -> r♀.
 
     test('should show axiom badges with correct labels', async ({ page }) => {
       const editor = page.locator('.code-input')
-      await editor.fill('∞ = ∞ -> ∞.')
+      await editor.fill('∞ = ∞ -> ∞')
 
       await expect(page.locator('.result-item.success')).toBeVisible()
 
@@ -516,7 +516,7 @@ r♀ = r -> r♀.
 
     test('should show expand toggle for results with details', async ({ page }) => {
       const editor = page.locator('.code-input')
-      await editor.fill('♂v = ♂v -> v.')
+      await editor.fill('♂v = ♂v -> v')
 
       await expect(page.locator('.result-item.success')).toBeVisible()
 
@@ -526,7 +526,7 @@ r♀ = r -> r♀.
 
     test('should expand proof steps on click', async ({ page }) => {
       const editor = page.locator('.code-input')
-      await editor.fill('∞ = ∞ -> ∞.')
+      await editor.fill('∞ = ∞ -> ∞')
 
       await expect(page.locator('.result-item.success')).toBeVisible()
 
@@ -540,7 +540,7 @@ r♀ = r -> r♀.
 
     test('should display proof step index numbers', async ({ page }) => {
       const editor = page.locator('.code-input')
-      await editor.fill('a = a.')
+      await editor.fill('a = a')
 
       await expect(page.locator('.result-item.success')).toBeVisible()
 
@@ -554,7 +554,7 @@ r♀ = r -> r♀.
 
     test('should display proof step actions', async ({ page }) => {
       const editor = page.locator('.code-input')
-      await editor.fill('a = a.')
+      await editor.fill('a = a')
 
       await expect(page.locator('.result-item.success')).toBeVisible()
 
@@ -567,7 +567,7 @@ r♀ = r -> r♀.
 
     test('should collapse proof steps on second click', async ({ page }) => {
       const editor = page.locator('.code-input')
-      await editor.fill('a = a.')
+      await editor.fill('a = a')
 
       await expect(page.locator('.result-item.success')).toBeVisible()
 
@@ -583,7 +583,7 @@ r♀ = r -> r♀.
     test('should display hints for failed verification', async ({ page }) => {
       const editor = page.locator('.code-input')
       // This should fail: male and female are dual but not equal
-      await editor.fill('♂∞ = ∞♀.')
+      await editor.fill('♂∞ = ∞♀')
 
       await expect(page.locator('.result-item.failure')).toBeVisible()
 
@@ -594,7 +594,7 @@ r♀ = r -> r♀.
 
     test('should display hint icons', async ({ page }) => {
       const editor = page.locator('.code-input')
-      await editor.fill('♂∞ = ∞♀.')
+      await editor.fill('♂∞ = ∞♀')
 
       await expect(page.locator('.result-item.failure')).toBeVisible()
 
@@ -604,7 +604,7 @@ r♀ = r -> r♀.
 
     test('should display related axiom in hints when applicable', async ({ page }) => {
       const editor = page.locator('.code-input')
-      await editor.fill('♂∞ = ∞♀.')
+      await editor.fill('♂∞ = ∞♀')
 
       await expect(page.locator('.result-item.failure')).toBeVisible()
 
@@ -615,7 +615,7 @@ r♀ = r -> r♀.
 
     test('should show A5 axiom for male self-closing', async ({ page }) => {
       const editor = page.locator('.code-input')
-      await editor.fill('♂v = ♂v -> v.')
+      await editor.fill('♂v = ♂v -> v')
 
       await expect(page.locator('.result-item.success')).toBeVisible()
 
@@ -625,7 +625,7 @@ r♀ = r -> r♀.
 
     test('should show A6 axiom for female self-closing', async ({ page }) => {
       const editor = page.locator('.code-input')
-      await editor.fill('r♀ = r -> r♀.')
+      await editor.fill('r♀ = r -> r♀')
 
       await expect(page.locator('.result-item.success')).toBeVisible()
 
@@ -635,7 +635,7 @@ r♀ = r -> r♀.
 
     test('should show A1 axiom for structural equality', async ({ page }) => {
       const editor = page.locator('.code-input')
-      await editor.fill('a = a.')
+      await editor.fill('a = a')
 
       await expect(page.locator('.result-item.success')).toBeVisible()
 
@@ -645,7 +645,7 @@ r♀ = r -> r♀.
 
     test('should show axiom tooltip on hover', async ({ page }) => {
       const editor = page.locator('.code-input')
-      await editor.fill('∞ = ∞ -> ∞.')
+      await editor.fill('∞ = ∞ -> ∞')
 
       await expect(page.locator('.result-item.success')).toBeVisible()
 
@@ -658,7 +658,7 @@ r♀ = r -> r♀.
 
     test('should display axioms label', async ({ page }) => {
       const editor = page.locator('.code-input')
-      await editor.fill('a = a.')
+      await editor.fill('a = a')
 
       await expect(page.locator('.result-item.success')).toBeVisible()
 

@@ -67,7 +67,7 @@ EBNF:
 
 File      ::= { Stmt } ;
 
-Stmt      ::= Expr "." ;
+Stmt      ::= Expr [ "," ] ;  // comma separator is optional
 
 Expr      ::= DefExpr
             | EqExpr

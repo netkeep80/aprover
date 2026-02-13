@@ -21,7 +21,7 @@ import { createProverState, verify } from '../../src/core/prover'
  * Parse and verify a single formula string
  */
 function verifyFormula(formula: string): { success: boolean; message: string } {
-  const file = parse(formula + '.')
+  const file = parse(formula)
   const state = createProverState()
   const stmt = file.statements[0]
   const normalized = normalize(stmt.expr)
@@ -179,10 +179,10 @@ describe('Integration: mtl_formulas.mtc', () => {
 describe('Integration: Full pipeline test', () => {
   it('should process multiple statements', () => {
     const input = `
-      ∞ = ∞ -> ∞.
-      ♂v = ♂v -> v.
-      r♀ = r -> r♀.
-      !♂x = x♀.
+      ∞ = ∞ -> ∞
+      ♂v = ♂v -> v
+      r♀ = r -> r♀
+      !♂x = x♀
     `
     const file = parse(input)
     expect(file.statements).toHaveLength(4)
@@ -197,7 +197,7 @@ describe('Integration: Full pipeline test', () => {
 
   it('should normalize and verify power expressions correctly', () => {
     // Power expansion should work with normalizer
-    const input = 'a^5.'
+    const input = 'a^5'
     const file = parse(input)
     const stmt = file.statements[0]
     const normalized = normalize(stmt.expr)

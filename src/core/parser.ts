@@ -4,7 +4,7 @@
  *
  * Grammar (simplified):
  * File      ::= { Stmt }
- * Stmt      ::= Expr "."
+ * Stmt      ::= Expr [ "," ]  // comma separator is optional
  * Expr      ::= DefExpr | EqExpr | NeqExpr | Term
  * DefExpr   ::= Term ":" Term
  * EqExpr    ::= Term "=" Term
@@ -164,15 +164,29 @@ export class Parser {
     }
   }
 
-  /** Parse statement: Expr "." */
+  /** Parse statement: Expr ["," | newline]
+   * Commas and newlines are optional separators between statements.
+   * They are consumed if present but not required.
+   * Periods (.) are NOT supported as separators.
+   */
   private parseStatement(): Statement {
     const expr = this.parseExpr()
-    const dot = this.expect('DOT')
+
+    // Optional separator: consume comma if present
+    // Newlines are already consumed by whitespace skipping in lexer
+    if (this.check('COMMA')) {
+      const separator = this.advance()
+      return {
+        type: 'Statement',
+        expr,
+        loc: this.mergeLoc(expr.loc!, separator.loc),
+      }
+    }
 
     return {
       type: 'Statement',
       expr,
-      loc: this.mergeLoc(expr.loc!, dot.loc),
+      loc: expr.loc!,
     }
   }
 
@@ -430,9 +444,9 @@ export function parseWithRecovery(input: string): ParseResult {
   return parser.parseFileWithRecovery()
 }
 
-/** Parse single expression (without trailing dot) */
+/** Parse single expression */
 export function parseExpr(input: string): ASTNode {
-  const lexer = new Lexer(input + '.')
+  const lexer = new Lexer(input)
   const tokens = lexer.tokenize()
   const parser = new Parser(tokens)
   const file = parser.parseFile()
