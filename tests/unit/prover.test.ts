@@ -12,6 +12,7 @@ import {
   checkEquality,
   checkInequality,
   verify,
+  AXIOMS,
 } from '../../src/core/prover'
 
 describe('Prover', () => {
@@ -217,6 +218,159 @@ describe('Prover', () => {
       const eq = normalize(parseExpr('∞ = ∞'))
       const result = verify(eq, state())
       expect(result.success).toBe(true)
+    })
+  })
+
+  describe('Detailed proof steps', () => {
+    it('should return proofSteps array for successful verification', () => {
+      const eq = normalize(parseExpr('∞ = ∞'))
+      const result = verify(eq, state())
+      expect(result.success).toBe(true)
+      expect(result.proofSteps).toBeDefined()
+      expect(result.proofSteps!.length).toBeGreaterThan(0)
+    })
+
+    it('should include normalization step', () => {
+      const eq = normalize(parseExpr('a = a'))
+      const result = verify(eq, state())
+      expect(result.proofSteps).toBeDefined()
+      const normStep = result.proofSteps!.find(s => s.action.includes('Нормализация'))
+      expect(normStep).toBeDefined()
+    })
+
+    it('should include step index numbers', () => {
+      const eq = normalize(parseExpr('∞ = ∞ -> ∞'))
+      const result = verify(eq, state())
+      expect(result.proofSteps).toBeDefined()
+      result.proofSteps!.forEach((step, idx) => {
+        expect(step.index).toBe(idx + 1)
+      })
+    })
+
+    it('should include before/after transformations when applicable', () => {
+      const eq = normalize(parseExpr('♂a = ♂a -> a'))
+      const result = verify(eq, state())
+      expect(result.proofSteps).toBeDefined()
+      const axiomStep = result.proofSteps!.find(s => s.axiom?.id === 'A5')
+      expect(axiomStep).toBeDefined()
+    })
+
+    it('should include details in proof steps', () => {
+      const eq = normalize(parseExpr('a = a'))
+      const result = verify(eq, state())
+      expect(result.proofSteps).toBeDefined()
+      const hasDetails = result.proofSteps!.some(s => s.details !== undefined)
+      expect(hasDetails).toBe(true)
+    })
+  })
+
+  describe('Applied axioms tracking', () => {
+    it('should track A1 for structural equality', () => {
+      const eq = normalize(parseExpr('a = a'))
+      const result = verify(eq, state())
+      expect(result.appliedAxioms).toBeDefined()
+      expect(result.appliedAxioms!.some(a => a.id === 'A1')).toBe(true)
+    })
+
+    it('should track A4 for infinity axiom', () => {
+      const eq = normalize(parseExpr('∞ = ∞ -> ∞'))
+      const result = verify(eq, state())
+      expect(result.appliedAxioms).toBeDefined()
+      expect(result.appliedAxioms!.some(a => a.id === 'A4')).toBe(true)
+    })
+
+    it('should track A5 for male axiom', () => {
+      const eq = normalize(parseExpr('♂a = ♂a -> a'))
+      const result = verify(eq, state())
+      expect(result.appliedAxioms).toBeDefined()
+      expect(result.appliedAxioms!.some(a => a.id === 'A5')).toBe(true)
+    })
+
+    it('should track A6 for female axiom', () => {
+      const eq = normalize(parseExpr('a♀ = a -> a♀'))
+      const result = verify(eq, state())
+      expect(result.appliedAxioms).toBeDefined()
+      expect(result.appliedAxioms!.some(a => a.id === 'A6')).toBe(true)
+    })
+
+    it('should track A0 for definitions', () => {
+      const def = normalize(parseExpr('mydef : a -> b'))
+      const result = verify(def, state())
+      expect(result.appliedAxioms).toBeDefined()
+      expect(result.appliedAxioms!.some(a => a.id === 'A0')).toBe(true)
+    })
+
+    it('should include axiom name and formula', () => {
+      const eq = normalize(parseExpr('a = a'))
+      const result = verify(eq, state())
+      const a1 = result.appliedAxioms!.find(a => a.id === 'A1')
+      expect(a1).toBeDefined()
+      expect(a1!.name).toBeDefined()
+      expect(a1!.formula).toBeDefined()
+    })
+  })
+
+  describe('Verification hints', () => {
+    it('should return hints for failed verification', () => {
+      // Use multi-character identifiers to avoid being treated as variables
+      const eq = normalize(parseExpr('♂∞ = ∞♀'))
+      const result = verify(eq, state())
+      expect(result.success).toBe(false)
+      expect(result.hints).toBeDefined()
+      expect(result.hints!.length).toBeGreaterThan(0)
+    })
+
+    it('should suggest related axioms in hints', () => {
+      // Male expression that can't be unified
+      const eq = normalize(parseExpr('♂aa = bb'))
+      const result = verify(eq, state())
+      expect(result.success).toBe(false)
+      const axiomHint = result.hints!.find(h => h.relatedAxiom === 'A5')
+      expect(axiomHint).toBeDefined()
+    })
+
+    it('should provide hint about duality for ♂ vs ♀', () => {
+      const eq = normalize(parseExpr('♂∞ = ∞♀'))
+      const result = verify(eq, state())
+      expect(result.success).toBe(false)
+      const dualityHint = result.hints!.find(h => h.message.includes('дуальны'))
+      expect(dualityHint).toBeDefined()
+    })
+
+    it('should provide structural hints for type mismatch', () => {
+      const eq = normalize(parseExpr('∞ = ♂aa'))
+      const result = verify(eq, state())
+      expect(result.success).toBe(false)
+      expect(result.hints).toBeDefined()
+    })
+
+    it('should include hint type', () => {
+      const eq = normalize(parseExpr('aa = bb'))
+      const result = verify(eq, state())
+      expect(result.success).toBe(false)
+      result.hints!.forEach(hint => {
+        expect(['structural', 'definition', 'axiom', 'suggestion']).toContain(hint.type)
+      })
+    })
+  })
+
+  describe('AXIOMS constant', () => {
+    it('should have all axioms defined', () => {
+      expect(AXIOMS.A0).toBeDefined()
+      expect(AXIOMS.A1).toBeDefined()
+      expect(AXIOMS.A4).toBeDefined()
+      expect(AXIOMS.A5).toBeDefined()
+      expect(AXIOMS.A6).toBeDefined()
+      expect(AXIOMS.A7).toBeDefined()
+    })
+
+    it('should have required properties for each axiom', () => {
+      Object.values(AXIOMS).forEach(axiom => {
+        expect(axiom.id).toBeDefined()
+        expect(axiom.name).toBeDefined()
+        expect(axiom.formula).toBeDefined()
+        expect(axiom.description).toBeDefined()
+      })
     })
   })
 })
