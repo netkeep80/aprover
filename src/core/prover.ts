@@ -570,6 +570,50 @@ function applyFemaleAxiom(node: ASTNode): ASTNode | null {
 }
 
 /**
+ * Recursively collapse infinity expressions using axiom A4: ∞ = (∞ -> ∞)
+ *
+ * This function repeatedly applies A4 in reverse to reduce expressions like:
+ * - (∞ -> ∞) -> ∞
+ * - ((∞ -> ∞) -> ∞) -> ∞
+ * - etc.
+ *
+ * All of these should collapse to ∞ because:
+ * 1. ∞ = (∞ -> ∞) by A4
+ * 2. Substituting left ∞: (∞ -> ∞) = ((∞ -> ∞) -> ∞)
+ * 3. Therefore: ∞ = ((∞ -> ∞) -> ∞)
+ * 4. And so on recursively...
+ */
+function collapseInfinity(node: ASTNode): ASTNode {
+  // Base case: already ∞
+  if (isInfinityExpr(node)) {
+    return node
+  }
+
+  // Recursive case: (a -> b) where both a and b can collapse to ∞
+  if (isLinkExpr(node)) {
+    const collapsedLeft = collapseInfinity(node.left)
+    const collapsedRight = collapseInfinity(node.right)
+
+    // If both sides collapse to ∞, then (∞ -> ∞) collapses to ∞ by A4
+    if (isInfinityExpr(collapsedLeft) && isInfinityExpr(collapsedRight)) {
+      return { type: 'Infinity' }
+    }
+
+    // Otherwise, return with collapsed children
+    if (collapsedLeft !== node.left || collapsedRight !== node.right) {
+      return {
+        type: 'Link',
+        left: collapsedLeft,
+        right: collapsedRight,
+      } as LinkExpr
+    }
+  }
+
+  // Other node types: return as-is
+  return node
+}
+
+/**
  * Generate hints for failed equality verification
  */
 function generateEqualityHints(
@@ -835,7 +879,51 @@ export function checkEquality(left: ASTNode, right: ASTNode, state: ProverState)
     }
   }
 
-  // ∞ = ∞ -> ∞
+  // ∞ = ∞ -> ∞ (with recursive collapse support)
+  // Try to collapse both sides using axiom A4: ∞ = (∞ -> ∞)
+  const collapsedLeft = collapseInfinity(expLeft)
+  const collapsedRight = collapseInfinity(expRight)
+
+  // Check if one or both sides involve infinity and can be collapsed
+  const leftIsInfinity = isInfinityExpr(collapsedLeft)
+  const rightIsInfinity = isInfinityExpr(collapsedRight)
+  const leftWasCollapsed = !astEqual(expLeft, collapsedLeft)
+  const rightWasCollapsed = !astEqual(expRight, collapsedRight)
+
+  if ((leftIsInfinity || rightIsInfinity) && (leftWasCollapsed || rightWasCollapsed)) {
+    // Build detailed explanation of collapse steps
+    let details = ''
+    if (leftWasCollapsed && rightWasCollapsed) {
+      details = `Обе стороны сворачиваются в ∞:\n  ${expLeftStr} → ${toCanonicalString(collapsedLeft)}\n  ${expRightStr} → ${toCanonicalString(collapsedRight)}`
+    } else if (leftWasCollapsed) {
+      details = `Левая сторона сворачивается в ∞: ${expLeftStr} → ${toCanonicalString(collapsedLeft)}`
+    } else {
+      details = `Правая сторона сворачивается в ∞: ${expRightStr} → ${toCanonicalString(collapsedRight)}`
+    }
+
+    proofSteps.push({
+      index: proofSteps.length + 1,
+      action: 'Рекурсивное свёртывание по А4',
+      before: `${expLeftStr} = ${expRightStr}`,
+      after: `${toCanonicalString(collapsedLeft)} = ${toCanonicalString(collapsedRight)}`,
+      axiom: AXIOMS.A4,
+      details,
+    })
+
+    // Check equality after collapse
+    if (astEqual(collapsedLeft, collapsedRight)) {
+      appliedAxioms.push(AXIOMS.A4)
+      return {
+        success: true,
+        message: 'Применена аксиома А4: ∞ = (∞ → ∞) с рекурсивным свёртыванием',
+        steps: ['∞ : (∞ -> ∞) recursively applied'],
+        proofSteps,
+        appliedAxioms,
+      }
+    }
+  }
+
+  // Original simple cases (for backward compatibility and clarity in proof steps)
   if (isInfinityExpr(expLeft)) {
     const infLink: LinkExpr = {
       type: 'Link',
