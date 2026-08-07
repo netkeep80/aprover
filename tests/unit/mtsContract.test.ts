@@ -1,22 +1,26 @@
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 import { validateMtsContractBundleV02 } from '../../src/core/mtsContract'
 
-const contractUrl = new URL('../../contracts/anum_docs-v0.2/mts-contract-v0.2.json', import.meta.url)
-const conformanceUrl = new URL(
-  '../../contracts/anum_docs-v0.2/mts-conformance-v0.2.json',
-  import.meta.url
+const contractPath = resolve(
+  process.cwd(),
+  'contracts/anum_docs-v0.2/mts-contract-v0.2.json'
 )
-const provenanceUrl = new URL('../../contracts/anum_docs-v0.2/provenance.json', import.meta.url)
+const conformancePath = resolve(
+  process.cwd(),
+  'contracts/anum_docs-v0.2/mts-conformance-v0.2.json'
+)
+const provenancePath = resolve(process.cwd(), 'contracts/anum_docs-v0.2/provenance.json')
 
-function readJson(url: URL): unknown {
-  return JSON.parse(readFileSync(url, 'utf8')) as unknown
+function readJson(path: string): unknown {
+  return JSON.parse(readFileSync(path, 'utf8')) as unknown
 }
 
-function gitBlobSha(url: URL): string {
-  const content = readFileSync(url)
+function gitBlobSha(path: string): string {
+  const content = readFileSync(path)
   return createHash('sha1')
     .update(`blob ${content.byteLength}\0`)
     .update(content)
@@ -31,12 +35,15 @@ interface Provenance {
 }
 
 function readProvenance(): Provenance {
-  return readJson(provenanceUrl) as Provenance
+  return readJson(provenancePath) as Provenance
 }
 
 describe('pinned anum_docs MTS v0.2 contract', () => {
   it('loads as one validated contract + conformance bundle', () => {
-    const bundle = validateMtsContractBundleV02(readJson(contractUrl), readJson(conformanceUrl))
+    const bundle = validateMtsContractBundleV02(
+      readJson(contractPath),
+      readJson(conformancePath)
+    )
 
     expect(bundle.contract.schema).toBe('mts-contract/v0.2')
     expect(bundle.conformance.schema).toBe('mts-conformance/v0.2')
@@ -48,14 +55,17 @@ describe('pinned anum_docs MTS v0.2 contract', () => {
 
     expect(provenance.sourceRepository).toBe('netkeep80/anum_docs')
     expect(provenance.sourceCommit).toBe('294aa5e3d141e16fa93f88c0c18c4b78f8ae168c')
-    expect(gitBlobSha(contractUrl)).toBe(provenance.contract.gitBlobSha)
-    expect(gitBlobSha(conformanceUrl)).toBe(provenance.conformance.gitBlobSha)
+    expect(gitBlobSha(contractPath)).toBe(provenance.contract.gitBlobSha)
+    expect(gitBlobSha(conformancePath)).toBe(provenance.conformance.gitBlobSha)
     expect(provenance.contract.gitBlobSha).toBe('fb414a1541f3430fa9292c0fdfd89ca07d5db8ea')
     expect(provenance.conformance.gitBlobSha).toBe('96303366a8808d9e67ee548b445fcdbf2233f336')
   })
 
   it('treats the two context pronouns as atomic non-bracket code points', () => {
-    const { contract } = validateMtsContractBundleV02(readJson(contractUrl), readJson(conformanceUrl))
+    const { contract } = validateMtsContractBundleV02(
+      readJson(contractPath),
+      readJson(conformancePath)
+    )
     const context = contract.formalNotation.context
 
     expect(context.atomicPronouns).toBe(true)
@@ -70,7 +80,10 @@ describe('pinned anum_docs MTS v0.2 contract', () => {
   })
 
   it('forbids display labels from becoming semantic identity', () => {
-    const { contract } = validateMtsContractBundleV02(readJson(contractUrl), readJson(conformanceUrl))
+    const { contract } = validateMtsContractBundleV02(
+      readJson(contractPath),
+      readJson(conformancePath)
+    )
 
     expect(contract.integration.displayLabelIsIdentity).toBe(false)
     expect(contract.formalNotation.anonymousForm.identity).toBe('ast-occurrence-path')
@@ -79,7 +92,10 @@ describe('pinned anum_docs MTS v0.2 contract', () => {
   })
 
   it('keeps interpretation read-only and realization explicit', () => {
-    const { contract } = validateMtsContractBundleV02(readJson(contractUrl), readJson(conformanceUrl))
+    const { contract } = validateMtsContractBundleV02(
+      readJson(contractPath),
+      readJson(conformancePath)
+    )
 
     expect(contract.formalNotation.operations.interpret.effect).toBe('none')
     expect(contract.memory.interpretMayMaterialize).toBe(false)
@@ -89,8 +105,8 @@ describe('pinned anum_docs MTS v0.2 contract', () => {
 
   it('contains executable vectors for lexing, canonicalization and interpretation', () => {
     const { conformance } = validateMtsContractBundleV02(
-      readJson(contractUrl),
-      readJson(conformanceUrl)
+      readJson(contractPath),
+      readJson(conformancePath)
     )
 
     expect(conformance.lexing.length).toBeGreaterThan(0)
