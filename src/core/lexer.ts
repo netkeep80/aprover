@@ -1,22 +1,28 @@
 /**
- * Lexer for МТС (Meta-Theory of Links) formal notation
- * Based on EBNF from "МТС — Чистовик v0.1.md"
+ * Lexer for the canonical МТС formal notation consumed from anum_docs.
+ *
+ * The lexer stays deliberately context-free: square brackets are always
+ * emitted as square-bracket tokens and never acquire special meaning from a
+ * neighbouring pronoun. This is required by mts-contract/v0.2.
  */
 
 import type { SourceLocation } from './ast'
 
 /** Token types */
 export type TokenType =
-  | 'ARROW' // ->
+  | 'ARROW' // ⟼ | ->
   | 'NOT_ARROW' // !->
   | 'DEFINE' // :
   | 'EQUAL' // =
   | 'NOT_EQUAL' // != | ≠ | ¬=
-  | 'MALE' // ♂
-  | 'FEMALE' // ♀
+  | 'MALE' // ♂ (legacy name; parser semantics is migrated separately)
+  | 'FEMALE' // ♀ (legacy name; parser semantics is migrated separately)
   | 'NOT' // ! | ¬
   | 'POWER' // ^
   | 'INFINITY' // ∞
+  | 'CONTEXT_START' // ◁
+  | 'CONTEXT_END' // ▷
+  | 'CONTEXT_UP' // ↑
   | 'ZERO' // 0
   | 'ONE' // 1
   | 'LPAREN' // (
@@ -38,6 +44,32 @@ export interface Token {
   type: TokenType
   value: string
   loc: SourceLocation
+}
+
+/** Names used by the upstream mts-conformance/v0.2 lexing vectors. */
+export type MtsConformanceToken =
+  | 'context-start'
+  | 'context-end'
+  | 'context-up'
+  | 'lbracket'
+  | 'rbracket'
+
+/** Map lexical primitives that are explicitly named by the upstream corpus. */
+export function toMtsConformanceToken(token: Token): MtsConformanceToken | null {
+  switch (token.type) {
+    case 'CONTEXT_START':
+      return 'context-start'
+    case 'CONTEXT_END':
+      return 'context-end'
+    case 'CONTEXT_UP':
+      return 'context-up'
+    case 'LBRACKET':
+      return 'lbracket'
+    case 'RBRACKET':
+      return 'rbracket'
+    default:
+      return null
+  }
 }
 
 /** Lexer error */
@@ -64,17 +96,14 @@ export class Lexer {
     this.input = input
   }
 
-  /** Get current character */
   private current(): string {
     return this.input[this.pos] || ''
   }
 
-  /** Peek ahead n characters */
   private peek(n: number = 1): string {
     return this.input[this.pos + n] || ''
   }
 
-  /** Advance position by n characters */
   private advance(n: number = 1): void {
     for (let i = 0; i < n; i++) {
       if (this.current() === '\n') {
@@ -87,20 +116,16 @@ export class Lexer {
     }
   }
 
-  /** Check if at end of input */
   private isEOF(): boolean {
     return this.pos >= this.input.length
   }
 
-  /** Skip whitespace and comments */
   private skipWhitespaceAndComments(): void {
     while (!this.isEOF()) {
-      // Skip whitespace
       if (/\s/.test(this.current())) {
         this.advance()
         continue
       }
-      // Skip line comments: // ...
       if (this.current() === '/' && this.peek() === '/') {
         while (!this.isEOF() && this.current() !== '\n') {
           this.advance()
@@ -111,7 +136,6 @@ export class Lexer {
     }
   }
 
-  /** Create source location */
   private makeLoc(startLine: number, startColumn: number, startOffset: number): SourceLocation {
     return {
       start: { line: startLine, column: startColumn, offset: startOffset },
@@ -119,22 +143,18 @@ export class Lexer {
     }
   }
 
-  /** Check if character is start of identifier */
   private isIdStart(c: string): boolean {
     return /[a-zA-Zа-яА-ЯёЁ_]/.test(c)
   }
 
-  /** Check if character can continue identifier */
   private isIdContinue(c: string): boolean {
     return /[a-zA-Zа-яА-ЯёЁ0-9_]/.test(c)
   }
 
-  /** Check if character is digit */
   private isDigit(c: string): boolean {
     return /[0-9]/.test(c)
   }
 
-  /** Read identifier */
   private readIdentifier(): string {
     let result = ''
     while (!this.isEOF() && this.isIdContinue(this.current())) {
@@ -144,7 +164,6 @@ export class Lexer {
     return result
   }
 
-  /** Read natural number */
   private readNumber(): string {
     let result = ''
     while (!this.isEOF() && this.isDigit(this.current())) {
@@ -154,14 +173,12 @@ export class Lexer {
     return result
   }
 
-  /** Check if character is valid abit character: [, 0, 1, ] */
   private isAbitChar(c: string): boolean {
     return c === '[' || c === '0' || c === '1' || c === ']'
   }
 
-  /** Read abit literal (sequence of [, 0, 1, ] characters in single quotes) */
   private readAbitLit(): string {
-    this.advance() // skip opening '
+    this.advance()
     let result = ''
     while (!this.isEOF() && this.current() !== "'") {
       const c = this.current()
@@ -182,16 +199,14 @@ export class Lexer {
     if (result.length === 0) {
       throw new LexerError('Empty abit literal', this.line, this.column, this.pos)
     }
-    this.advance() // skip closing '
+    this.advance()
     return result
   }
 
-  /** Read string literal (multiple characters in double quotes) */
   private readStringLit(): string {
-    this.advance() // skip opening "
+    this.advance()
     let result = ''
     while (!this.isEOF() && this.current() !== '"') {
-      // Handle escape sequences
       if (this.current() === '\\') {
         this.advance()
         if (this.isEOF()) {
@@ -215,7 +230,6 @@ export class Lexer {
             result += '"'
             break
           default:
-            // For unknown escape sequences, just include the character as-is
             result += escaped
         }
       } else {
@@ -226,11 +240,10 @@ export class Lexer {
     if (this.isEOF()) {
       throw new LexerError('Unterminated string literal', this.line, this.column, this.pos)
     }
-    this.advance() // skip closing "
+    this.advance()
     return result
   }
 
-  /** Get next token */
   nextToken(): Token {
     this.skipWhitespaceAndComments()
 
@@ -247,7 +260,6 @@ export class Lexer {
     const startOffset = this.pos
     const c = this.current()
 
-    // Multi-character tokens: check !-> before ! and !=
     if (c === '!' && this.peek() === '-' && this.peek(2) === '>') {
       this.advance(3)
       return {
@@ -280,8 +292,31 @@ export class Lexer {
       }
     }
 
-    // Single character tokens
     switch (c) {
+      case '⟼':
+        this.advance()
+        return { type: 'ARROW', value: '⟼', loc: this.makeLoc(startLine, startColumn, startOffset) }
+      case '◁':
+        this.advance()
+        return {
+          type: 'CONTEXT_START',
+          value: '◁',
+          loc: this.makeLoc(startLine, startColumn, startOffset),
+        }
+      case '▷':
+        this.advance()
+        return {
+          type: 'CONTEXT_END',
+          value: '▷',
+          loc: this.makeLoc(startLine, startColumn, startOffset),
+        }
+      case '↑':
+        this.advance()
+        return {
+          type: 'CONTEXT_UP',
+          value: '↑',
+          loc: this.makeLoc(startLine, startColumn, startOffset),
+        }
       case ':':
         this.advance()
         return {
@@ -373,23 +408,24 @@ export class Lexer {
       case '.':
         this.advance()
         return { type: 'DOT', value: '.', loc: this.makeLoc(startLine, startColumn, startOffset) }
-      case "'":
+      case "'": {
         const abit = this.readAbitLit()
         return {
           type: 'ABIT_LIT',
           value: abit,
           loc: this.makeLoc(startLine, startColumn, startOffset),
         }
-      case '"':
+      }
+      case '"': {
         const str = this.readStringLit()
         return {
           type: 'STRING_LIT',
           value: str,
           loc: this.makeLoc(startLine, startColumn, startOffset),
         }
+      }
     }
 
-    // Numbers: 0 and 1 are special constants, larger numbers are NAT
     if (this.isDigit(c)) {
       const num = this.readNumber()
       if (num === '0') {
@@ -401,7 +437,6 @@ export class Lexer {
       return { type: 'NAT', value: num, loc: this.makeLoc(startLine, startColumn, startOffset) }
     }
 
-    // Identifiers
     if (this.isIdStart(c)) {
       const id = this.readIdentifier()
       return { type: 'ID', value: id, loc: this.makeLoc(startLine, startColumn, startOffset) }
@@ -410,7 +445,6 @@ export class Lexer {
     throw new LexerError(`Unexpected character: ${c}`, this.line, this.column, this.pos)
   }
 
-  /** Tokenize entire input */
   tokenize(): Token[] {
     const tokens: Token[] = []
     while (true) {
@@ -422,7 +456,6 @@ export class Lexer {
   }
 }
 
-/** Convenience function to tokenize a string */
 export function tokenize(input: string): Token[] {
   return new Lexer(input).tokenize()
 }
