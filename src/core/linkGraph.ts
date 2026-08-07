@@ -1,15 +1,10 @@
 /**
- * Link graph projection module for МТС (Meta-Theory of Links)
+ * Occurrence-preserving link graph projection for МТС.
  *
- * Projects link formulas (association networks) into directed graphs:
- * 1. The center of a link is a graph node
- * 2. The start of a link is an edge with a cross (+)
- * 3. The end of a link is an edge with an arrow (->)
- * 4. Self-closing links loop back to the central node
- *
- * Visual representation of a link `a -> b`:
- *   a *+--*-->* b
- * Where the middle * is the center node of the link `ab`.
+ * IMPORTANT: display labels are presentation only. Two AST occurrences with the
+ * same label remain two graph nodes unless a future canonical runtime explicitly
+ * supplies the same LinkRef/OccurrenceId. This is required for anonymous forms
+ * and contextual interpretation in anum_docs v0.2.
  */
 
 import type { ASTNode } from './ast'
@@ -33,88 +28,88 @@ import {
 import { astToString } from './ast'
 import { escapeLabel } from './utils'
 
-/**
- * Node type in the link graph
- */
 export type LinkGraphNodeType =
-  | 'link-center' // Center of a link (connection node)
-  | 'atom' // Atomic element (identifier, number, infinity, etc.)
-  | 'operator' // Binary operator (=, !=, :)
-  | 'unary' // Unary operator (!, ♂, ♀)
-  | 'set' // Set expression
-  | 'power' // Power expression
+  | 'link-center'
+  | 'atom'
+  | 'operator'
+  | 'unary'
+  | 'set'
+  | 'power'
 
-/**
- * A node in the link graph
- */
 export interface LinkGraphNode {
-  /** Unique node identifier */
+  /** Unique graph-occurrence identifier. Never derived from the display label. */
   id: string
-  /** Display label */
   label: string
-  /** Node type for styling */
   nodeType: LinkGraphNodeType
-  /** Original AST node reference */
   astNode?: ASTNode
 }
 
-/**
- * Edge type in the link graph
- */
 export type LinkGraphEdgeType =
-  | 'link-start' // Start of link: edge with cross (+)
-  | 'link-end' // End of link: edge with arrow (->)
-  | 'self-start' // Self-closing start (♂x loops back)
-  | 'self-end' // Self-closing end (x♀ loops back)
-  | 'relation' // Structural relation (=, !=, :)
-  | 'member' // Set membership
+  | 'link-start'
+  | 'link-end'
+  | 'self-start'
+  | 'self-end'
+  | 'relation'
+  | 'member'
 
-/**
- * An edge in the link graph
- */
 export interface LinkGraphEdge {
-  /** Unique edge identifier */
   id: string
-  /** Source node ID */
   source: string
-  /** Target node ID */
   target: string
-  /** Edge type for styling */
   edgeType: LinkGraphEdgeType
-  /** Display label */
   label?: string
 }
 
-/**
- * Complete link graph representation
- */
 export interface LinkGraph {
-  /** All nodes */
   nodes: LinkGraphNode[]
-  /** All edges */
   edges: LinkGraphEdge[]
 }
 
-/**
- * Internal state for graph construction
- */
 interface GraphBuilderState {
   nodes: Map<string, LinkGraphNode>
   edges: LinkGraphEdge[]
   nodeCounter: number
+  edgeCounter: number
 }
 
-/**
- * Generate a unique node ID
- */
 function nextNodeId(state: GraphBuilderState, prefix: string): string {
-  state.nodeCounter++
+  state.nodeCounter += 1
   return `${prefix}_${state.nodeCounter}`
 }
 
-/**
- * Get a short label for an AST node (for display in graph)
- */
+function nextEdgeId(state: GraphBuilderState): string {
+  state.edgeCounter += 1
+  return `edge_${state.edgeCounter}`
+}
+
+function createNode(
+  state: GraphBuilderState,
+  prefix: string,
+  label: string,
+  nodeType: LinkGraphNodeType,
+  astNode: ASTNode
+): string {
+  const id = nextNodeId(state, prefix)
+  state.nodes.set(id, { id, label, nodeType, astNode })
+  return id
+}
+
+function addEdge(
+  state: GraphBuilderState,
+  source: string,
+  target: string,
+  edgeType: LinkGraphEdgeType,
+  label?: string
+): void {
+  state.edges.push({
+    id: nextEdgeId(state),
+    source,
+    target,
+    edgeType,
+    ...(label === undefined ? {} : { label }),
+  })
+}
+
 function getNodeLabel(node: ASTNode): string {
   if (isIdentExpr(node)) return node.name
   if (isInfinityExpr(node)) return '∞'
@@ -126,346 +121,148 @@ function getNodeLabel(node: ASTNode): string {
 }
 
 /**
- * Project an AST node into the link graph.
- * Returns the ID of the node representing this expression in the graph.
+ * Project one AST occurrence. Every recursive call creates graph identity for
+ * that occurrence; equal labels are intentionally NOT interned.
  */
 function projectNode(node: ASTNode, state: GraphBuilderState): string {
-  // Link expression: a -> b
-  // This is the core projection:
-  //   - Create a center node for the link
-  //   - Project left and right sub-expressions
-  //   - Add edge from left to center (link-start, with +)
-  //   - Add edge from center to right (link-end, with ->)
   if (isLinkExpr(node)) {
-    const centerId = nextNodeId(state, 'link')
+    const centerId = createNode(state, 'link', '', 'link-center', node)
     const leftId = projectNode(node.left, state)
     const rightId = projectNode(node.right, state)
 
-    state.nodes.set(centerId, {
-      id: centerId,
-      label: '',
-      nodeType: 'link-center',
-      astNode: node,
-    })
-
-    state.edges.push({
-      id: `e_${leftId}_${centerId}`,
-      source: leftId,
-      target: centerId,
-      edgeType: 'link-start',
-      label: '+',
-    })
-
-    state.edges.push({
-      id: `e_${centerId}_${rightId}`,
-      source: centerId,
-      target: rightId,
-      edgeType: 'link-end',
-    })
-
+    addEdge(state, leftId, centerId, 'link-start', '+')
+    addEdge(state, centerId, rightId, 'link-end')
     return centerId
   }
 
-  // Male self-closing: ♂x
-  // ♂x : (♂x -> x) — start self-closes to x
-  // The center node IS ♂x, with a self-loop for the start
   if (isMaleExpr(node)) {
-    const centerId = nextNodeId(state, 'male')
+    const centerId = createNode(
+      state,
+      'male',
+      `♂${getNodeLabel(node.operand)}`,
+      'unary',
+      node
+    )
     const operandId = projectNode(node.operand, state)
 
-    state.nodes.set(centerId, {
-      id: centerId,
-      label: `♂${getNodeLabel(node.operand)}`,
-      nodeType: 'unary',
-      astNode: node,
-    })
-
-    // Self-closing start: loop from center back to center
-    state.edges.push({
-      id: `e_${centerId}_self_start`,
-      source: centerId,
-      target: centerId,
-      edgeType: 'self-start',
-      label: '+',
-    })
-
-    // End goes to the operand
-    state.edges.push({
-      id: `e_${centerId}_${operandId}`,
-      source: centerId,
-      target: operandId,
-      edgeType: 'link-end',
-    })
-
+    addEdge(state, centerId, centerId, 'self-start', '+')
+    addEdge(state, centerId, operandId, 'link-end')
     return centerId
   }
 
-  // Female self-closing: x♀
-  // x♀ : (x -> x♀) — end self-closes to x
   if (isFemaleExpr(node)) {
-    const centerId = nextNodeId(state, 'female')
+    const centerId = createNode(
+      state,
+      'female',
+      `${getNodeLabel(node.operand)}♀`,
+      'unary',
+      node
+    )
     const operandId = projectNode(node.operand, state)
 
-    state.nodes.set(centerId, {
-      id: centerId,
-      label: `${getNodeLabel(node.operand)}♀`,
-      nodeType: 'unary',
-      astNode: node,
-    })
-
-    // Start from the operand
-    state.edges.push({
-      id: `e_${operandId}_${centerId}`,
-      source: operandId,
-      target: centerId,
-      edgeType: 'link-start',
-      label: '+',
-    })
-
-    // Self-closing end: loop from center back to center
-    state.edges.push({
-      id: `e_${centerId}_self_end`,
-      source: centerId,
-      target: centerId,
-      edgeType: 'self-end',
-    })
-
+    addEdge(state, operandId, centerId, 'link-start', '+')
+    addEdge(state, centerId, centerId, 'self-end')
     return centerId
   }
 
-  // Not expression: !x
   if (isNotExpr(node)) {
-    const centerId = nextNodeId(state, 'not')
+    const centerId = createNode(
+      state,
+      'not',
+      `!${getNodeLabel(node.operand)}`,
+      'unary',
+      node
+    )
     const operandId = projectNode(node.operand, state)
-
-    state.nodes.set(centerId, {
-      id: centerId,
-      label: `!${getNodeLabel(node.operand)}`,
-      nodeType: 'unary',
-      astNode: node,
-    })
-
-    state.edges.push({
-      id: `e_${operandId}_${centerId}_inv`,
-      source: operandId,
-      target: centerId,
-      edgeType: 'relation',
-      label: '!',
-    })
-
+    addEdge(state, operandId, centerId, 'relation', '!')
     return centerId
   }
 
-  // Definition: s : F
   if (isDefExpr(node)) {
-    const centerId = nextNodeId(state, 'def')
+    const centerId = createNode(state, 'def', ':', 'operator', node)
     const nameId = projectNode(node.name, state)
     const formId = projectNode(node.form, state)
 
-    state.nodes.set(centerId, {
-      id: centerId,
-      label: ':',
-      nodeType: 'operator',
-      astNode: node,
-    })
-
-    state.edges.push({
-      id: `e_${nameId}_${centerId}`,
-      source: nameId,
-      target: centerId,
-      edgeType: 'relation',
-      label: 'имя',
-    })
-
-    state.edges.push({
-      id: `e_${centerId}_${formId}`,
-      source: centerId,
-      target: formId,
-      edgeType: 'relation',
-      label: 'форма',
-    })
-
+    addEdge(state, nameId, centerId, 'relation', 'имя')
+    addEdge(state, centerId, formId, 'relation', 'форма')
     return centerId
   }
 
-  // Equality: A = B
   if (isEqExpr(node)) {
-    const centerId = nextNodeId(state, 'eq')
+    const centerId = createNode(state, 'eq', '=', 'operator', node)
     const leftId = projectNode(node.left, state)
     const rightId = projectNode(node.right, state)
 
-    state.nodes.set(centerId, {
-      id: centerId,
-      label: '=',
-      nodeType: 'operator',
-      astNode: node,
-    })
-
-    state.edges.push({
-      id: `e_${leftId}_${centerId}`,
-      source: leftId,
-      target: centerId,
-      edgeType: 'relation',
-    })
-
-    state.edges.push({
-      id: `e_${centerId}_${rightId}`,
-      source: centerId,
-      target: rightId,
-      edgeType: 'relation',
-    })
-
+    addEdge(state, leftId, centerId, 'relation')
+    addEdge(state, centerId, rightId, 'relation')
     return centerId
   }
 
-  // Inequality: A != B
   if (isNeqExpr(node)) {
-    const centerId = nextNodeId(state, 'neq')
+    const centerId = createNode(state, 'neq', '!=', 'operator', node)
     const leftId = projectNode(node.left, state)
     const rightId = projectNode(node.right, state)
 
-    state.nodes.set(centerId, {
-      id: centerId,
-      label: '!=',
-      nodeType: 'operator',
-      astNode: node,
-    })
-
-    state.edges.push({
-      id: `e_${leftId}_${centerId}`,
-      source: leftId,
-      target: centerId,
-      edgeType: 'relation',
-    })
-
-    state.edges.push({
-      id: `e_${centerId}_${rightId}`,
-      source: centerId,
-      target: rightId,
-      edgeType: 'relation',
-    })
-
+    addEdge(state, leftId, centerId, 'relation')
+    addEdge(state, centerId, rightId, 'relation')
     return centerId
   }
 
-  // Power expression: a^n — expand as repeated links
   if (isPowerExpr(node)) {
-    const centerId = nextNodeId(state, 'pow')
+    const centerId = createNode(
+      state,
+      'pow',
+      `^${node.exponent}`,
+      'power',
+      node
+    )
     const baseId = projectNode(node.base, state)
-
-    state.nodes.set(centerId, {
-      id: centerId,
-      label: `^${node.exponent}`,
-      nodeType: 'power',
-      astNode: node,
-    })
-
-    state.edges.push({
-      id: `e_${baseId}_${centerId}`,
-      source: baseId,
-      target: centerId,
-      edgeType: 'relation',
-      label: `^${node.exponent}`,
-    })
-
+    addEdge(state, baseId, centerId, 'relation', `^${node.exponent}`)
     return centerId
   }
 
-  // Set expression: {A, B, C}
   if (isSetExpr(node)) {
-    const centerId = nextNodeId(state, 'set')
-
-    state.nodes.set(centerId, {
-      id: centerId,
-      label: '{…}',
-      nodeType: 'set',
-      astNode: node,
-    })
-
+    const centerId = createNode(state, 'set', '{…}', 'set', node)
     for (const element of node.elements) {
       const elementId = projectNode(element, state)
-      state.edges.push({
-        id: `e_${centerId}_${elementId}_member`,
-        source: centerId,
-        target: elementId,
-        edgeType: 'member',
-      })
+      addEdge(state, centerId, elementId, 'member')
     }
-
     return centerId
   }
 
-  // Atomic expressions: identifiers, numbers, infinity, literals, brackets
-  const label = getNodeLabel(node)
-
-  // Reuse existing atom nodes with the same label
-  for (const [existingId, existingNode] of state.nodes) {
-    if (existingNode.nodeType === 'atom' && existingNode.label === label) {
-      return existingId
-    }
-  }
-
-  const atomId = nextNodeId(state, 'atom')
-  state.nodes.set(atomId, {
-    id: atomId,
-    label,
-    nodeType: 'atom',
-    astNode: node,
-  })
-
-  return atomId
+  // Atomic AST nodes are occurrences, not interned symbols. A future runtime
+  // adapter may explicitly merge graph nodes by canonical LinkRef, but display
+  // text alone is never sufficient identity.
+  return createNode(state, 'atom', getNodeLabel(node), 'atom', node)
 }
 
-/**
- * Project an AST node (typically a statement expression) into a link graph.
- *
- * @param node - The AST node to project
- * @returns The link graph representation
- */
+function newState(): GraphBuilderState {
+  return {
+    nodes: new Map(),
+    edges: [],
+    nodeCounter: 0,
+    edgeCounter: 0,
+  }
+}
+
 export function projectToGraph(node: ASTNode): LinkGraph {
-  const state: GraphBuilderState = {
-    nodes: new Map(),
-    edges: [],
-    nodeCounter: 0,
-  }
-
+  const state = newState()
   projectNode(node, state)
-
   return {
     nodes: Array.from(state.nodes.values()),
     edges: state.edges,
   }
 }
 
-/**
- * Project multiple statements into a single combined graph.
- *
- * @param nodes - Array of AST nodes to project
- * @returns The combined link graph
- */
 export function projectStatementsToGraph(nodes: ASTNode[]): LinkGraph {
-  const state: GraphBuilderState = {
-    nodes: new Map(),
-    edges: [],
-    nodeCounter: 0,
-  }
-
-  for (const node of nodes) {
-    projectNode(node, state)
-  }
-
+  const state = newState()
+  for (const node of nodes) projectNode(node, state)
   return {
     nodes: Array.from(state.nodes.values()),
     edges: state.edges,
   }
 }
 
-/**
- * Convert a LinkGraph to Cytoscape.js elements format.
- *
- * @param graph - The link graph
- * @returns Array of Cytoscape element definitions
- */
 export function toCytoscapeElements(
   graph: LinkGraph
 ): Array<{ group: 'nodes' | 'edges'; data: Record<string, string | undefined> }> {
@@ -501,13 +298,6 @@ export function toCytoscapeElements(
   return elements
 }
 
-/**
- * Convert a LinkGraph to DOT format for Graphviz rendering.
- *
- * @param graph - The link graph
- * @param title - Optional graph title
- * @returns DOT format string
- */
 export function linkGraphToDOT(graph: LinkGraph, title?: string): string {
   const lines: string[] = []
   const graphLabel = title ? `  label="${escapeLabel(title)}";` : ''
@@ -519,9 +309,9 @@ export function linkGraphToDOT(graph: LinkGraph, title?: string): string {
   if (graphLabel) lines.push(graphLabel)
   lines.push('')
 
-  // Node styles by type
   const nodeStyles: Record<LinkGraphNodeType, string> = {
-    'link-center': 'shape=circle, style=filled, fillcolor="#e3f2fd", width=0.3, fixedsize=true',
+    'link-center':
+      'shape=circle, style=filled, fillcolor="#e3f2fd", width=0.3, fixedsize=true',
     atom: 'shape=box, style="filled,rounded", fillcolor="#c8e6c9"',
     operator: 'shape=diamond, style=filled, fillcolor="#fff3e0"',
     unary: 'shape=ellipse, style=filled, fillcolor="#f3e5f5"',
@@ -531,25 +321,36 @@ export function linkGraphToDOT(graph: LinkGraph, title?: string): string {
 
   for (const node of graph.nodes) {
     const style = nodeStyles[node.nodeType]
-    const label = node.label ? `label="${escapeLabel(node.label)}"` : 'label=""'
+    const label = node.label
+      ? `label="${escapeLabel(node.label)}"`
+      : 'label=""'
     lines.push(`  ${node.id} [${label}, ${style}];`)
   }
 
   lines.push('')
 
-  // Edge styles by type
   for (const edge of graph.edges) {
     const attrs: string[] = []
 
     switch (edge.edgeType) {
       case 'link-start':
-        attrs.push('arrowhead=none', 'arrowtail=odot', 'dir=both', 'color="#1565c0"')
+        attrs.push(
+          'arrowhead=none',
+          'arrowtail=odot',
+          'dir=both',
+          'color="#1565c0"'
+        )
         break
       case 'link-end':
         attrs.push('arrowhead=vee', 'color="#1565c0"')
         break
       case 'self-start':
-        attrs.push('arrowhead=none', 'arrowtail=odot', 'dir=both', 'color="#7b1fa2"')
+        attrs.push(
+          'arrowhead=none',
+          'arrowtail=odot',
+          'dir=both',
+          'color="#7b1fa2"'
+        )
         break
       case 'self-end':
         attrs.push('arrowhead=vee', 'color="#7b1fa2"')
@@ -562,14 +363,10 @@ export function linkGraphToDOT(graph: LinkGraph, title?: string): string {
         break
     }
 
-    if (edge.label) {
-      attrs.push(`label="${escapeLabel(edge.label)}"`)
-    }
-
+    if (edge.label) attrs.push(`label="${escapeLabel(edge.label)}"`)
     lines.push(`  ${edge.source} -> ${edge.target} [${attrs.join(', ')}];`)
   }
 
   lines.push('}')
-
   return lines.join('\n')
 }
