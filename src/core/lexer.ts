@@ -8,45 +8,42 @@
 
 import type { SourceLocation } from './ast'
 
-/** Token types */
 export type TokenType =
-  | 'ARROW' // ⟼ | ->
-  | 'NOT_ARROW' // !->
-  | 'DEFINE' // :
-  | 'EQUAL' // =
-  | 'NOT_EQUAL' // != | ≠ | ¬=
-  | 'MALE' // ♂ (legacy name; parser semantics is migrated separately)
-  | 'FEMALE' // ♀ (legacy name; parser semantics is migrated separately)
-  | 'NOT' // ! | ¬
-  | 'POWER' // ^
-  | 'INFINITY' // ∞
-  | 'CONTEXT_START' // ◁
-  | 'CONTEXT_END' // ▷
-  | 'CONTEXT_UP' // ↑
-  | 'ZERO' // 0
-  | 'ONE' // 1
-  | 'LPAREN' // (
-  | 'RPAREN' // )
-  | 'LBRACE' // {
-  | 'RBRACE' // }
-  | 'LBRACKET' // [
-  | 'RBRACKET' // ]
-  | 'COMMA' // ,
-  | 'DOT' // .
-  | 'ABIT_LIT' // '...' (abit sequence: only [, 0, 1, ] characters)
-  | 'STRING_LIT' // "..." (string for string anumbers - UTF-8)
-  | 'ID' // identifier
-  | 'NAT' // natural number
+  | 'ARROW'
+  | 'NOT_ARROW'
+  | 'DEFINE'
+  | 'EQUAL'
+  | 'NOT_EQUAL'
+  | 'MALE'
+  | 'FEMALE'
+  | 'NOT'
+  | 'POWER'
+  | 'INFINITY'
+  | 'CONTEXT_START'
+  | 'CONTEXT_END'
+  | 'CONTEXT_UP'
+  | 'ZERO'
+  | 'ONE'
+  | 'LPAREN'
+  | 'RPAREN'
+  | 'LBRACE'
+  | 'RBRACE'
+  | 'LBRACKET'
+  | 'RBRACKET'
+  | 'COMMA'
+  | 'DOT'
+  | 'ABIT_LIT'
+  | 'STRING_LIT'
+  | 'ID'
+  | 'NAT'
   | 'EOF'
 
-/** Token structure */
 export interface Token {
   type: TokenType
   value: string
   loc: SourceLocation
 }
 
-/** Names used by the upstream mts-conformance/v0.2 lexing vectors. */
 export type MtsConformanceToken =
   | 'context-start'
   | 'context-end'
@@ -54,7 +51,6 @@ export type MtsConformanceToken =
   | 'lbracket'
   | 'rbracket'
 
-/** Map lexical primitives that are explicitly named by the upstream corpus. */
 export function toMtsConformanceToken(token: Token): MtsConformanceToken | null {
   switch (token.type) {
     case 'CONTEXT_START':
@@ -72,7 +68,6 @@ export function toMtsConformanceToken(token: Token): MtsConformanceToken | null 
   }
 }
 
-/** Lexer error */
 export class LexerError extends Error {
   constructor(
     message: string,
@@ -85,7 +80,6 @@ export class LexerError extends Error {
   }
 }
 
-/** Lexer class */
 export class Lexer {
   private input: string
   private pos: number = 0
@@ -127,9 +121,7 @@ export class Lexer {
         continue
       }
       if (this.current() === '/' && this.peek() === '/') {
-        while (!this.isEOF() && this.current() !== '\n') {
-          this.advance()
-        }
+        while (!this.isEOF() && this.current() !== '\n') this.advance()
         continue
       }
       break
@@ -193,12 +185,8 @@ export class Lexer {
       result += c
       this.advance()
     }
-    if (this.isEOF()) {
-      throw new LexerError('Unterminated abit literal', this.line, this.column, this.pos)
-    }
-    if (result.length === 0) {
-      throw new LexerError('Empty abit literal', this.line, this.column, this.pos)
-    }
+    if (this.isEOF()) throw new LexerError('Unterminated abit literal', this.line, this.column, this.pos)
+    if (result.length === 0) throw new LexerError('Empty abit literal', this.line, this.column, this.pos)
     this.advance()
     return result
   }
@@ -209,50 +197,30 @@ export class Lexer {
     while (!this.isEOF() && this.current() !== '"') {
       if (this.current() === '\\') {
         this.advance()
-        if (this.isEOF()) {
-          throw new LexerError('Unterminated string literal', this.line, this.column, this.pos)
-        }
+        if (this.isEOF()) throw new LexerError('Unterminated string literal', this.line, this.column, this.pos)
         const escaped = this.current()
         switch (escaped) {
-          case 'n':
-            result += '\n'
-            break
-          case 't':
-            result += '\t'
-            break
-          case 'r':
-            result += '\r'
-            break
-          case '\\':
-            result += '\\'
-            break
-          case '"':
-            result += '"'
-            break
-          default:
-            result += escaped
+          case 'n': result += '\n'; break
+          case 't': result += '\t'; break
+          case 'r': result += '\r'; break
+          case '\\': result += '\\'; break
+          case '"': result += '"'; break
+          default: result += escaped
         }
       } else {
         result += this.current()
       }
       this.advance()
     }
-    if (this.isEOF()) {
-      throw new LexerError('Unterminated string literal', this.line, this.column, this.pos)
-    }
+    if (this.isEOF()) throw new LexerError('Unterminated string literal', this.line, this.column, this.pos)
     this.advance()
     return result
   }
 
   nextToken(): Token {
     this.skipWhitespaceAndComments()
-
     if (this.isEOF()) {
-      return {
-        type: 'EOF',
-        value: '',
-        loc: this.makeLoc(this.line, this.column, this.pos),
-      }
+      return { type: 'EOF', value: '', loc: this.makeLoc(this.line, this.column, this.pos) }
     }
 
     const startLine = this.line
@@ -262,178 +230,46 @@ export class Lexer {
 
     if (c === '!' && this.peek() === '-' && this.peek(2) === '>') {
       this.advance(3)
-      return {
-        type: 'NOT_ARROW',
-        value: '!->',
-        loc: this.makeLoc(startLine, startColumn, startOffset),
-      }
+      return { type: 'NOT_ARROW', value: '!->', loc: this.makeLoc(startLine, startColumn, startOffset) }
     }
-
     if (c === '!' && this.peek() === '=') {
       this.advance(2)
-      return {
-        type: 'NOT_EQUAL',
-        value: '!=',
-        loc: this.makeLoc(startLine, startColumn, startOffset),
-      }
+      return { type: 'NOT_EQUAL', value: '!=', loc: this.makeLoc(startLine, startColumn, startOffset) }
     }
-
     if (c === '-' && this.peek() === '>') {
       this.advance(2)
       return { type: 'ARROW', value: '->', loc: this.makeLoc(startLine, startColumn, startOffset) }
     }
-
     if (c === '¬' && this.peek() === '=') {
       this.advance(2)
-      return {
-        type: 'NOT_EQUAL',
-        value: '¬=',
-        loc: this.makeLoc(startLine, startColumn, startOffset),
-      }
+      return { type: 'NOT_EQUAL', value: '¬=', loc: this.makeLoc(startLine, startColumn, startOffset) }
     }
 
-    switch (c) {
-      case '⟼':
-        this.advance()
-        return { type: 'ARROW', value: '⟼', loc: this.makeLoc(startLine, startColumn, startOffset) }
-      case '◁':
-        this.advance()
-        return {
-          type: 'CONTEXT_START',
-          value: '◁',
-          loc: this.makeLoc(startLine, startColumn, startOffset),
-        }
-      case '▷':
-        this.advance()
-        return {
-          type: 'CONTEXT_END',
-          value: '▷',
-          loc: this.makeLoc(startLine, startColumn, startOffset),
-        }
-      case '↑':
-        this.advance()
-        return {
-          type: 'CONTEXT_UP',
-          value: '↑',
-          loc: this.makeLoc(startLine, startColumn, startOffset),
-        }
-      case ':':
-        this.advance()
-        return {
-          type: 'DEFINE',
-          value: ':',
-          loc: this.makeLoc(startLine, startColumn, startOffset),
-        }
-      case '=':
-        this.advance()
-        return { type: 'EQUAL', value: '=', loc: this.makeLoc(startLine, startColumn, startOffset) }
-      case '≠':
-        this.advance()
-        return {
-          type: 'NOT_EQUAL',
-          value: '≠',
-          loc: this.makeLoc(startLine, startColumn, startOffset),
-        }
-      case '♂':
-        this.advance()
-        return { type: 'MALE', value: '♂', loc: this.makeLoc(startLine, startColumn, startOffset) }
-      case '♀':
-        this.advance()
-        return {
-          type: 'FEMALE',
-          value: '♀',
-          loc: this.makeLoc(startLine, startColumn, startOffset),
-        }
-      case '!':
-        this.advance()
-        return { type: 'NOT', value: '!', loc: this.makeLoc(startLine, startColumn, startOffset) }
-      case '¬':
-        this.advance()
-        return { type: 'NOT', value: '¬', loc: this.makeLoc(startLine, startColumn, startOffset) }
-      case '^':
-        this.advance()
-        return { type: 'POWER', value: '^', loc: this.makeLoc(startLine, startColumn, startOffset) }
-      case '∞':
-        this.advance()
-        return {
-          type: 'INFINITY',
-          value: '∞',
-          loc: this.makeLoc(startLine, startColumn, startOffset),
-        }
-      case '(':
-        this.advance()
-        return {
-          type: 'LPAREN',
-          value: '(',
-          loc: this.makeLoc(startLine, startColumn, startOffset),
-        }
-      case ')':
-        this.advance()
-        return {
-          type: 'RPAREN',
-          value: ')',
-          loc: this.makeLoc(startLine, startColumn, startOffset),
-        }
-      case '{':
-        this.advance()
-        return {
-          type: 'LBRACE',
-          value: '{',
-          loc: this.makeLoc(startLine, startColumn, startOffset),
-        }
-      case '}':
-        this.advance()
-        return {
-          type: 'RBRACE',
-          value: '}',
-          loc: this.makeLoc(startLine, startColumn, startOffset),
-        }
-      case '[':
-        this.advance()
-        return {
-          type: 'LBRACKET',
-          value: '[',
-          loc: this.makeLoc(startLine, startColumn, startOffset),
-        }
-      case ']':
-        this.advance()
-        return {
-          type: 'RBRACKET',
-          value: ']',
-          loc: this.makeLoc(startLine, startColumn, startOffset),
-        }
-      case ',':
-        this.advance()
-        return { type: 'COMMA', value: ',', loc: this.makeLoc(startLine, startColumn, startOffset) }
-      case '.':
-        this.advance()
-        return { type: 'DOT', value: '.', loc: this.makeLoc(startLine, startColumn, startOffset) }
-      case "'": {
-        const abit = this.readAbitLit()
-        return {
-          type: 'ABIT_LIT',
-          value: abit,
-          loc: this.makeLoc(startLine, startColumn, startOffset),
-        }
-      }
-      case '"': {
-        const str = this.readStringLit()
-        return {
-          type: 'STRING_LIT',
-          value: str,
-          loc: this.makeLoc(startLine, startColumn, startOffset),
-        }
-      }
+    const single: Partial<Record<string, TokenType>> = {
+      '⟼': 'ARROW', '↛': 'NOT_ARROW', '◁': 'CONTEXT_START', '▷': 'CONTEXT_END', '↑': 'CONTEXT_UP',
+      ':': 'DEFINE', '=': 'EQUAL', '≠': 'NOT_EQUAL', '♂': 'MALE', '♀': 'FEMALE', '!': 'NOT', '¬': 'NOT',
+      '^': 'POWER', '∞': 'INFINITY', '(': 'LPAREN', ')': 'RPAREN', '{': 'LBRACE', '}': 'RBRACE',
+      '[': 'LBRACKET', ']': 'RBRACKET', ',': 'COMMA', '.': 'DOT'
+    }
+    const tokenType = single[c]
+    if (tokenType) {
+      this.advance()
+      return { type: tokenType, value: c, loc: this.makeLoc(startLine, startColumn, startOffset) }
+    }
+
+    if (c === "'") {
+      const value = this.readAbitLit()
+      return { type: 'ABIT_LIT', value, loc: this.makeLoc(startLine, startColumn, startOffset) }
+    }
+    if (c === '"') {
+      const value = this.readStringLit()
+      return { type: 'STRING_LIT', value, loc: this.makeLoc(startLine, startColumn, startOffset) }
     }
 
     if (this.isDigit(c)) {
       const num = this.readNumber()
-      if (num === '0') {
-        return { type: 'ZERO', value: '0', loc: this.makeLoc(startLine, startColumn, startOffset) }
-      }
-      if (num === '1') {
-        return { type: 'ONE', value: '1', loc: this.makeLoc(startLine, startColumn, startOffset) }
-      }
+      if (num === '0') return { type: 'ZERO', value: '0', loc: this.makeLoc(startLine, startColumn, startOffset) }
+      if (num === '1') return { type: 'ONE', value: '1', loc: this.makeLoc(startLine, startColumn, startOffset) }
       return { type: 'NAT', value: num, loc: this.makeLoc(startLine, startColumn, startOffset) }
     }
 
