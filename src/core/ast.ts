@@ -5,47 +5,40 @@
  * is never semantic identity: repeated forms remain separate AST occurrences.
  */
 
-/** Source location for error reporting */
 export interface SourceLocation {
   start: { line: number; column: number; offset: number }
   end: { line: number; column: number; offset: number }
 }
 
-/** Base interface for all AST nodes */
 export interface ASTNode {
   type: string
   loc?: SourceLocation
 }
 
-/** Link expression: a ⟼ b */
 export interface LinkExpr extends ASTNode {
   type: 'Link'
   left: ASTNode
   right: ASTNode
 }
 
-/** Not-link expression: a !-> b (legacy sugar for !(a -> b)) */
 export interface NotLinkExpr extends ASTNode {
   type: 'NotLink'
   left: ASTNode
   right: ASTNode
 }
 
-/** Definition expression: s : F */
 export interface DefExpr extends ASTNode {
   type: 'Definition'
   name: ASTNode
   form: ASTNode
 }
 
-/** Equality expression: A = B */
 export interface EqExpr extends ASTNode {
   type: 'Equality'
   left: ASTNode
   right: ASTNode
 }
 
-/** Inequality expression: A != B */
 export interface NeqExpr extends ASTNode {
   type: 'Inequality'
   left: ASTNode
@@ -64,55 +57,61 @@ export interface FemaleExpr extends ASTNode {
   operand: ASTNode
 }
 
-/** Negation/inversion: !x or ¬x */
 export interface NotExpr extends ASTNode {
   type: 'Not'
   operand: ASTNode
 }
 
-/** Power expression retained until old prover consumers are migrated. */
+/** Power is legacy application syntax; remove after prover consumers migrate. */
 export interface PowerExpr extends ASTNode {
   type: 'Power'
   base: ASTNode
   exponent: number
 }
 
-/** Bundle expression: { A, B, C } */
+/** Bundle expression: { A, B, C }. */
 export interface SetExpr extends ASTNode {
   type: 'Set'
   elements: ASTNode[]
 }
 
-/** Infinity/akorень: ∞ */
 export interface InfinityExpr extends ASTNode {
   type: 'Infinity'
 }
 
-/** Numeric constants: 0, 1 */
 export interface NumExpr extends ASTNode {
   type: 'Num'
   value: 0 | 1
 }
 
-/** Identifier/symbol. */
 export interface IdentExpr extends ASTNode {
   type: 'Identifier'
   name: string
 }
 
-/** Abit literal: '...' */
 export interface AbitLitExpr extends ASTNode {
   type: 'AbitLit'
   value: string
 }
 
-/** String literal: "..." */
 export interface StringLitExpr extends ASTNode {
   type: 'StringLit'
   value: string
 }
 
-/** Literal square-boundary glyph, e.g. `([)` or `(])`. */
+/** Literal operator/boundary glyph inside a formal container, e.g. (=), (⟼), ([). */
+export interface LiteralExpr extends ASTNode {
+  type: 'Literal'
+  value: string
+}
+
+/** Explicit round formal form. Parentheses are not discarded by the parser. */
+export interface RoundExpr extends ASTNode {
+  type: 'Round'
+  content: ASTNode | null
+}
+
+/** Literal square-boundary glyph, retained for old application consumers. */
 export interface BracketExpr extends ASTNode {
   type: 'Bracket'
   side: 'left' | 'right'
@@ -132,92 +131,78 @@ export interface ContextPronounExpr extends ASTNode {
   up: number
 }
 
-/** Statement wrapper used by the application file parser. */
 export interface Statement extends ASTNode {
   type: 'Statement'
   expr: ASTNode
 }
 
-/** File: sequence of statements */
 export interface File extends ASTNode {
   type: 'File'
   statements: Statement[]
 }
 
-/** Type guards */
 export function isLinkExpr(node: ASTNode): node is LinkExpr {
   return node.type === 'Link'
 }
-
 export function isNotLinkExpr(node: ASTNode): node is NotLinkExpr {
   return node.type === 'NotLink'
 }
-
 export function isDefExpr(node: ASTNode): node is DefExpr {
   return node.type === 'Definition'
 }
-
 export function isEqExpr(node: ASTNode): node is EqExpr {
   return node.type === 'Equality'
 }
-
 export function isNeqExpr(node: ASTNode): node is NeqExpr {
   return node.type === 'Inequality'
 }
-
 export function isMaleExpr(node: ASTNode): node is MaleExpr {
   return node.type === 'Male'
 }
-
 export function isFemaleExpr(node: ASTNode): node is FemaleExpr {
   return node.type === 'Female'
 }
-
 export function isNotExpr(node: ASTNode): node is NotExpr {
   return node.type === 'Not'
 }
-
 export function isPowerExpr(node: ASTNode): node is PowerExpr {
   return node.type === 'Power'
 }
-
 export function isSetExpr(node: ASTNode): node is SetExpr {
   return node.type === 'Set'
 }
-
 export function isInfinityExpr(node: ASTNode): node is InfinityExpr {
   return node.type === 'Infinity'
 }
-
 export function isNumExpr(node: ASTNode): node is NumExpr {
   return node.type === 'Num'
 }
-
 export function isIdentExpr(node: ASTNode): node is IdentExpr {
   return node.type === 'Identifier'
 }
-
 export function isAbitLitExpr(node: ASTNode): node is AbitLitExpr {
   return node.type === 'AbitLit'
 }
-
 export function isStringLitExpr(node: ASTNode): node is StringLitExpr {
   return node.type === 'StringLit'
 }
-
+export function isLiteralExpr(node: ASTNode): node is LiteralExpr {
+  return node.type === 'Literal'
+}
+export function isRoundExpr(node: ASTNode): node is RoundExpr {
+  return node.type === 'Round'
+}
 export function isBracketExpr(node: ASTNode): node is BracketExpr {
   return node.type === 'Bracket'
 }
-
 export function isSquareExpr(node: ASTNode): node is SquareExpr {
   return node.type === 'Square'
 }
-
 export function isContextPronounExpr(node: ASTNode): node is ContextPronounExpr {
   return node.type === 'ContextPronoun'
 }
 
-/** Pretty print AST node for debugging. */
+/** Human-readable structural printer; it preserves explicit containers. */
 export function astToString(node: ASTNode): string {
   switch (node.type) {
     case 'Link':
@@ -250,6 +235,12 @@ export function astToString(node: ASTNode): string {
       return `'${(node as AbitLitExpr).value}'`
     case 'StringLit':
       return `"${(node as StringLitExpr).value}"`
+    case 'Literal':
+      return (node as LiteralExpr).value
+    case 'Round': {
+      const content = (node as RoundExpr).content
+      return `(${content === null ? '' : astToString(content)})`
+    }
     case 'Bracket':
       return (node as BracketExpr).side === 'left' ? '[' : ']'
     case 'Square': {
