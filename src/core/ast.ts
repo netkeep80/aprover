@@ -1,6 +1,8 @@
 /**
- * AST types for МТС (Meta-Theory of Links) formal notation
- * Based on EBNF from "МТС — Чистовик v0.1.md"
+ * AST types for the МТС formal notation consumed from anum_docs.
+ *
+ * This module is shared by parser, prover and visual projection. Display text
+ * is never semantic identity: repeated forms remain separate AST occurrences.
  */
 
 /** Source location for error reporting */
@@ -15,14 +17,14 @@ export interface ASTNode {
   loc?: SourceLocation
 }
 
-/** Link expression: a -> b */
+/** Link expression: a ⟼ b */
 export interface LinkExpr extends ASTNode {
   type: 'Link'
   left: ASTNode
   right: ASTNode
 }
 
-/** Not-link expression: a !-> b (sugar for !(a -> b)) */
+/** Not-link expression: a !-> b (legacy sugar for !(a -> b)) */
 export interface NotLinkExpr extends ASTNode {
   type: 'NotLink'
   left: ASTNode
@@ -50,13 +52,13 @@ export interface NeqExpr extends ASTNode {
   right: ASTNode
 }
 
-/** Male/self-closing start: ♂x */
+/** Glyph ♂ node. Canonical v0.2 uses it as postfix end projection F♂. */
 export interface MaleExpr extends ASTNode {
   type: 'Male'
   operand: ASTNode
 }
 
-/** Female/self-closing end: x♀ */
+/** Glyph ♀ node. Canonical v0.2 uses it as prefix start projection ♀F. */
 export interface FemaleExpr extends ASTNode {
   type: 'Female'
   operand: ASTNode
@@ -68,14 +70,14 @@ export interface NotExpr extends ASTNode {
   operand: ASTNode
 }
 
-/** Power expression: a^n */
+/** Power expression retained until old prover consumers are migrated. */
 export interface PowerExpr extends ASTNode {
   type: 'Power'
   base: ASTNode
   exponent: number
 }
 
-/** Set/package expression: { A, B, C } */
+/** Bundle expression: { A, B, C } */
 export interface SetExpr extends ASTNode {
   type: 'Set'
   elements: ASTNode[]
@@ -92,31 +94,45 @@ export interface NumExpr extends ASTNode {
   value: 0 | 1
 }
 
-/** Identifier: variable names */
+/** Identifier/symbol. */
 export interface IdentExpr extends ASTNode {
   type: 'Identifier'
   name: string
 }
 
-/** Abit literal: '...' (sequence of [, 0, 1, ] characters for quaternary abits) */
+/** Abit literal: '...' */
 export interface AbitLitExpr extends ASTNode {
   type: 'AbitLit'
   value: string
 }
 
-/** String literal: "..." (multi-character string, used for string anumbers) */
+/** String literal: "..." */
 export interface StringLitExpr extends ASTNode {
   type: 'StringLit'
   value: string
 }
 
-/** Bracket constants: [ and ] (abits) */
+/** Literal square-boundary glyph, e.g. `([)` or `(])`. */
 export interface BracketExpr extends ASTNode {
   type: 'Bracket'
   side: 'left' | 'right'
 }
 
-/** Statement: expression followed by dot */
+/** Canonical L2 square form: [], [1], [0], [...]. */
+export interface SquareExpr extends ASTNode {
+  type: 'Square'
+  content: ASTNode | null
+}
+
+/** One of exactly two atomic current/ancestor context pronouns. */
+export interface ContextPronounExpr extends ASTNode {
+  type: 'ContextPronoun'
+  pole: 'start' | 'end'
+  /** 0=current context, 1=parent, 2=grandparent, ... */
+  up: number
+}
+
+/** Statement wrapper used by the application file parser. */
 export interface Statement extends ASTNode {
   type: 'Statement'
   expr: ASTNode
@@ -193,11 +209,19 @@ export function isBracketExpr(node: ASTNode): node is BracketExpr {
   return node.type === 'Bracket'
 }
 
-/** Pretty print AST node for debugging */
+export function isSquareExpr(node: ASTNode): node is SquareExpr {
+  return node.type === 'Square'
+}
+
+export function isContextPronounExpr(node: ASTNode): node is ContextPronounExpr {
+  return node.type === 'ContextPronoun'
+}
+
+/** Pretty print AST node for debugging. */
 export function astToString(node: ASTNode): string {
   switch (node.type) {
     case 'Link':
-      return `(${astToString((node as LinkExpr).left)} -> ${astToString((node as LinkExpr).right)})`
+      return `(${astToString((node as LinkExpr).left)} ⟼ ${astToString((node as LinkExpr).right)})`
     case 'NotLink':
       return `(${astToString((node as NotLinkExpr).left)} !-> ${astToString((node as NotLinkExpr).right)})`
     case 'Definition':
@@ -207,11 +231,11 @@ export function astToString(node: ASTNode): string {
     case 'Inequality':
       return `(${astToString((node as NeqExpr).left)} != ${astToString((node as NeqExpr).right)})`
     case 'Male':
-      return `♂${astToString((node as MaleExpr).operand)}`
+      return `${astToString((node as MaleExpr).operand)}♂`
     case 'Female':
-      return `${astToString((node as FemaleExpr).operand)}♀`
+      return `♀${astToString((node as FemaleExpr).operand)}`
     case 'Not':
-      return `!${astToString((node as NotExpr).operand)}`
+      return `¬${astToString((node as NotExpr).operand)}`
     case 'Power':
       return `${astToString((node as PowerExpr).base)}^${(node as PowerExpr).exponent}`
     case 'Set':
@@ -228,6 +252,14 @@ export function astToString(node: ASTNode): string {
       return `"${(node as StringLitExpr).value}"`
     case 'Bracket':
       return (node as BracketExpr).side === 'left' ? '[' : ']'
+    case 'Square': {
+      const content = (node as SquareExpr).content
+      return `[${content === null ? '' : astToString(content)}]`
+    }
+    case 'ContextPronoun': {
+      const pronoun = node as ContextPronounExpr
+      return `${'↑'.repeat(pronoun.up)}${pronoun.pole === 'start' ? '◁' : '▷'}`
+    }
     case 'Statement':
       return `${astToString((node as Statement).expr)}.`
     case 'File':
