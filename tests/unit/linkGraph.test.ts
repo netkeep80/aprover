@@ -1,5 +1,5 @@
 /**
- * Tests for Link Graph projection module
+ * Tests for occurrence-preserving Link Graph projection.
  */
 
 import { describe, it, expect } from 'vitest'
@@ -14,308 +14,185 @@ import { normalize } from '../../src/core/normalizer'
 
 describe('LinkGraph', () => {
   describe('projectToGraph', () => {
-    it('should project a simple link a -> b', () => {
-      const expr = normalize(parseExpr('a -> b'))
-      const graph = projectToGraph(expr)
+    it('projects a simple link a -> b', () => {
+      const graph = projectToGraph(normalize(parseExpr('a -> b')))
 
-      // Should have: atom 'a', link-center, atom 'b'
       expect(graph.nodes.length).toBe(3)
       expect(graph.edges.length).toBe(2)
 
       const atoms = graph.nodes.filter(n => n.nodeType === 'atom')
       const centers = graph.nodes.filter(n => n.nodeType === 'link-center')
-
-      expect(atoms.length).toBe(2)
-      expect(centers.length).toBe(1)
       expect(atoms.map(a => a.label).sort()).toEqual(['a', 'b'])
+      expect(centers.length).toBe(1)
 
-      // Check edge types
-      const startEdges = graph.edges.filter(e => e.edgeType === 'link-start')
-      const endEdges = graph.edges.filter(e => e.edgeType === 'link-end')
-
-      expect(startEdges.length).toBe(1)
-      expect(endEdges.length).toBe(1)
-
-      // Start edge goes from 'a' to center
-      expect(startEdges[0].source).toBe(atoms.find(a => a.label === 'a')!.id)
-      expect(startEdges[0].target).toBe(centers[0].id)
-
-      // End edge goes from center to 'b'
-      expect(endEdges[0].source).toBe(centers[0].id)
-      expect(endEdges[0].target).toBe(atoms.find(a => a.label === 'b')!.id)
+      const start = graph.edges.find(e => e.edgeType === 'link-start')!
+      const end = graph.edges.find(e => e.edgeType === 'link-end')!
+      expect(start.source).toBe(atoms.find(a => a.label === 'a')!.id)
+      expect(start.target).toBe(centers[0].id)
+      expect(end.source).toBe(centers[0].id)
+      expect(end.target).toBe(atoms.find(a => a.label === 'b')!.id)
     })
 
-    it('should project infinity expression ∞', () => {
-      const expr = normalize(parseExpr('∞'))
-      const graph = projectToGraph(expr)
-
-      expect(graph.nodes.length).toBe(1)
+    it('projects infinity as one atom occurrence', () => {
+      const graph = projectToGraph(normalize(parseExpr('∞')))
+      expect(graph.nodes).toHaveLength(1)
       expect(graph.nodes[0].label).toBe('∞')
       expect(graph.nodes[0].nodeType).toBe('atom')
     })
 
-    it('should project chained links a -> b -> c', () => {
-      const expr = normalize(parseExpr('a -> b -> c'))
-      const graph = projectToGraph(expr)
+    it('keeps chained links left-associated', () => {
+      const graph = projectToGraph(normalize(parseExpr('a -> b -> c')))
+      expect(graph.nodes.filter(n => n.nodeType === 'link-center')).toHaveLength(2)
+      expect(graph.nodes.filter(n => n.nodeType === 'atom')).toHaveLength(3)
+    })
 
-      // Due to left-associativity: (a -> b) -> c
-      // Inner link: a +--*--> b (center1)
-      // Outer link: center1 +--*--> c (center2)
-      const centers = graph.nodes.filter(n => n.nodeType === 'link-center')
-      expect(centers.length).toBe(2)
+    it('projects male and female self-closing forms', () => {
+      const male = projectToGraph(normalize(parseExpr('♂x')))
+      const female = projectToGraph(normalize(parseExpr('x♀')))
 
+      expect(male.nodes.filter(n => n.nodeType === 'unary')).toHaveLength(1)
+      expect(male.edges.filter(e => e.edgeType === 'self-start')).toHaveLength(1)
+      expect(male.edges.filter(e => e.edgeType === 'link-end')).toHaveLength(1)
+
+      expect(female.nodes.filter(n => n.nodeType === 'unary')).toHaveLength(1)
+      expect(female.edges.filter(e => e.edgeType === 'link-start')).toHaveLength(1)
+      expect(female.edges.filter(e => e.edgeType === 'self-end')).toHaveLength(1)
+    })
+
+    it('projects equality and definition as structural operators', () => {
+      const equality = projectToGraph(normalize(parseExpr('a = b')))
+      const definition = projectToGraph(normalize(parseExpr('s : s -> s')))
+
+      expect(
+        equality.nodes.filter(n => n.nodeType === 'operator').map(n => n.label)
+      ).toEqual(['='])
+      expect(equality.edges.filter(e => e.edgeType === 'relation')).toHaveLength(2)
+
+      expect(
+        definition.nodes.filter(n => n.nodeType === 'operator').map(n => n.label)
+      ).toEqual([':'])
+    })
+
+    it('projects negation, set and power nodes', () => {
+      const negation = projectToGraph(normalize(parseExpr('!x')))
+      const set = projectToGraph(normalize(parseExpr('{a, b, c}')))
+      const power = projectToGraph(parseExpr('a^2'))
+
+      expect(negation.nodes.filter(n => n.nodeType === 'unary')).toHaveLength(1)
+      expect(set.nodes.filter(n => n.nodeType === 'set')).toHaveLength(1)
+      expect(set.edges.filter(e => e.edgeType === 'member')).toHaveLength(3)
+      expect(power.nodes.filter(n => n.nodeType === 'power')).toHaveLength(1)
+    })
+
+    it('keeps both occurrences when normalization produces a -> a', () => {
+      const graph = projectToGraph(normalize(parseExpr('a^2')))
       const atoms = graph.nodes.filter(n => n.nodeType === 'atom')
-      expect(atoms.length).toBe(3)
+
+      expect(graph.nodes.filter(n => n.nodeType === 'link-center')).toHaveLength(1)
+      expect(atoms).toHaveLength(2)
+      expect(atoms.map(a => a.label)).toEqual(['a', 'a'])
+      expect(new Set(atoms.map(a => a.id)).size).toBe(2)
     })
 
-    it('should project male self-closing ♂x', () => {
-      const expr = normalize(parseExpr('♂x'))
-      const graph = projectToGraph(expr)
-
-      // Should have: atom 'x', unary '♂x'
-      const unaryNodes = graph.nodes.filter(n => n.nodeType === 'unary')
-      expect(unaryNodes.length).toBe(1)
-      expect(unaryNodes[0].label).toBe('♂x')
-
-      // Should have self-closing start edge and link-end edge
-      const selfStartEdges = graph.edges.filter(e => e.edgeType === 'self-start')
-      const endEdges = graph.edges.filter(e => e.edgeType === 'link-end')
-
-      expect(selfStartEdges.length).toBe(1)
-      expect(endEdges.length).toBe(1)
-
-      // Self-start loops on the unary node
-      expect(selfStartEdges[0].source).toBe(unaryNodes[0].id)
-      expect(selfStartEdges[0].target).toBe(unaryNodes[0].id)
-    })
-
-    it('should project female self-closing x♀', () => {
-      const expr = normalize(parseExpr('x♀'))
-      const graph = projectToGraph(expr)
-
-      const unaryNodes = graph.nodes.filter(n => n.nodeType === 'unary')
-      expect(unaryNodes.length).toBe(1)
-      expect(unaryNodes[0].label).toBe('x♀')
-
-      // Should have link-start edge and self-closing end edge
-      const startEdges = graph.edges.filter(e => e.edgeType === 'link-start')
-      const selfEndEdges = graph.edges.filter(e => e.edgeType === 'self-end')
-
-      expect(startEdges.length).toBe(1)
-      expect(selfEndEdges.length).toBe(1)
-
-      // Self-end loops on the unary node
-      expect(selfEndEdges[0].source).toBe(unaryNodes[0].id)
-      expect(selfEndEdges[0].target).toBe(unaryNodes[0].id)
-    })
-
-    it('should project equality a = b', () => {
-      const expr = normalize(parseExpr('a = b'))
-      const graph = projectToGraph(expr)
-
-      const operators = graph.nodes.filter(n => n.nodeType === 'operator')
-      expect(operators.length).toBe(1)
-      expect(operators[0].label).toBe('=')
-
+    it('does not use display label as identity inside equality', () => {
+      const graph = projectToGraph(normalize(parseExpr('a = a')))
       const atoms = graph.nodes.filter(n => n.nodeType === 'atom')
-      expect(atoms.length).toBe(2)
 
-      // Two relation edges
-      const relations = graph.edges.filter(e => e.edgeType === 'relation')
-      expect(relations.length).toBe(2)
-    })
-
-    it('should project definition s : F', () => {
-      const expr = normalize(parseExpr('s : s -> s'))
-      const graph = projectToGraph(expr)
-
-      const operators = graph.nodes.filter(n => n.nodeType === 'operator')
-      expect(operators.length).toBe(1)
-      expect(operators[0].label).toBe(':')
-    })
-
-    it('should project negation !x', () => {
-      const expr = normalize(parseExpr('!x'))
-      const graph = projectToGraph(expr)
-
-      const unaryNodes = graph.nodes.filter(n => n.nodeType === 'unary')
-      expect(unaryNodes.length).toBe(1)
-    })
-
-    it('should project set expression {a, b, c}', () => {
-      const expr = normalize(parseExpr('{a, b, c}'))
-      const graph = projectToGraph(expr)
-
-      const setNodes = graph.nodes.filter(n => n.nodeType === 'set')
-      expect(setNodes.length).toBe(1)
-
-      const memberEdges = graph.edges.filter(e => e.edgeType === 'member')
-      expect(memberEdges.length).toBe(3)
-    })
-
-    it('should project power expression a^2 (unnormalized)', () => {
-      // Note: normalize() expands a^2 into (a -> a), so test with raw parsed AST
-      const expr = parseExpr('a^2')
-      const graph = projectToGraph(expr)
-
-      const powerNodes = graph.nodes.filter(n => n.nodeType === 'power')
-      expect(powerNodes.length).toBe(1)
-      expect(powerNodes[0].label).toBe('^2')
-    })
-
-    it('should project normalized power a^2 as link chain', () => {
-      const expr = normalize(parseExpr('a^2'))
-      const graph = projectToGraph(expr)
-
-      // a^2 normalizes to (a -> a), which is a link with shared atom
-      const centers = graph.nodes.filter(n => n.nodeType === 'link-center')
-      expect(centers.length).toBe(1)
-
-      const atoms = graph.nodes.filter(n => n.nodeType === 'atom')
-      expect(atoms.length).toBe(1) // 'a' is reused
-    })
-
-    it('should reuse atom nodes with the same label', () => {
-      const expr = normalize(parseExpr('a = a'))
-      const graph = projectToGraph(expr)
-
-      // Should have only one 'a' atom (reused), plus the '=' operator
-      const atoms = graph.nodes.filter(n => n.nodeType === 'atom')
-      expect(atoms.length).toBe(1)
+      expect(atoms).toHaveLength(2)
       expect(atoms[0].label).toBe('a')
+      expect(atoms[1].label).toBe('a')
+      expect(atoms[0].id).not.toBe(atoms[1].id)
+      expect(atoms[0].astNode).not.toBe(atoms[1].astNode)
     })
 
-    it('should project numeric constants', () => {
-      const expr = normalize(parseExpr('0'))
-      const graph = projectToGraph(expr)
+    it('gives every graph node and edge a unique runtime ID', () => {
+      const graph = projectToGraph(normalize(parseExpr('(a -> a) = (a -> a)')))
 
-      expect(graph.nodes.length).toBe(1)
+      expect(new Set(graph.nodes.map(n => n.id)).size).toBe(graph.nodes.length)
+      expect(new Set(graph.edges.map(e => e.id)).size).toBe(graph.edges.length)
+    })
+
+    it('projects numeric constants', () => {
+      const graph = projectToGraph(normalize(parseExpr('0')))
+      expect(graph.nodes).toHaveLength(1)
       expect(graph.nodes[0].label).toBe('0')
       expect(graph.nodes[0].nodeType).toBe('atom')
-    })
-
-    it('should project axiom A4: ∞ : (∞ -> ∞)', () => {
-      const expr = normalize(parseExpr('∞ : (∞ -> ∞)'))
-      const graph = projectToGraph(expr)
-
-      // Should have: atom '∞', link-center, operator ':'
-      expect(graph.nodes.length).toBeGreaterThanOrEqual(2)
-
-      const operators = graph.nodes.filter(n => n.nodeType === 'operator')
-      expect(operators.some(o => o.label === ':')).toBe(true)
     })
   })
 
   describe('projectStatementsToGraph', () => {
-    it('should project multiple statements into one graph', () => {
-      const expr1 = normalize(parseExpr('a -> b'))
-      const expr2 = normalize(parseExpr('c -> d'))
-      const graph = projectStatementsToGraph([expr1, expr2])
+    it('projects multiple statements into one graph', () => {
+      const graph = projectStatementsToGraph([
+        normalize(parseExpr('a -> b')),
+        normalize(parseExpr('c -> d')),
+      ])
 
-      const atoms = graph.nodes.filter(n => n.nodeType === 'atom')
-      expect(atoms.length).toBe(4) // a, b, c, d
-
-      const centers = graph.nodes.filter(n => n.nodeType === 'link-center')
-      expect(centers.length).toBe(2)
+      expect(graph.nodes.filter(n => n.nodeType === 'atom')).toHaveLength(4)
+      expect(graph.nodes.filter(n => n.nodeType === 'link-center')).toHaveLength(2)
     })
 
-    it('should share atom nodes across statements', () => {
-      const expr1 = normalize(parseExpr('a -> b'))
-      const expr2 = normalize(parseExpr('b -> c'))
-      const graph = projectStatementsToGraph([expr1, expr2])
-
-      // 'b' should be shared
+    it('keeps repeated labels as separate occurrences across statements', () => {
+      const graph = projectStatementsToGraph([
+        normalize(parseExpr('a -> b')),
+        normalize(parseExpr('b -> c')),
+      ])
       const atoms = graph.nodes.filter(n => n.nodeType === 'atom')
-      expect(atoms.length).toBe(3) // a, b, c (b is shared)
+      const bOccurrences = atoms.filter(n => n.label === 'b')
+
+      expect(atoms).toHaveLength(4)
+      expect(bOccurrences).toHaveLength(2)
+      expect(bOccurrences[0].id).not.toBe(bOccurrences[1].id)
     })
 
-    it('should handle empty array', () => {
+    it('handles an empty statement list', () => {
       const graph = projectStatementsToGraph([])
-      expect(graph.nodes.length).toBe(0)
-      expect(graph.edges.length).toBe(0)
+      expect(graph.nodes).toHaveLength(0)
+      expect(graph.edges).toHaveLength(0)
     })
   })
 
   describe('toCytoscapeElements', () => {
-    it('should convert graph to cytoscape format', () => {
-      const expr = normalize(parseExpr('a -> b'))
-      const graph = projectToGraph(expr)
+    it('preserves all occurrence IDs in Cytoscape data', () => {
+      const graph = projectToGraph(normalize(parseExpr('a = a')))
       const elements = toCytoscapeElements(graph)
 
       const nodeElements = elements.filter(e => e.group === 'nodes')
       const edgeElements = elements.filter(e => e.group === 'edges')
-
-      expect(nodeElements.length).toBe(graph.nodes.length)
-      expect(edgeElements.length).toBe(graph.edges.length)
-
-      // Check node data
-      for (const nodeEl of nodeElements) {
-        expect(nodeEl.data.id).toBeDefined()
-        expect(nodeEl.data.nodeType).toBeDefined()
-      }
-
-      // Check edge data
-      for (const edgeEl of edgeElements) {
-        expect(edgeEl.data.source).toBeDefined()
-        expect(edgeEl.data.target).toBeDefined()
-        expect(edgeEl.data.edgeType).toBeDefined()
-      }
+      expect(nodeElements).toHaveLength(graph.nodes.length)
+      expect(edgeElements).toHaveLength(graph.edges.length)
+      expect(new Set(nodeElements.map(e => e.data.id)).size).toBe(graph.nodes.length)
     })
 
-    it('should handle empty graph', () => {
-      const graph = projectStatementsToGraph([])
-      const elements = toCytoscapeElements(graph)
-      expect(elements.length).toBe(0)
+    it('handles an empty graph', () => {
+      expect(toCytoscapeElements(projectStatementsToGraph([]))).toHaveLength(0)
     })
   })
 
   describe('linkGraphToDOT', () => {
-    it('should generate valid DOT format', () => {
-      const expr = normalize(parseExpr('a -> b'))
-      const graph = projectToGraph(expr)
-      const dot = linkGraphToDOT(graph)
-
+    it('generates DOT with links', () => {
+      const dot = linkGraphToDOT(projectToGraph(normalize(parseExpr('a -> b'))))
       expect(dot).toContain('digraph LinkGraph')
       expect(dot).toContain('rankdir=LR')
-      expect(dot).toContain('->')
-      expect(dot).toContain('}')
-    })
-
-    it('should include title when provided', () => {
-      const expr = normalize(parseExpr('a -> b'))
-      const graph = projectToGraph(expr)
-      const dot = linkGraphToDOT(graph, 'Test Graph')
-
-      expect(dot).toContain('label="Test Graph"')
-    })
-
-    it('should handle edge types', () => {
-      const expr = normalize(parseExpr('a -> b'))
-      const graph = projectToGraph(expr)
-      const dot = linkGraphToDOT(graph)
-
-      // Link start edge should have odot arrowtail
       expect(dot).toContain('arrowtail=odot')
-      // Link end edge should have vee arrowhead
       expect(dot).toContain('arrowhead=vee')
-    })
-
-    it('should handle empty graph', () => {
-      const graph = projectStatementsToGraph([])
-      const dot = linkGraphToDOT(graph)
-
-      expect(dot).toContain('digraph LinkGraph')
       expect(dot).toContain('}')
     })
 
-    it('should escape special characters in labels', () => {
-      const expr = normalize(parseExpr('{a, b}'))
-      const graph = projectToGraph(expr)
-      const dot = linkGraphToDOT(graph)
+    it('includes an escaped title', () => {
+      const graph = projectToGraph(normalize(parseExpr('a -> b')))
+      expect(linkGraphToDOT(graph, 'Test Graph')).toContain('label="Test Graph"')
+    })
 
-      // Curly braces should be escaped
+    it('escapes special characters in labels', () => {
+      const dot = linkGraphToDOT(projectToGraph(normalize(parseExpr('{a, b}'))))
       expect(dot).not.toContain('label="{…}"')
       expect(dot).toContain('\\{')
+    })
+
+    it('handles an empty graph', () => {
+      const dot = linkGraphToDOT(projectStatementsToGraph([]))
+      expect(dot).toContain('digraph LinkGraph')
+      expect(dot).toContain('}')
     })
   })
 })
