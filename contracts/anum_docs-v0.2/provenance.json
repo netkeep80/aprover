@@ -1,0 +1,12 @@
+{
+  "sourceRepository": "netkeep80/anum_docs",
+  "sourceCommit": "294aa5e3d141e16fa93f88c0c18c4b78f8ae168c",
+  "contract": {
+    "path": "contracts/mts-contract-v0.2.json",
+    "gitBlobSha": "fb414a1541f3430fa9292c0fdfd89ca07d5db8ea"
+  },
+  "conformance": {
+    "path": "contracts/mts-conformance-v0.2.json",
+    "gitBlobSha": "96303366a8808d9e67ee548b445fcdbf2233f336"
+  }
+}
