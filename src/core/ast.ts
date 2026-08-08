@@ -1,8 +1,8 @@
 /**
- * AST types for the МТС formal notation consumed from anum_docs.
+ * AST types for the canonical МТС formal notation consumed from anum_docs.
  *
- * This module is shared by parser, prover and visual projection. Display text
- * is never semantic identity: repeated forms remain separate AST occurrences.
+ * Display text is never semantic identity: repeated forms remain separate AST
+ * occurrences. Compatibility-only prover-era nodes are intentionally absent.
  */
 
 export interface SourceLocation {
@@ -17,12 +17,6 @@ export interface ASTNode {
 
 export interface LinkExpr extends ASTNode {
   type: 'Link'
-  left: ASTNode
-  right: ASTNode
-}
-
-export interface NotLinkExpr extends ASTNode {
-  type: 'NotLink'
   left: ASTNode
   right: ASTNode
 }
@@ -62,14 +56,7 @@ export interface NotExpr extends ASTNode {
   operand: ASTNode
 }
 
-/** Power is legacy application syntax; remove after prover consumers migrate. */
-export interface PowerExpr extends ASTNode {
-  type: 'Power'
-  base: ASTNode
-  exponent: number
-}
-
-/** Bundle expression: { A, B, C }. */
+/** Bundle syntax { A, B, C }. No value/set algebra is implied by this AST node. */
 export interface SetExpr extends ASTNode {
   type: 'Set'
   elements: ASTNode[]
@@ -111,12 +98,6 @@ export interface RoundExpr extends ASTNode {
   content: ASTNode | null
 }
 
-/** Literal square-boundary glyph, retained for old application consumers. */
-export interface BracketExpr extends ASTNode {
-  type: 'Bracket'
-  side: 'left' | 'right'
-}
-
 /** Canonical L2 square form: [], [1], [0], [...]. */
 export interface SquareExpr extends ASTNode {
   type: 'Square'
@@ -144,9 +125,6 @@ export interface File extends ASTNode {
 export function isLinkExpr(node: ASTNode): node is LinkExpr {
   return node.type === 'Link'
 }
-export function isNotLinkExpr(node: ASTNode): node is NotLinkExpr {
-  return node.type === 'NotLink'
-}
 export function isDefExpr(node: ASTNode): node is DefExpr {
   return node.type === 'Definition'
 }
@@ -164,9 +142,6 @@ export function isFemaleExpr(node: ASTNode): node is FemaleExpr {
 }
 export function isNotExpr(node: ASTNode): node is NotExpr {
   return node.type === 'Not'
-}
-export function isPowerExpr(node: ASTNode): node is PowerExpr {
-  return node.type === 'Power'
 }
 export function isSetExpr(node: ASTNode): node is SetExpr {
   return node.type === 'Set'
@@ -192,9 +167,6 @@ export function isLiteralExpr(node: ASTNode): node is LiteralExpr {
 export function isRoundExpr(node: ASTNode): node is RoundExpr {
   return node.type === 'Round'
 }
-export function isBracketExpr(node: ASTNode): node is BracketExpr {
-  return node.type === 'Bracket'
-}
 export function isSquareExpr(node: ASTNode): node is SquareExpr {
   return node.type === 'Square'
 }
@@ -207,8 +179,6 @@ export function astToString(node: ASTNode): string {
   switch (node.type) {
     case 'Link':
       return `(${astToString((node as LinkExpr).left)} ⟼ ${astToString((node as LinkExpr).right)})`
-    case 'NotLink':
-      return `(${astToString((node as NotLinkExpr).left)} !-> ${astToString((node as NotLinkExpr).right)})`
     case 'Definition':
       return `${astToString((node as DefExpr).name)} : ${astToString((node as DefExpr).form)}`
     case 'Equality':
@@ -221,8 +191,6 @@ export function astToString(node: ASTNode): string {
       return `♀${astToString((node as FemaleExpr).operand)}`
     case 'Not':
       return `¬${astToString((node as NotExpr).operand)}`
-    case 'Power':
-      return `${astToString((node as PowerExpr).base)}^${(node as PowerExpr).exponent}`
     case 'Set':
       return `{${(node as SetExpr).elements.map(astToString).join(', ')}}`
     case 'Infinity':
@@ -241,8 +209,6 @@ export function astToString(node: ASTNode): string {
       const content = (node as RoundExpr).content
       return `(${content === null ? '' : astToString(content)})`
     }
-    case 'Bracket':
-      return (node as BracketExpr).side === 'left' ? '[' : ']'
     case 'Square': {
       const content = (node as SquareExpr).content
       return `[${content === null ? '' : astToString(content)}]`
