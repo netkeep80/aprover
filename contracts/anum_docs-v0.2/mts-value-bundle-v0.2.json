@@ -1,0 +1,144 @@
+{
+  "schema": "mts-value-bundle/v0.2",
+  "status": "accepted",
+  "accepted": true,
+  "acceptedContractLinkAllowed": true,
+  "dependsOn": [
+    "mts-contract/v0.2",
+    "mts-bundle-decision/v0.2",
+    "mts-bundle-elaboration-challenge/v0.2",
+    "mts-bundle-algebra-challenge/v0.2",
+    "mts-bundle-expansion-challenge/v0.2"
+  ],
+  "scope": {
+    "valueBundle": "flat only",
+    "constraintBundle": "existing accepted behavior unchanged",
+    "nestedValueBundle": "rejected/deferred",
+    "bundleValuedDefinition": "rejected/deferred",
+    "scalarOperatorLifting": "rejected/deferred",
+    "materialization": "out-of-scope",
+    "persistentStorage": "out-of-scope"
+  },
+  "syntax": {
+    "glyph": "{...}",
+    "surfaceNode": "CurlySyntax",
+    "surfaceNodeIsSemanticType": false,
+    "sourceOrderPreserved": true,
+    "sourceMultiplicityPreserved": true,
+    "sourceOccurrencePathsPreserved": true
+  },
+  "elaboration": {
+    "phase": "static-before-interpretation",
+    "runtimeRoleGuessing": false,
+    "outputs": [
+      "ConstraintBundle",
+      "ValueBundle"
+    ],
+    "operatorDomains": {
+      "constraintEntry": "ConstraintBundle or existing Judgment semantics",
+      "standaloneValueEntry": "flat ValueBundle allowed when value context is explicit",
+      "equalityOperands": "LinkValue or flat ValueBundle",
+      "inequalityOperands": "LinkValue or flat ValueBundle",
+      "sequenceWithBundleOperand": "bundle expansion query",
+      "linkFormOperands": "scalar LinkValue only",
+      "projectionOperand": "scalar LinkValue only",
+      "inversionOperand": "scalar LinkValue only",
+      "definitionTarget": "scalar LinkValue form only",
+      "definitionRhs": "existing scalar Form or ConstraintBundle only; ValueBundle deferred"
+    },
+    "rules": [
+      {"when": "all non-empty direct items are Judgments", "result": "ConstraintBundle"},
+      {"when": "all non-empty direct items are non-bundle Forms in a value-capable context", "result": "ValueBundle"},
+      {"when": "direct items mix Judgment and Form evidence", "result": "static-error:mixed-bundle-role-evidence"},
+      {"when": "empty {} occurs in a statically value-capable position", "result": "ValueBundle"},
+      {"when": "empty {} is the constraint interpretation entry expression", "result": "ConstraintBundle"},
+      {"when": "empty {} is a definition RHS", "result": "ConstraintBundle"},
+      {"when": "non-empty ValueBundle is a definition RHS", "result": "static-error:bundle-valued-definition-deferred"},
+      {"when": "ValueBundle appears under scalar-only ⟼/♀/♂/¬ operand position", "result": "static-error:bundle-not-supported-in-scalar-operator"},
+      {"when": "empty {} has no static role context", "result": "static-error:ambiguous-empty-bundle-role"},
+      {"when": "a ValueBundle directly contains another ValueBundle/CurlySyntax item", "result": "static-error:nested-value-bundle-not-supported"}
+    ],
+    "rootRegression": {
+      "currentTenDefinitionsMustElaborateIdentically": true,
+      "valueBundleMayAppearInCurrentRoot": false
+    }
+  },
+  "runtimeValueModel": {
+    "scalar": {"kind": "link", "identity": "resolved L1 LinkRef"},
+    "bundle": {"kind": "bundle", "identity": "extensional set of unique resolved L1 LinkRefs", "occurrenceProvenanceSeparate": true},
+    "crossKindEquality": false,
+    "crossKindInequality": true,
+    "globalRewrite": false,
+    "equality": "local contextual value comparison"
+  },
+  "elementResolution": {
+    "eachOccurrenceResolvedIndependently": true,
+    "deduplicateBeforeResolution": false,
+    "anonymousSquareIdentity": "ast-occurrence-path",
+    "unresolvedAnonymousOccurrence": "evaluation-unresolved/failure; never choose an arbitrary LinkRef",
+    "resolvedOccurrenceTraceRequired": true,
+    "semanticSetBuiltAfterResolution": true,
+    "semanticOrderRelevant": false,
+    "semanticDuplicateCountRelevant": false
+  },
+  "flatValueAlgebra": {
+    "idempotentAfterResolution": true,
+    "commutativeAfterResolution": true,
+    "sourceOrderStillObservableAsProvenance": true,
+    "sourceDuplicateOccurrencesStillObservableAsProvenance": true,
+    "historicalAnonymousClaim": {
+      "source": "{[], []} = {[]}",
+      "unconditional": false,
+      "conditional": "true only when independently resolved identity sets are equal"
+    }
+  },
+  "expansionQuery": {
+    "trigger": "Sequence/juxtaposition with exactly two endpoints and at least one statically elaborated ValueBundle operand",
+    "result": "flat ValueBundle of existing Link identities",
+    "readOnly": true,
+    "endpointDomains": {
+      "scalar": "singleton resolved identity",
+      "nonEmptyBundle": "resolved extensional identity set",
+      "emptyBundle": "wildcard only in expansion endpoint position"
+    },
+    "operations": {
+      "scalarToEmpty": "all existing outgoing links",
+      "emptyToScalar": "all existing incoming links",
+      "emptyToEmpty": "all existing links in selected memory view",
+      "constrainedToConstrained": "existing exact links whose ordered poles belong to the two endpoint domains"
+    },
+    "missingPair": "omit",
+    "implicitRealize": false,
+    "implicitDelete": false
+  },
+  "effects": {
+    "interpretMayReadMemory": true,
+    "interpretMayRealize": false,
+    "interpretMayDelete": false,
+    "bundleLiteralIsCommand": false,
+    "expansionIsCommand": false
+  },
+  "deferred": {
+    "nestedValueBundleSemantics": ["first-class nested collection", "flatten/union", "other construction"],
+    "bundleValuedDefinitions": "requires a tagged value environment/binding contract",
+    "bundleProjectionOrInversion": "requires an explicit lifting rule or rejection in a later version",
+    "bundleAsExplicitLinkFormPole": "requires a separate lifting decision; current expansion uses juxtaposition only",
+    "syntheticMissingLinkForms": "not part of current contract",
+    "explicitBundleMaterialization": "separate L4 operation if ever needed"
+  },
+  "acceptanceEvidence": {
+    "decision": "contracts/mts-bundle-decision-v0.2.json",
+    "staticElaborationChallenge": "contracts/mts-bundle-elaboration-challenge-v0.2.json",
+    "resolvedIdentityAlgebraChallenge": "contracts/mts-bundle-algebra-challenge-v0.2.json",
+    "readOnlyExpansionChallenge": "contracts/mts-bundle-expansion-challenge-v0.2.json",
+    "referenceCore": "core/mtc_value_bundle.py",
+    "conformanceCorpus": "contracts/mts-value-bundle-conformance-v0.2.json",
+    "rootRegression": "tests/mtc_formulas.mtc",
+    "constraintBundleRegression": "tests/test_mtc_value_bundle_reference.py"
+  },
+  "downstream": {
+    "aproverRepinRequired": true,
+    "consumerMustExecuteConformance": true,
+    "compatibilityImplementationAllowed": false
+  }
+}
