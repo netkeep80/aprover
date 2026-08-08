@@ -197,7 +197,7 @@ describe('ProofCache', () => {
     it('should generate state signature from definitions', () => {
       const definitions = new Map<string, ASTNode>()
       definitions.set('x', parseExpr('∞ -> ∞'))
-      definitions.set('y', parseExpr('♂∞'))
+      definitions.set('y', parseExpr('∞♂'))
 
       const signature = generateStateSignature(definitions)
 
@@ -279,7 +279,7 @@ describe('ProofCache', () => {
     })
 
     it('should handle complex expressions', () => {
-      const expr = parseExpr('(♂∞ -> ∞♀) = 1')
+      const expr = parseExpr('(∞♂ -> ♀∞) = 1')
       const result: ProofResult = {
         success: true,
         message: 'Complex proof',
