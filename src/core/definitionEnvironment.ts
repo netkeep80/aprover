@@ -169,7 +169,9 @@ function structuralValue(node: ASTNode | null): StructuralValue {
   if (node === null) return null
 
   switch (node.type) {
-    // anum_docs represents all of these unquoted atoms as Symbol(name).
+    // anum_docs represents all unquoted atoms as Symbol(name). aprover's
+    // quoted literal AST variants must preserve their quote delimiters because
+    // upstream treats the spelling itself as the Symbol name.
     case 'Identifier':
       return ['symbol', (node as IdentExpr).name]
     case 'Infinity':
@@ -177,9 +179,9 @@ function structuralValue(node: ASTNode | null): StructuralValue {
     case 'Num':
       return ['symbol', String((node as NumExpr).value)]
     case 'AbitLit':
-      return ['symbol', (node as AbitLitExpr).value]
+      return ['symbol', `'${(node as AbitLitExpr).value}'`]
     case 'StringLit':
-      return ['symbol', (node as StringLitExpr).value]
+      return ['symbol', `"${(node as StringLitExpr).value}"`]
     case 'Literal':
       return ['literal', (node as LiteralExpr).value]
     case 'ContextPronoun': {
