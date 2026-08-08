@@ -66,7 +66,6 @@ describe('ProofSearchPanel', () => {
   it('hands the portable generated artifact to the replay workflow', async () => {
     const wrapper = mount(ProofSearchPanel)
     await wrapper.get('.proof-search-run').trigger('click')
-    await wrapper.get('button').filter?.(() => true)
     await wrapper.get('.proof-search-result button').trigger('click')
 
     const emitted = wrapper.emitted('open-replay')
