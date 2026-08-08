@@ -42,6 +42,21 @@ describe('ExplicitMemoryView', () => {
     ).toThrow('Ambiguous canonical Link identity')
   })
 
+  it('allows a general link network and reports projection ambiguity only on projection read', () => {
+    const memory = new ExplicitMemoryView([
+      { id: 0, start: 0, end: 0 },
+      { id: 1, start: 0, end: 1 },
+      { id: 2, start: 1, end: 0 },
+      { id: 3, start: 1, end: 1 },
+    ])
+
+    expect(memory.findLink(0, 1)).toBe(1)
+    expect(memory.outgoing(0)).toEqual([0, 1])
+    expect(memory.incoming(1)).toEqual([1, 3])
+    expect(memory.allLinks()).toEqual([0, 1, 2, 3])
+    expect(() => memory.findEndProjection(0)).toThrow('Ambiguous end projection for form 0')
+  })
+
   it('throws when poles are requested for an unknown link', () => {
     const memory = new ExplicitMemoryView([])
     expect(() => memory.poles(999)).toThrow('Unknown memory link 999')

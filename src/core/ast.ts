@@ -56,10 +56,16 @@ export interface NotExpr extends ASTNode {
   operand: ASTNode
 }
 
-/** Bundle syntax { A, B, C }. No value/set algebra is implied by this AST node. */
+/** Фигурная запись { A, B, C }; семантическая роль определяется отдельно. */
 export interface SetExpr extends ASTNode {
   type: 'Set'
   elements: ASTNode[]
+}
+
+/** Каноническое соположение двух и более форм, например a{b,c} или {}{}. */
+export interface SequenceExpr extends ASTNode {
+  type: 'Sequence'
+  items: ASTNode[]
 }
 
 export interface InfinityExpr extends ASTNode {
@@ -146,6 +152,9 @@ export function isNotExpr(node: ASTNode): node is NotExpr {
 export function isSetExpr(node: ASTNode): node is SetExpr {
   return node.type === 'Set'
 }
+export function isSequenceExpr(node: ASTNode): node is SequenceExpr {
+  return node.type === 'Sequence'
+}
 export function isInfinityExpr(node: ASTNode): node is InfinityExpr {
   return node.type === 'Infinity'
 }
@@ -193,6 +202,8 @@ export function astToString(node: ASTNode): string {
       return `¬${astToString((node as NotExpr).operand)}`
     case 'Set':
       return `{${(node as SetExpr).elements.map(astToString).join(', ')}}`
+    case 'Sequence':
+      return (node as SequenceExpr).items.map(astToString).join('')
     case 'Infinity':
       return '∞'
     case 'Num':

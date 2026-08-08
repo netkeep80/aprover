@@ -8,6 +8,7 @@ import type {
   FemaleExpr,
   NotExpr,
   SetExpr,
+  SequenceExpr,
   NumExpr,
   IdentExpr,
   AbitLitExpr,
@@ -22,9 +23,10 @@ const PRECEDENCE = {
   definition: 1,
   equality: 2,
   link: 3,
-  prefix: 4,
-  postfix: 5,
-  atom: 6,
+  sequence: 4,
+  prefix: 5,
+  postfix: 6,
+  atom: 7,
 } as const
 
 function render(node: ASTNode, parentPrecedence = 0, rightOfLeftAssociative = false): string {
@@ -54,6 +56,12 @@ function render(node: ASTNode, parentPrecedence = 0, rightOfLeftAssociative = fa
       const link = node as LinkExpr
       text = `${render(link.left, PRECEDENCE.link)} ⟼ ${render(link.right, PRECEDENCE.link, true)}`
       precedence = PRECEDENCE.link
+      break
+    }
+    case 'Sequence': {
+      const sequence = node as SequenceExpr
+      text = sequence.items.map(item => render(item, PRECEDENCE.sequence)).join('')
+      precedence = PRECEDENCE.sequence
       break
     }
     case 'Not': {
@@ -134,11 +142,11 @@ function render(node: ASTNode, parentPrecedence = 0, rightOfLeftAssociative = fa
 }
 
 /**
- * Serialize one canonical MTS v0.2 AST expression back to formal source.
+ * Преобразует одно каноническое выражение AST МТС v0.2 обратно в исходную запись.
  *
- * This is a syntax formatter only. It preserves explicit Round/Square forms,
- * canonical projection fixity (`♀F`, `F♂`) and bundle order; it does not
- * normalize or interpret the expression.
+ * Это только форматирование синтаксиса: явные круглые/квадратные формы,
+ * фиксация проекций (`♀F`, `F♂`), порядок пучков и соположение сохраняются;
+ * интерпретация или дополнительная нормализация здесь не выполняются.
  */
 export function toMtsSource(node: ASTNode): string {
   return render(node)

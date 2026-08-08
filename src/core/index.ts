@@ -1,9 +1,9 @@
 /**
- * aprover public core API.
+ * Публичное ядро aprover.
  *
- * `anum_docs` is the normative source for MTS theory/contracts. This package
- * exposes the canonical parser/runtime plus the pinned mts-proof/v0.2 replay
- * checker; legacy proof and grammar semantics are intentionally not public.
+ * `anum_docs` остаётся нормативным источником теории и контрактов МТС. Здесь
+ * публикуются только единый parser/runtime, принятые consumers и replay-checker;
+ * старые совместимые грамматики и отдельная теория приложения отсутствуют.
  */
 
 export type {
@@ -17,6 +17,7 @@ export type {
   FemaleExpr,
   NotExpr,
   SetExpr,
+  SequenceExpr,
   InfinityExpr,
   NumExpr,
   IdentExpr,
@@ -39,6 +40,7 @@ export {
   isFemaleExpr,
   isNotExpr,
   isSetExpr,
+  isSequenceExpr,
   isInfinityExpr,
   isNumExpr,
   isIdentExpr,
@@ -95,6 +97,28 @@ export { InterpretationError, resolveContextPronoun, interpretConstraints } from
 
 export type { DistinguishedLink } from './memoryView'
 export { ExplicitMemoryView } from './memoryView'
+
+export type {
+  BundleRole,
+  ExpectedBundleRole,
+  BundleRoleAt,
+  BundleElaboration,
+  ResolvedOccurrence,
+  LinkValue,
+  BundleValue,
+  MtsValue,
+  FormResolver,
+  BundleQueryMemory,
+} from './valueBundle'
+export {
+  BundleElaborationError,
+  BundleEvaluationError,
+  elaborateBundles,
+  evaluateFlatValueBundle,
+  valuesEqual,
+  expandBundleQuery,
+  resolveCorpusForm,
+} from './valueBundle'
 
 export type { InterpretationSessionConfig } from './interpretationSession'
 export { InterpretationSession } from './interpretationSession'
