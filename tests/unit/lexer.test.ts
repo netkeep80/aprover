@@ -1,248 +1,91 @@
-/**
- * Unit tests for МТС lexer
- */
+/** Unit tests for the canonical МТС v0.2 lexer. */
 
-import { describe, it, expect } from 'vitest'
-import { tokenize, LexerError } from '../../src/core/lexer'
+import { describe, expect, it } from 'vitest'
+import { LexerError, tokenize } from '../../src/core/lexer'
 
 describe('Lexer', () => {
-  describe('Basic tokens', () => {
-    it('should tokenize arrow', () => {
-      const tokens = tokenize('->')
-      expect(tokens[0].type).toBe('ARROW')
-      expect(tokens[0].value).toBe('->')
-    })
-
-    it('should tokenize not-arrow', () => {
-      const tokens = tokenize('!->')
-      expect(tokens[0].type).toBe('NOT_ARROW')
-      expect(tokens[0].value).toBe('!->')
-    })
-
-    it('should tokenize define', () => {
-      const tokens = tokenize(':')
-      expect(tokens[0].type).toBe('DEFINE')
-    })
-
-    it('should tokenize equal', () => {
-      const tokens = tokenize('=')
-      expect(tokens[0].type).toBe('EQUAL')
-    })
-
-    it('should tokenize not-equal variants', () => {
-      expect(tokenize('!=')[0].type).toBe('NOT_EQUAL')
-      expect(tokenize('≠')[0].type).toBe('NOT_EQUAL')
-      expect(tokenize('¬=')[0].type).toBe('NOT_EQUAL')
-    })
-
-    it('should tokenize male symbol', () => {
-      const tokens = tokenize('♂')
-      expect(tokens[0].type).toBe('MALE')
-    })
-
-    it('should tokenize female symbol', () => {
-      const tokens = tokenize('♀')
-      expect(tokens[0].type).toBe('FEMALE')
-    })
-
-    it('should tokenize not variants', () => {
-      expect(tokenize('!')[0].type).toBe('NOT')
-      expect(tokenize('¬')[0].type).toBe('NOT')
-    })
-
-    it('should tokenize power', () => {
-      const tokens = tokenize('^')
-      expect(tokens[0].type).toBe('POWER')
-    })
-
-    it('should tokenize infinity', () => {
-      const tokens = tokenize('∞')
-      expect(tokens[0].type).toBe('INFINITY')
-    })
-
-    it('should tokenize zero and one', () => {
-      expect(tokenize('0')[0].type).toBe('ZERO')
-      expect(tokenize('1')[0].type).toBe('ONE')
-    })
-
-    it('should tokenize brackets', () => {
-      expect(tokenize('(')[0].type).toBe('LPAREN')
-      expect(tokenize(')')[0].type).toBe('RPAREN')
-      expect(tokenize('{')[0].type).toBe('LBRACE')
-      expect(tokenize('}')[0].type).toBe('RBRACE')
-      expect(tokenize('[')[0].type).toBe('LBRACKET')
-      expect(tokenize(']')[0].type).toBe('RBRACKET')
-    })
-
-    it('should tokenize comma and dot', () => {
-      expect(tokenize(',')[0].type).toBe('COMMA')
-      expect(tokenize('.')[0].type).toBe('DOT')
-    })
-
-    it('should tokenize abit literals (single quotes)', () => {
-      const tokens = tokenize("'01[]'")
-      expect(tokens[0].type).toBe('ABIT_LIT')
-      expect(tokens[0].value).toBe('01[]')
-    })
-
-    it('should tokenize single abit character', () => {
-      const tokens = tokenize("'0'")
-      expect(tokens[0].type).toBe('ABIT_LIT')
-      expect(tokens[0].value).toBe('0')
-    })
-
-    it('should tokenize abit sequence', () => {
-      const tokens = tokenize("'[01]'")
-      expect(tokens[0].type).toBe('ABIT_LIT')
-      expect(tokens[0].value).toBe('[01]')
-    })
-
-    it('should tokenize string literals (double quotes)', () => {
-      const tokens = tokenize('"hello"')
-      expect(tokens[0].type).toBe('STRING_LIT')
-      expect(tokens[0].value).toBe('hello')
-    })
-
-    it('should tokenize empty string literal', () => {
-      const tokens = tokenize('""')
-      expect(tokens[0].type).toBe('STRING_LIT')
-      expect(tokens[0].value).toBe('')
-    })
-
-    it('should tokenize string literal with UTF-8 characters', () => {
-      const tokens = tokenize('"связь"')
-      expect(tokens[0].type).toBe('STRING_LIT')
-      expect(tokens[0].value).toBe('связь')
-    })
-
-    it('should tokenize string literal with escape sequences', () => {
-      const tokens = tokenize('"a\\nb\\tc"')
-      expect(tokens[0].type).toBe('STRING_LIT')
-      expect(tokens[0].value).toBe('a\nb\tc')
-    })
-
-    it('should tokenize string literal with escaped quotes', () => {
-      const tokens = tokenize('"say \\"hello\\""')
-      expect(tokens[0].type).toBe('STRING_LIT')
-      expect(tokens[0].value).toBe('say "hello"')
-    })
-
-    it('should tokenize identifiers', () => {
-      const tokens = tokenize('abc')
-      expect(tokens[0].type).toBe('ID')
-      expect(tokens[0].value).toBe('abc')
-    })
-
-    it('should tokenize natural numbers', () => {
-      const tokens = tokenize('42')
-      expect(tokens[0].type).toBe('NAT')
-      expect(tokens[0].value).toBe('42')
-    })
+  it('tokenizes canonical operators and context glyphs', () => {
+    expect(tokenize('a ⟼ b').map(t => t.type)).toEqual(['ID', 'ARROW', 'ID', 'EOF'])
+    expect(tokenize('a != b').map(t => t.type)).toEqual(['ID', 'NOT_EQUAL', 'ID', 'EOF'])
+    expect(tokenize('¬a').map(t => t.type)).toEqual(['NOT', 'ID', 'EOF'])
+    expect(tokenize('♀a♂').map(t => t.type)).toEqual(['FEMALE', 'ID', 'MALE', 'EOF'])
+    expect(tokenize('↑↑◁').map(t => t.type)).toEqual([
+      'CONTEXT_UP',
+      'CONTEXT_UP',
+      'CONTEXT_START',
+      'EOF',
+    ])
   })
 
-  describe('Complex expressions', () => {
-    it('should tokenize simple link', () => {
-      const tokens = tokenize('a -> b')
-      expect(tokens.map(t => t.type)).toEqual(['ID', 'ARROW', 'ID', 'EOF'])
-    })
-
-    it('should tokenize definition', () => {
-      const tokens = tokenize('∞ : ∞ -> ∞')
-      expect(tokens.map(t => t.type)).toEqual([
-        'INFINITY',
-        'DEFINE',
-        'INFINITY',
-        'ARROW',
-        'INFINITY',
-        'EOF',
-      ])
-    })
-
-    it('should tokenize equality', () => {
-      const tokens = tokenize('a = b')
-      expect(tokens.map(t => t.type)).toEqual(['ID', 'EQUAL', 'ID', 'EOF'])
-    })
-
-    it('should tokenize male expression', () => {
-      const tokens = tokenize('♂x')
-      expect(tokens.map(t => t.type)).toEqual(['MALE', 'ID', 'EOF'])
-    })
-
-    it('should tokenize female expression', () => {
-      const tokens = tokenize('x♀')
-      expect(tokens.map(t => t.type)).toEqual(['ID', 'FEMALE', 'EOF'])
-    })
-
-    it('should tokenize power expression', () => {
-      const tokens = tokenize('a^2')
-      expect(tokens.map(t => t.type)).toEqual(['ID', 'POWER', 'NAT', 'EOF'])
-    })
-
-    it('should tokenize set', () => {
-      const tokens = tokenize('{ a, b }')
-      expect(tokens.map(t => t.type)).toEqual(['LBRACE', 'ID', 'COMMA', 'ID', 'RBRACE', 'EOF'])
-    })
-
-    it('should tokenize complex expression', () => {
-      const tokens = tokenize('(♂∞ -> ∞♀) = 1.')
-      expect(tokens.map(t => t.type)).toEqual([
-        'LPAREN',
-        'MALE',
-        'INFINITY',
-        'ARROW',
-        'INFINITY',
-        'FEMALE',
-        'RPAREN',
-        'EQUAL',
-        'ONE',
-        'DOT',
-        'EOF',
-      ])
-    })
+  it('keeps ↛ available only as a literal token for canonical round form parsing', () => {
+    const tokens = tokenize('(↛)')
+    expect(tokens.map(t => t.type)).toEqual(['LPAREN', 'NOT_ARROW', 'RPAREN', 'EOF'])
+    expect(tokens[1].value).toBe('↛')
   })
 
-  describe('Whitespace and comments', () => {
-    it('should skip whitespace', () => {
-      const tokens = tokenize('  a   ->   b  ')
-      expect(tokens.map(t => t.type)).toEqual(['ID', 'ARROW', 'ID', 'EOF'])
-    })
-
-    it('should skip line comments', () => {
-      const tokens = tokenize('a // comment\n-> b')
-      expect(tokens.map(t => t.type)).toEqual(['ID', 'ARROW', 'ID', 'EOF'])
-    })
+  it('tokenizes formal containers and punctuation independently', () => {
+    expect(tokenize('◁[]▷').map(t => t.type)).toEqual([
+      'CONTEXT_START',
+      'LBRACKET',
+      'RBRACKET',
+      'CONTEXT_END',
+      'EOF',
+    ])
+    expect(tokenize('{a,b}.').map(t => t.type)).toEqual([
+      'LBRACE',
+      'ID',
+      'COMMA',
+      'ID',
+      'RBRACE',
+      'DOT',
+      'EOF',
+    ])
   })
 
-  describe('Source locations', () => {
-    it('should track line and column', () => {
-      const tokens = tokenize('a\nb')
-      expect(tokens[0].loc.start.line).toBe(1)
-      expect(tokens[0].loc.start.column).toBe(1)
-      expect(tokens[1].loc.start.line).toBe(2)
-      expect(tokens[1].loc.start.column).toBe(1)
-    })
+  it('tokenizes numeric symbols used as LinkRef-like identifiers', () => {
+    expect(tokenize('10 = 2 ⟼ 3').map(t => t.type)).toEqual([
+      'NAT',
+      'EQUAL',
+      'NAT',
+      'ARROW',
+      'NAT',
+      'EOF',
+    ])
   })
 
-  describe('Error handling', () => {
-    it('should throw on unexpected character', () => {
-      expect(() => tokenize('@')).toThrow(LexerError)
-    })
+  it('tokenizes serialized abit and string literals', () => {
+    expect(tokenize("'01[]'")[0]).toMatchObject({ type: 'ABIT_LIT', value: '01[]' })
+    expect(tokenize('"связь"')[0]).toMatchObject({ type: 'STRING_LIT', value: 'связь' })
+    expect(tokenize('"a\\nb\\tc"')[0].value).toBe('a\nb\tc')
+  })
 
-    it('should throw on unterminated abit literal', () => {
-      expect(() => tokenize("'01")).toThrow(LexerError)
-    })
+  it.each(['a -> b', 'a !-> b', '!a', 'a ¬= b', 'a ≠ b', 'a^2'])(
+    'rejects compatibility spelling %s',
+    source => {
+      expect(() => tokenize(source)).toThrow(LexerError)
+    }
+  )
 
-    it('should throw on empty abit literal', () => {
-      expect(() => tokenize("''")).toThrow(LexerError)
-    })
+  it('tracks source lines and columns', () => {
+    const tokens = tokenize('a\nb')
+    expect(tokens[0].loc.start).toMatchObject({ line: 1, column: 1 })
+    expect(tokens[1].loc.start).toMatchObject({ line: 2, column: 1 })
+  })
 
-    it('should throw on invalid abit character in single quotes', () => {
-      expect(() => tokenize("'abc'")).toThrow(LexerError)
-      expect(() => tokenize("'0a1'")).toThrow(LexerError)
-    })
+  it('skips whitespace and // comments', () => {
+    expect(tokenize('  a // comment\n ⟼ b').map(t => t.type)).toEqual([
+      'ID',
+      'ARROW',
+      'ID',
+      'EOF',
+    ])
+  })
 
-    it('should throw on unterminated string literal', () => {
-      expect(() => tokenize('"hello')).toThrow(LexerError)
-    })
+  it('rejects malformed literals and unexpected characters', () => {
+    expect(() => tokenize('@')).toThrow(LexerError)
+    expect(() => tokenize("'01")).toThrow(LexerError)
+    expect(() => tokenize("''")).toThrow(LexerError)
+    expect(() => tokenize("'0a1'")).toThrow(LexerError)
+    expect(() => tokenize('"hello')).toThrow(LexerError)
   })
 })

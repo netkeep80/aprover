@@ -2,8 +2,8 @@
  * Parser for the canonical МТС formal notation consumed from anum_docs.
  *
  * This is the single aprover parser. Projection fixity follows МТС v0.2:
- * `♀F` is start projection and `F♂` is end projection. The rejected legacy
- * `♂F / F♀` grammar is intentionally not accepted.
+ * `♀F` is start projection and `F♂` is end projection. Compatibility grammar
+ * (`->`, binary `↛`, power, bare `!`) is intentionally absent.
  */
 
 import type { Token, TokenType } from './lexer'
@@ -13,14 +13,12 @@ import type {
   File,
   Statement,
   LinkExpr,
-  NotLinkExpr,
   DefExpr,
   EqExpr,
   NeqExpr,
   MaleExpr,
   FemaleExpr,
   NotExpr,
-  PowerExpr,
   SetExpr,
   InfinityExpr,
   NumExpr,
@@ -200,30 +198,21 @@ export class Parser {
   private parseChain(): ASTNode {
     let left = this.parsePref()
 
-    while (this.checkAny('ARROW', 'NOT_ARROW')) {
-      const isNotArrow = this.check('NOT_ARROW')
+    while (this.check('ARROW')) {
       this.advance()
       const right = this.parsePref()
-
-      left = isNotArrow
-        ? ({
-            type: 'NotLink',
-            left,
-            right,
-            loc: this.mergeLoc(left.loc!, right.loc!),
-          } as NotLinkExpr)
-        : ({
-            type: 'Link',
-            left,
-            right,
-            loc: this.mergeLoc(left.loc!, right.loc!),
-          } as LinkExpr)
+      left = {
+        type: 'Link',
+        left,
+        right,
+        loc: this.mergeLoc(left.loc!, right.loc!),
+      } as LinkExpr
     }
 
     return left
   }
 
-  /** Canonical prefix operators: inversion `¬`/`!` and start projection `♀`. */
+  /** Canonical prefix operators: inversion `¬` and start projection `♀`. */
   private parsePref(): ASTNode {
     const prefixes: { type: 'NOT' | 'FEMALE'; loc: SourceLocation }[] = []
 
@@ -255,31 +244,17 @@ export class Parser {
     return node
   }
 
-  /** Canonical postfix operators: end projection `♂` and legacy-neutral power. */
+  /** Canonical postfix operator: end projection `F♂`. */
   private parsePost(): ASTNode {
     let node = this.parseAtom()
 
-    while (this.checkAny('MALE', 'POWER')) {
-      if (this.check('MALE')) {
-        const loc = this.advance().loc
-        node = {
-          type: 'Male',
-          operand: node,
-          loc: this.mergeLoc(node.loc!, loc),
-        } as MaleExpr
-      } else {
-        this.advance()
-        let expToken: Token
-        if (this.checkAny('NAT', 'ONE', 'ZERO')) expToken = this.advance()
-        else throw new ParseError('Expected number after ^', this.current())
-
-        node = {
-          type: 'Power',
-          base: node,
-          exponent: parseInt(expToken.value, 10),
-          loc: this.mergeLoc(node.loc!, expToken.loc),
-        } as PowerExpr
-      }
+    while (this.check('MALE')) {
+      const loc = this.advance().loc
+      node = {
+        type: 'Male',
+        operand: node,
+        loc: this.mergeLoc(node.loc!, loc),
+      } as MaleExpr
     }
 
     return node

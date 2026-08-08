@@ -3,21 +3,19 @@
  *
  * `anum_docs` is the normative source for MTS theory/contracts. This package
  * exposes the canonical parser/runtime plus the pinned mts-proof/v0.2 replay
- * checker; legacy A0-A11 proof-search semantics are intentionally not public.
+ * checker; legacy proof and grammar semantics are intentionally not public.
  */
 
 export type {
   SourceLocation,
   ASTNode,
   LinkExpr,
-  NotLinkExpr,
   DefExpr,
   EqExpr,
   NeqExpr,
   MaleExpr,
   FemaleExpr,
   NotExpr,
-  PowerExpr,
   SetExpr,
   InfinityExpr,
   NumExpr,
@@ -26,7 +24,6 @@ export type {
   StringLitExpr,
   LiteralExpr,
   RoundExpr,
-  BracketExpr,
   SquareExpr,
   ContextPronounExpr,
   Statement,
@@ -35,21 +32,18 @@ export type {
 
 export {
   isLinkExpr,
-  isNotLinkExpr,
   isDefExpr,
   isEqExpr,
   isNeqExpr,
   isMaleExpr,
   isFemaleExpr,
   isNotExpr,
-  isPowerExpr,
   isSetExpr,
   isInfinityExpr,
   isNumExpr,
   isIdentExpr,
   isAbitLitExpr,
   isStringLitExpr,
-  isBracketExpr,
   astToString,
 } from './ast'
 
@@ -68,8 +62,8 @@ export {
 export type { FileParseOptions, FileToMtlOptions } from './utils'
 export { escapeLabel, parseFileLines, fileToMtl } from './utils'
 
-export type { TokenType, Token } from './lexer'
-export { Lexer, LexerError, tokenize } from './lexer'
+export type { TokenType, Token, MtsConformanceToken } from './lexer'
+export { Lexer, LexerError, tokenize, toMtsConformanceToken } from './lexer'
 
 export type { ParseResult } from './parser'
 export { Parser, ParseError, parse, parseWithRecovery, parseExpr } from './parser'
@@ -87,7 +81,6 @@ export {
   getNormalizationCache,
 } from './normalizer'
 
-// Canonical MTS v0.2 contextual interpretation.
 export type {
   LinkRef,
   OccurrencePath,
@@ -113,7 +106,6 @@ export type {
 } from './interpretationPresentation'
 export { formatOccurrencePath, presentInterpretation } from './interpretationPresentation'
 
-// Candidate mts-proof/v0.2 trusted replay boundary. No proof search lives here.
 export type { ProofExpectedResult, InterpretProofStep, MtsProofObjectV02 } from './proofReplay'
 export {
   MTS_PROOF_SCHEMA,
@@ -126,7 +118,6 @@ export {
   checkProof,
 } from './proofReplay'
 
-// Untrusted proof construction. Its output becomes trusted only after checkProof().
 export type {
   InterpretProofSearchInput,
   ProvenSearchResult,
@@ -165,27 +156,24 @@ export {
 export type {
   AbitChar,
   QuatAnumOptions,
-  ParsedAbit,
-  ParsedContext,
   ValidationResult,
+  RawCarrierRole,
+  RawCarrierRef,
+  RawCarrierNode,
+  RawCarrierDescription,
   QuatConversionStep,
   QuatAnumStats,
 } from './quatAnum'
 export {
+  ANUM_RAW_CARRIER_SCHEMA,
   VALID_ABITS,
-  ABIT_DEFINITIONS,
+  ABIT_ROLES,
   QuatAnumError,
   isValidAbit,
   validateQuatAnum,
   cleanQuatAnum,
-  parseAbitToAST,
-  quatAnumToFormal,
+  describeRawCarrier,
   quatAnumToStringAnum,
-  parseQuatAnumLine,
-  parseQuatAnum,
-  parseQuatAnumExpr,
-  toQuatAnum,
-  isQuatAnumExpr,
   quatAnumFileToMtl,
   visualizeQuatConversion,
   getQuatAnumStats,

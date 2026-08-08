@@ -1,9 +1,8 @@
 /**
- * Lexer for the canonical МТС formal notation consumed from anum_docs.
+ * Lexer for the canonical МТС v0.2 notation consumed from anum_docs.
  *
- * The lexer stays deliberately context-free: square brackets are always
- * emitted as square-bracket tokens and never acquire special meaning from a
- * neighbouring pronoun. This is required by mts-contract/v0.2.
+ * Compatibility spellings are intentionally rejected: ASCII arrows, bare `!`,
+ * `¬=`, `≠` and `^` are not part of the accepted upstream language.
  */
 
 import type { SourceLocation } from './ast'
@@ -17,13 +16,13 @@ export type TokenType =
   | 'MALE'
   | 'FEMALE'
   | 'NOT'
-  | 'POWER'
   | 'INFINITY'
-  | 'CONTEXT_START'
-  | 'CONTEXT_END'
-  | 'CONTEXT_UP'
   | 'ZERO'
   | 'ONE'
+  | 'NAT'
+  | 'ID'
+  | 'ABIT_LIT'
+  | 'STRING_LIT'
   | 'LPAREN'
   | 'RPAREN'
   | 'LBRACE'
@@ -32,10 +31,9 @@ export type TokenType =
   | 'RBRACKET'
   | 'COMMA'
   | 'DOT'
-  | 'ABIT_LIT'
-  | 'STRING_LIT'
-  | 'ID'
-  | 'NAT'
+  | 'CONTEXT_START'
+  | 'CONTEXT_END'
+  | 'CONTEXT_UP'
   | 'EOF'
 
 export interface Token {
@@ -71,61 +69,38 @@ export function toMtsConformanceToken(token: Token): MtsConformanceToken | null 
 export class LexerError extends Error {
   constructor(
     message: string,
-    public line: number,
-    public column: number,
-    public offset: number
+    public loc: SourceLocation
   ) {
-    super(`Lexer error at ${line}:${column}: ${message}`)
+    super(`Lexer error at ${loc.start.line}:${loc.start.column}: ${message}`)
     this.name = 'LexerError'
   }
 }
 
 export class Lexer {
-  private input: string
-  private pos: number = 0
-  private line: number = 1
-  private column: number = 1
+  private pos = 0
+  private line = 1
+  private column = 1
 
-  constructor(input: string) {
-    this.input = input
-  }
+  constructor(private input: string) {}
 
   private current(): string {
     return this.input[this.pos] || ''
   }
 
-  private peek(n: number = 1): string {
+  private peek(n = 1): string {
     return this.input[this.pos + n] || ''
   }
 
-  private advance(n: number = 1): void {
-    for (let i = 0; i < n; i++) {
-      if (this.current() === '\n') {
-        this.line++
-        this.column = 1
-      } else {
-        this.column++
-      }
-      this.pos++
+  private advance(): string {
+    const char = this.current()
+    this.pos++
+    if (char === '\n') {
+      this.line++
+      this.column = 1
+    } else {
+      this.column++
     }
-  }
-
-  private isEOF(): boolean {
-    return this.pos >= this.input.length
-  }
-
-  private skipWhitespaceAndComments(): void {
-    while (!this.isEOF()) {
-      if (/\s/.test(this.current())) {
-        this.advance()
-        continue
-      }
-      if (this.current() === '/' && this.peek() === '/') {
-        while (!this.isEOF() && this.current() !== '\n') this.advance()
-        continue
-      }
-      break
-    }
+    return char
   }
 
   private makeLoc(startLine: number, startColumn: number, startOffset: number): SourceLocation {
@@ -135,150 +110,160 @@ export class Lexer {
     }
   }
 
-  private isIdStart(c: string): boolean {
-    return /[a-zA-Zа-яА-ЯёЁ_]/.test(c)
-  }
-
-  private isIdContinue(c: string): boolean {
-    return /[a-zA-Zа-яА-ЯёЁ0-9_]/.test(c)
-  }
-
-  private isDigit(c: string): boolean {
-    return /[0-9]/.test(c)
-  }
-
-  private readIdentifier(): string {
-    let result = ''
-    while (!this.isEOF() && this.isIdContinue(this.current())) {
-      result += this.current()
-      this.advance()
-    }
-    return result
-  }
-
-  private readNumber(): string {
-    let result = ''
-    while (!this.isEOF() && this.isDigit(this.current())) {
-      result += this.current()
-      this.advance()
-    }
-    return result
-  }
-
-  private isAbitChar(c: string): boolean {
-    return c === '[' || c === '0' || c === '1' || c === ']'
-  }
-
-  private readAbitLit(): string {
-    this.advance()
-    let result = ''
-    while (!this.isEOF() && this.current() !== "'") {
-      const c = this.current()
-      if (!this.isAbitChar(c)) {
-        throw new LexerError(
-          `Invalid abit character: '${c}'. Only [, 0, 1, ] are allowed in abit literals`,
-          this.line,
-          this.column,
-          this.pos
-        )
+  private skipWhitespaceAndComments(): void {
+    while (this.pos < this.input.length) {
+      if (/\s/.test(this.current())) {
+        this.advance()
+        continue
       }
-      result += c
-      this.advance()
+      if (this.current() === '/' && this.peek() === '/') {
+        while (this.pos < this.input.length && this.current() !== '\n') this.advance()
+        continue
+      }
+      break
     }
-    if (this.isEOF()) throw new LexerError('Unterminated abit literal', this.line, this.column, this.pos)
-    if (result.length === 0) throw new LexerError('Empty abit literal', this.line, this.column, this.pos)
-    this.advance()
-    return result
   }
 
-  private readStringLit(): string {
+  private readQuoted(quote: "'" | '"', type: 'ABIT_LIT' | 'STRING_LIT'): Token {
+    const startLine = this.line
+    const startColumn = this.column
+    const startOffset = this.pos
     this.advance()
-    let result = ''
-    while (!this.isEOF() && this.current() !== '"') {
+    let value = ''
+
+    while (this.pos < this.input.length && this.current() !== quote) {
       if (this.current() === '\\') {
         this.advance()
-        if (this.isEOF()) throw new LexerError('Unterminated string literal', this.line, this.column, this.pos)
-        const escaped = this.current()
-        switch (escaped) {
-          case 'n': result += '\n'; break
-          case 't': result += '\t'; break
-          case 'r': result += '\r'; break
-          case '\\': result += '\\'; break
-          case '"': result += '"'; break
-          default: result += escaped
+        if (this.pos >= this.input.length) break
+        const escaped = this.advance()
+        if (type === 'STRING_LIT') {
+          const escapes: Record<string, string> = {
+            n: '\n',
+            t: '\t',
+            r: '\r',
+            '\\': '\\',
+            '"': '"',
+            "'": "'",
+          }
+          value += escapes[escaped] ?? escaped
+        } else {
+          value += escaped
         }
       } else {
-        result += this.current()
+        value += this.advance()
       }
-      this.advance()
     }
-    if (this.isEOF()) throw new LexerError('Unterminated string literal', this.line, this.column, this.pos)
+
+    if (this.current() !== quote) {
+      throw new LexerError(
+        `Unterminated ${type === 'ABIT_LIT' ? 'abit' : 'string'} literal`,
+        this.makeLoc(startLine, startColumn, startOffset)
+      )
+    }
     this.advance()
-    return result
+
+    if (type === 'ABIT_LIT') {
+      if (!value) {
+        throw new LexerError(
+          'Abit literal cannot be empty',
+          this.makeLoc(startLine, startColumn, startOffset)
+        )
+      }
+      if (!/^[\[\]01]+$/.test(value)) {
+        throw new LexerError(
+          'Abit literal may contain only [, ], 0 and 1',
+          this.makeLoc(startLine, startColumn, startOffset)
+        )
+      }
+    }
+
+    return { type, value, loc: this.makeLoc(startLine, startColumn, startOffset) }
   }
 
   nextToken(): Token {
     this.skipWhitespaceAndComments()
-    if (this.isEOF()) {
-      return { type: 'EOF', value: '', loc: this.makeLoc(this.line, this.column, this.pos) }
-    }
 
     const startLine = this.line
     const startColumn = this.column
     const startOffset = this.pos
-    const c = this.current()
 
-    if (c === '!' && this.peek() === '-' && this.peek(2) === '>') {
-      this.advance(3)
-      return { type: 'NOT_ARROW', value: '!->', loc: this.makeLoc(startLine, startColumn, startOffset) }
+    if (this.pos >= this.input.length) {
+      return { type: 'EOF', value: '', loc: this.makeLoc(startLine, startColumn, startOffset) }
     }
-    if (c === '!' && this.peek() === '=') {
-      this.advance(2)
-      return { type: 'NOT_EQUAL', value: '!=', loc: this.makeLoc(startLine, startColumn, startOffset) }
+
+    if (this.input.startsWith('¬=', this.pos)) {
+      this.advance()
+      this.advance()
+      throw new LexerError(
+        'Compatibility spelling ¬= is not accepted; use !=',
+        this.makeLoc(startLine, startColumn, startOffset)
+      )
     }
-    if (c === '-' && this.peek() === '>') {
-      this.advance(2)
-      return { type: 'ARROW', value: '->', loc: this.makeLoc(startLine, startColumn, startOffset) }
+
+    if (this.input.startsWith('!=', this.pos)) {
+      this.advance()
+      this.advance()
+      return {
+        type: 'NOT_EQUAL',
+        value: '!=',
+        loc: this.makeLoc(startLine, startColumn, startOffset),
+      }
     }
-    if (c === '¬' && this.peek() === '=') {
-      this.advance(2)
-      return { type: 'NOT_EQUAL', value: '¬=', loc: this.makeLoc(startLine, startColumn, startOffset) }
-    }
+
+    const char = this.current()
+
+    if (char === "'") return this.readQuoted("'", 'ABIT_LIT')
+    if (char === '"') return this.readQuoted('"', 'STRING_LIT')
 
     const single: Partial<Record<string, TokenType>> = {
-      '⟼': 'ARROW', '↛': 'NOT_ARROW', '◁': 'CONTEXT_START', '▷': 'CONTEXT_END', '↑': 'CONTEXT_UP',
-      ':': 'DEFINE', '=': 'EQUAL', '≠': 'NOT_EQUAL', '♂': 'MALE', '♀': 'FEMALE', '!': 'NOT', '¬': 'NOT',
-      '^': 'POWER', '∞': 'INFINITY', '(': 'LPAREN', ')': 'RPAREN', '{': 'LBRACE', '}': 'RBRACE',
-      '[': 'LBRACKET', ']': 'RBRACKET', ',': 'COMMA', '.': 'DOT'
+      '⟼': 'ARROW',
+      '↛': 'NOT_ARROW',
+      ':': 'DEFINE',
+      '=': 'EQUAL',
+      '♂': 'MALE',
+      '♀': 'FEMALE',
+      '¬': 'NOT',
+      '∞': 'INFINITY',
+      '(': 'LPAREN',
+      ')': 'RPAREN',
+      '{': 'LBRACE',
+      '}': 'RBRACE',
+      '[': 'LBRACKET',
+      ']': 'RBRACKET',
+      ',': 'COMMA',
+      '.': 'DOT',
+      '◁': 'CONTEXT_START',
+      '▷': 'CONTEXT_END',
+      '↑': 'CONTEXT_UP',
     }
-    const tokenType = single[c]
-    if (tokenType) {
+    const type = single[char]
+    if (type) {
       this.advance()
-      return { type: tokenType, value: c, loc: this.makeLoc(startLine, startColumn, startOffset) }
+      return { type, value: char, loc: this.makeLoc(startLine, startColumn, startOffset) }
     }
 
-    if (c === "'") {
-      const value = this.readAbitLit()
-      return { type: 'ABIT_LIT', value, loc: this.makeLoc(startLine, startColumn, startOffset) }
-    }
-    if (c === '"') {
-      const value = this.readStringLit()
-      return { type: 'STRING_LIT', value, loc: this.makeLoc(startLine, startColumn, startOffset) }
-    }
-
-    if (this.isDigit(c)) {
-      const num = this.readNumber()
-      if (num === '0') return { type: 'ZERO', value: '0', loc: this.makeLoc(startLine, startColumn, startOffset) }
-      if (num === '1') return { type: 'ONE', value: '1', loc: this.makeLoc(startLine, startColumn, startOffset) }
-      return { type: 'NAT', value: num, loc: this.makeLoc(startLine, startColumn, startOffset) }
+    if (/\d/.test(char)) {
+      let value = ''
+      while (/\d/.test(this.current())) value += this.advance()
+      if (value === '0') {
+        return { type: 'ZERO', value, loc: this.makeLoc(startLine, startColumn, startOffset) }
+      }
+      if (value === '1') {
+        return { type: 'ONE', value, loc: this.makeLoc(startLine, startColumn, startOffset) }
+      }
+      return { type: 'NAT', value, loc: this.makeLoc(startLine, startColumn, startOffset) }
     }
 
-    if (this.isIdStart(c)) {
-      const id = this.readIdentifier()
-      return { type: 'ID', value: id, loc: this.makeLoc(startLine, startColumn, startOffset) }
+    if (/[A-Za-zА-Яа-яЁё_]/.test(char)) {
+      let value = ''
+      while (/[A-Za-zА-Яа-яЁё0-9_]/.test(this.current())) value += this.advance()
+      return { type: 'ID', value, loc: this.makeLoc(startLine, startColumn, startOffset) }
     }
 
-    throw new LexerError(`Unexpected character: ${c}`, this.line, this.column, this.pos)
+    throw new LexerError(
+      `Unexpected character: ${char}`,
+      this.makeLoc(startLine, startColumn, startOffset)
+    )
   }
 
   tokenize(): Token[] {
@@ -286,9 +271,8 @@ export class Lexer {
     while (true) {
       const token = this.nextToken()
       tokens.push(token)
-      if (token.type === 'EOF') break
+      if (token.type === 'EOF') return tokens
     }
-    return tokens
   }
 }
 

@@ -16,7 +16,6 @@ const emit = defineEmits<{
   'cursor-position': [loc: SourceLocation | null]
 }>()
 
-// Symbol insertion functionality
 const insertSymbol = (symbol: string) => {
   const textarea = textareaRef.value
   if (!textarea) return
@@ -24,13 +23,10 @@ const insertSymbol = (symbol: string) => {
   const start = textarea.selectionStart
   const end = textarea.selectionEnd
   const currentValue = props.modelValue
-
-  // Insert symbol at cursor position
   const newValue = currentValue.substring(0, start) + symbol + currentValue.substring(end)
 
   emit('update:modelValue', newValue)
 
-  // Restore focus and cursor position after the inserted symbol
   setTimeout(() => {
     textarea.focus()
     const newCursorPos = start + symbol.length
@@ -45,47 +41,37 @@ const localValue = computed({
   set: (value: string) => emit('update:modelValue', value),
 })
 
-// Simple syntax highlighting via CSS classes on overlay
-// For now, we just use the textarea with proper styling
-// Future: implement CodeMirror or Monaco integration
-
-// Token-based syntax highlighting to avoid HTML attribute conflicts
 interface Token {
   type: string
   value: string
 }
 
-// Tokenize a line of code (not including comments)
+/** Presentation-only highlighter for accepted MTS v0.2 spellings. */
 function tokenizeLine(code: string): Token[] {
   const tokens: Token[] = []
   let pos = 0
 
   while (pos < code.length) {
-    // Multi-character operators (check first)
-    if (code.slice(pos, pos + 3) === '!->') {
-      tokens.push({ type: 'operator', value: '!->' })
-      pos += 3
-      continue
-    }
-    if (code.slice(pos, pos + 2) === '->') {
-      tokens.push({ type: 'operator', value: '->' })
-      pos += 2
-      continue
-    }
     if (code.slice(pos, pos + 2) === '!=') {
       tokens.push({ type: 'equality', value: '!=' })
-      pos += 2
-      continue
-    }
-    if (code.slice(pos, pos + 2) === '¬=') {
-      tokens.push({ type: 'equality', value: '¬=' })
       pos += 2
       continue
     }
 
     const char = code[pos]
 
-    // Special symbols
+    if (char === '⟼') {
+      tokens.push({ type: 'operator', value: char })
+      pos++
+      continue
+    }
+    if (char === '↛') {
+      // `↛` is a canonical glyph only as a formal literal such as `(↛)`;
+      // highlighting it does not turn it into a binary operator.
+      tokens.push({ type: 'symbol', value: char })
+      pos++
+      continue
+    }
     if (char === '∞') {
       tokens.push({ type: 'symbol infinity', value: char })
       pos++
@@ -101,27 +87,17 @@ function tokenizeLine(code: string): Token[] {
       pos++
       continue
     }
-    if (char === '≠') {
-      tokens.push({ type: 'equality', value: char })
-      pos++
-      continue
-    }
-
-    // Standalone negation
-    if ((char === '!' || char === '¬') && code[pos + 1] !== '-' && code[pos + 1] !== '=') {
+    if (char === '¬') {
       tokens.push({ type: 'negation', value: char })
       pos++
       continue
     }
-
-    // Power operator
-    if (char === '^') {
-      tokens.push({ type: 'power', value: char })
+    if (char === '◁' || char === '▷' || char === '↑') {
+      tokens.push({ type: 'symbol context', value: char })
       pos++
       continue
     }
 
-    // Definition colon (surrounded by whitespace)
     if (
       char === ':' &&
       pos > 0 &&
@@ -134,14 +110,12 @@ function tokenizeLine(code: string): Token[] {
       continue
     }
 
-    // Equality sign (standalone)
     if (char === '=') {
       tokens.push({ type: 'equality', value: char })
       pos++
       continue
     }
 
-    // Brackets
     if (char === '(' || char === ')') {
       tokens.push({ type: 'bracket paren', value: char })
       pos++
@@ -158,14 +132,12 @@ function tokenizeLine(code: string): Token[] {
       continue
     }
 
-    // Dot (statement terminator)
     if (char === '.' && (pos === code.length - 1 || /\s/.test(code[pos + 1]))) {
       tokens.push({ type: 'dot', value: char })
       pos++
       continue
     }
 
-    // Numbers (0 and 1 as special constants)
     if (
       (char === '0' || char === '1') &&
       (pos === 0 || !/[a-zA-Zа-яА-ЯёЁ0-9_]/.test(code[pos - 1])) &&
@@ -176,7 +148,6 @@ function tokenizeLine(code: string): Token[] {
       continue
     }
 
-    // Identifiers
     if (/[a-zA-Zа-яА-ЯёЁ_]/.test(char)) {
       let id = char
       pos++
@@ -188,7 +159,6 @@ function tokenizeLine(code: string): Token[] {
       continue
     }
 
-    // Plain text (whitespace, etc.)
     tokens.push({ type: 'text', value: char })
     pos++
   }
@@ -196,25 +166,20 @@ function tokenizeLine(code: string): Token[] {
   return tokens
 }
 
-// Escape HTML special characters
 function escapeHtml(text: string): string {
   return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }
 
-// Convert tokens to highlighted HTML
 function tokensToHtml(tokens: Token[]): string {
   return tokens
     .map(token => {
       const escaped = escapeHtml(token.value)
-      if (token.type === 'text') {
-        return escaped
-      }
+      if (token.type === 'text') return escaped
       return `<span class="${token.type}">${escaped}</span>`
     })
     .join('')
 }
 
-// Create a highlight marker for AST node selection
 function applyHighlightMarker(
   html: string,
   lineIndex: number,
@@ -222,31 +187,12 @@ function applyHighlightMarker(
 ): string {
   if (!loc) return html
 
-  const startLine = loc.start.line - 1 // 0-indexed
+  const startLine = loc.start.line - 1
   const endLine = loc.end.line - 1
-
-  if (lineIndex < startLine || lineIndex > endLine) {
-    return html
-  }
-
-  // For simplicity, highlight the entire line content if it's within the range
-  // A more precise implementation would track character positions
-  if (lineIndex === startLine && lineIndex === endLine) {
-    // Single line highlight - highlight from start column to end column
-    return `<span class="ast-highlight">${html}</span>`
-  } else if (lineIndex === startLine) {
-    // First line of multi-line - highlight from start column to end
-    return `<span class="ast-highlight">${html}</span>`
-  } else if (lineIndex === endLine) {
-    // Last line of multi-line - highlight from start to end column
-    return `<span class="ast-highlight">${html}</span>`
-  } else {
-    // Middle lines - highlight entire line
-    return `<span class="ast-highlight">${html}</span>`
-  }
+  if (lineIndex < startLine || lineIndex > endLine) return html
+  return `<span class="ast-highlight">${html}</span>`
 }
 
-// Apply error highlighting to the character at error position
 function applyErrorHighlight(
   html: string,
   line: string,
@@ -255,16 +201,10 @@ function applyErrorHighlight(
 ): string {
   if (!errorLoc) return html
 
-  const errorLine = errorLoc.start.line - 1 // Convert to 0-indexed line
-  const errorCol = errorLoc.start.column - 1 // Convert to 0-indexed column (lexer uses 1-based)
+  const errorLine = errorLoc.start.line - 1
+  const errorCol = errorLoc.start.column - 1
+  if (lineIndex !== errorLine) return html
 
-  if (lineIndex !== errorLine) {
-    return html
-  }
-
-  // Find the position in the HTML to insert error highlight
-  // We need to highlight the character at errorCol (0-indexed)
-  // Since html may contain <span> tags, we need to count actual characters
   let charCount = 0
   let insertPos = 0
   let inTag = false
@@ -288,15 +228,10 @@ function applyErrorHighlight(
     }
   }
 
-  // If we found the position, wrap the character at that position in error highlight
   if (foundPosition && insertPos < html.length) {
-    // Find the end of the current character (might be inside a span)
     let endPos = insertPos + 1
-    // If the character is part of an HTML entity, extend to the end of entity
     if (html[insertPos] === '&') {
-      while (endPos < html.length && html[endPos] !== ';') {
-        endPos++
-      }
+      while (endPos < html.length && html[endPos] !== ';') endPos++
       if (html[endPos] === ';') endPos++
     }
 
@@ -310,39 +245,27 @@ function applyErrorHighlight(
 }
 
 const highlightedContent = computed(() => {
-  const text = props.modelValue
-  const loc = props.highlightedLoc
-  const errLoc = props.errorLoc
-
-  // Process line by line to handle comments correctly
-  const lines = text.split('\n')
+  const lines = props.modelValue.split('\n')
   const processedLines = lines.map((line, lineIndex) => {
     let result: string
-    // Check for comment
     const commentIndex = line.indexOf('//')
     if (commentIndex !== -1) {
       const beforeComment = line.substring(0, commentIndex)
       const comment = line.substring(commentIndex)
-      const tokens = tokenizeLine(beforeComment)
-      result = tokensToHtml(tokens) + `<span class="comment">${escapeHtml(comment)}</span>`
+      result = tokensToHtml(tokenizeLine(beforeComment))
+      result += `<span class="comment">${escapeHtml(comment)}</span>`
     } else {
-      const tokens = tokenizeLine(line)
-      result = tokensToHtml(tokens)
+      result = tokensToHtml(tokenizeLine(line))
     }
 
-    // Apply error highlight first (so it's on top)
-    result = applyErrorHighlight(result, line, lineIndex, errLoc)
-
-    // Apply AST node highlight if applicable
-    result = applyHighlightMarker(result, lineIndex, loc)
-
+    result = applyErrorHighlight(result, line, lineIndex, props.errorLoc)
+    result = applyHighlightMarker(result, lineIndex, props.highlightedLoc)
     return result
   })
 
   return processedLines.join('\n')
 })
 
-// Sync scroll between textarea and highlight layer
 const handleScroll = () => {
   const textarea = textareaRef.value
   const highlight = document.querySelector('.highlight-layer') as HTMLElement
@@ -355,11 +278,10 @@ const handleScroll = () => {
 watch(
   () => props.modelValue,
   () => {
-    // Trigger re-render of highlighted content
+    // Trigger re-render of highlighted content.
   }
 )
 
-// Drag and drop handling
 const isDragging = ref(false)
 
 const handleDragEnter = (e: DragEvent) => {
@@ -385,65 +307,44 @@ const handleDrop = (e: DragEvent) => {
   isDragging.value = false
 
   const files = e.dataTransfer?.files
-  if (files && files.length > 0) {
-    const file = files[0]
-    emit('file-drop', file)
-  }
+  if (files && files.length > 0) emit('file-drop', files[0])
 }
 
-// Computed display file name
-const displayFileName = computed(() => {
-  return props.fileName || 'input.mtl'
-})
+const displayFileName = computed(() => props.fileName || 'input.mtl')
 
-// File extension badge
 const fileExtBadge = computed(() => {
-  const name = displayFileName.value
-  const ext = name.split('.').pop()?.toUpperCase()
+  const ext = displayFileName.value.split('.').pop()?.toUpperCase()
   return ext || 'MTL'
 })
 
-// Track cursor position for AST highlighting
 const handleMouseMove = (e: MouseEvent) => {
   const textarea = textareaRef.value
   if (!textarea) return
 
-  // Get cursor position in textarea
   const rect = textarea.getBoundingClientRect()
   const x = e.clientX - rect.left + textarea.scrollLeft
   const y = e.clientY - rect.top + textarea.scrollTop
-
-  // Calculate line and column from mouse position
   const lines = props.modelValue.split('\n')
   const lineHeight = parseFloat(getComputedStyle(textarea).lineHeight)
-  const charWidth = parseFloat(getComputedStyle(textarea).fontSize) * 0.6 // approximate
-
+  const charWidth = parseFloat(getComputedStyle(textarea).fontSize) * 0.6
   const lineIndex = Math.floor(y / lineHeight)
-  const colIndex = Math.floor(x / charWidth) - 1 // adjust for padding
+  const colIndex = Math.floor(x / charWidth) - 1
 
   if (lineIndex >= 0 && lineIndex < lines.length) {
     const line = lines[lineIndex]
     const column = Math.max(0, Math.min(colIndex, line.length))
-
-    // Calculate absolute offset
     let offset = 0
-    for (let i = 0; i < lineIndex; i++) {
-      offset += lines[i].length + 1 // +1 for newline
-    }
+    for (let i = 0; i < lineIndex; i++) offset += lines[i].length + 1
     offset += column
 
-    const loc: SourceLocation = {
+    emit('cursor-position', {
       start: { line: lineIndex + 1, column, offset },
       end: { line: lineIndex + 1, column, offset },
-    }
-
-    emit('cursor-position', loc)
+    })
   }
 }
 
-const handleMouseLeave = () => {
-  emit('cursor-position', null)
-}
+const handleMouseLeave = () => emit('cursor-position', null)
 </script>
 
 <template>
@@ -459,29 +360,12 @@ const handleMouseLeave = () => {
       <span class="file-icon">{{ fileExtBadge }}</span>
       <span class="file-name">{{ displayFileName }}</span>
       <div class="symbol-buttons">
-        <button
-          class="symbol-btn"
-          title="Вставить символ ∞ (бесконечность)"
-          @click="insertSymbol('∞')"
-        >
-          ∞
-        </button>
-        <button class="symbol-btn" title="Вставить символ ♂ (начало)" @click="insertSymbol('♂')">
-          ♂
-        </button>
-        <button class="symbol-btn" title="Вставить символ ♀ (конец)" @click="insertSymbol('♀')">
-          ♀
-        </button>
-        <button class="symbol-btn" title="Вставить символ ¬ (инверсия)" @click="insertSymbol('¬')">
-          ¬
-        </button>
-        <button
-          class="symbol-btn"
-          title="Вставить символ ≠ (неравенство)"
-          @click="insertSymbol('≠')"
-        >
-          ≠
-        </button>
+        <button class="symbol-btn" title="Вставить ∞ (акорень)" @click="insertSymbol('∞')">∞</button>
+        <button class="symbol-btn" title="Вставить ♂ (конец формы, postfix)" @click="insertSymbol('♂')">♂</button>
+        <button class="symbol-btn" title="Вставить ♀ (начало формы, prefix)" @click="insertSymbol('♀')">♀</button>
+        <button class="symbol-btn" title="Вставить ⟼ (связь)" @click="insertSymbol('⟼')">⟼</button>
+        <button class="symbol-btn" title="Вставить ¬ (инверсия)" @click="insertSymbol('¬')">¬</button>
+        <button class="symbol-btn" title="Вставить != (неравенство)" @click="insertSymbol('!=')">!=</button>
       </div>
     </div>
     <div class="editor-content" @mousemove="handleMouseMove" @mouseleave="handleMouseLeave">
@@ -491,7 +375,7 @@ const handleMouseLeave = () => {
         v-model="localValue"
         class="code-input"
         spellcheck="false"
-        placeholder="// Введите формулы МТС...&#10;// Например:&#10;∞ = ∞ -> ∞.&#10;&#10;// Или перетащите файл .mtl сюда"
+        placeholder="// Введите формулы МТС...&#10;// Например:&#10;∞ : {◁ = ∞, ▷ = ∞}&#10;&#10;// Или перетащите файл .mtl сюда"
         @scroll="handleScroll"
       ></textarea>
       <div v-if="isDragging || isDragOver" class="drop-overlay">
@@ -586,7 +470,6 @@ const handleMouseLeave = () => {
   color: #4a5568;
 }
 
-/* Syntax highlighting classes */
 :deep(.comment) {
   color: #6b7280;
   font-style: italic;
@@ -613,13 +496,13 @@ const handleMouseLeave = () => {
   color: #f472b6;
 }
 
+:deep(.symbol.context) {
+  color: #67e8f9;
+}
+
 :deep(.negation) {
   color: #ef4444;
   font-weight: bold;
-}
-
-:deep(.power) {
-  color: #8b5cf6;
 }
 
 :deep(.define) {
@@ -687,7 +570,6 @@ const handleMouseLeave = () => {
   }
 }
 
-/* Drag and drop overlay */
 .editor-container.drag-over {
   border-color: #667eea;
   box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.3);
@@ -721,7 +603,6 @@ const handleMouseLeave = () => {
   font-size: 2rem;
 }
 
-/* Symbol insertion buttons */
 .symbol-buttons {
   display: flex;
   align-items: center;
@@ -756,21 +637,17 @@ const handleMouseLeave = () => {
   transform: translateY(0);
 }
 
-/* Highlight the special symbols with their syntax highlighting colors */
 .symbol-btn:nth-child(1) {
-  /* ∞ - infinity */
   color: #fbbf24;
   font-weight: bold;
 }
 
 .symbol-btn:nth-child(2) {
-  /* ♂ - male */
   color: #60a5fa;
   font-weight: bold;
 }
 
 .symbol-btn:nth-child(3) {
-  /* ♀ - female */
   color: #f472b6;
   font-weight: bold;
 }

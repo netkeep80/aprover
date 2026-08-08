@@ -19,32 +19,21 @@ interface TreeNode {
   children: TreeNode[]
   expanded: boolean
   loc?: SourceLocation
-  childCount: number // Total count for lazy loading indicator
+  childCount: number
 }
 
-/**
- * Configuration for lazy loading
- */
 const LAZY_LOAD_CONFIG = {
-  /** Maximum depth before children are lazy-loaded */
   maxInitialDepth: 10,
-  /** Maximum children to render at once before pagination */
   maxChildrenPerPage: 50,
-  /** Show "load more" if more than this many children */
   lazyChildThreshold: 20,
 }
 
 const expandedNodes = ref<Set<string>>(new Set())
-
-// Track if we've initialized expansion for current AST
 const lastAstRef = ref<File | null>(null)
 
 function toggleNode(id: string) {
-  if (expandedNodes.value.has(id)) {
-    expandedNodes.value.delete(id)
-  } else {
-    expandedNodes.value.add(id)
-  }
+  if (expandedNodes.value.has(id)) expandedNodes.value.delete(id)
+  else expandedNodes.value.add(id)
   expandedNodes.value = new Set(expandedNodes.value)
 }
 
@@ -52,30 +41,23 @@ function isExpanded(id: string): boolean {
   return expandedNodes.value.has(id)
 }
 
-// Expand all nodes
 function expandAll() {
   if (!treeData.value) return
   const collectIds = (node: TreeNode): string[] => {
     const ids = [node.id]
-    for (const child of node.children) {
-      ids.push(...collectIds(child))
-    }
+    for (const child of node.children) ids.push(...collectIds(child))
     return ids
   }
   expandedNodes.value = new Set(collectIds(treeData.value))
 }
 
-// Collapse all nodes (except root)
 function collapseAll() {
   expandedNodes.value = new Set(['0'])
 }
 
-// Collect all node IDs up to a certain depth
 function collectInitialExpansion(node: ASTNode, path: string = '0', depth: number = 0): string[] {
   const result: string[] = []
-  if (depth <= 3) {
-    result.push(path)
-  }
+  if (depth <= 3) result.push(path)
 
   switch (node.type) {
     case 'File':
@@ -89,7 +71,6 @@ function collectInitialExpansion(node: ASTNode, path: string = '0', depth: numbe
       )
       break
     case 'Link':
-    case 'NotLink':
       result.push(
         ...collectInitialExpansion((node as { left: ASTNode }).left, `${path}-0`, depth + 1)
       )
@@ -121,11 +102,6 @@ function collectInitialExpansion(node: ASTNode, path: string = '0', depth: numbe
         ...collectInitialExpansion((node as { operand: ASTNode }).operand, `${path}-0`, depth + 1)
       )
       break
-    case 'Power':
-      result.push(
-        ...collectInitialExpansion((node as { base: ASTNode }).base, `${path}-0`, depth + 1)
-      )
-      break
     case 'Set':
       ;(node as { elements: ASTNode[] }).elements.forEach((el, i) => {
         result.push(...collectInitialExpansion(el, `${path}-${i}`, depth + 1))
@@ -136,9 +112,6 @@ function collectInitialExpansion(node: ASTNode, path: string = '0', depth: numbe
   return result
 }
 
-/**
- * Count the number of children an AST node has
- */
 function countNodeChildren(node: ASTNode): number {
   switch (node.type) {
     case 'File':
@@ -146,7 +119,6 @@ function countNodeChildren(node: ASTNode): number {
     case 'Statement':
       return 1
     case 'Link':
-    case 'NotLink':
     case 'Definition':
     case 'Equality':
     case 'Inequality':
@@ -154,7 +126,6 @@ function countNodeChildren(node: ASTNode): number {
     case 'Male':
     case 'Female':
     case 'Not':
-    case 'Power':
       return 1
     case 'Set':
       return (node as { elements: ASTNode[] }).elements.length
@@ -163,27 +134,13 @@ function countNodeChildren(node: ASTNode): number {
   }
 }
 
-/**
- * Map to store original AST nodes for lazy loading
- * Key: node path id, Value: original AST node
- */
 const astNodeMap = ref<Map<string, ASTNode>>(new Map())
-
-/**
- * Track how many children are loaded for each node (for pagination)
- */
 const loadedChildrenCount = ref<Map<string, number>>(new Map())
 
-/**
- * Convert AST to tree node with lazy loading support
- * Children are only fully converted when the node is expanded
- */
 function astNodeToTreeNode(node: ASTNode, path: string = '0', depth: number = 0): TreeNode {
-  // Store reference to original node for lazy loading
   astNodeMap.value.set(path, node)
 
   const childCount = countNodeChildren(node)
-
   const result: TreeNode = {
     id: path,
     label: getNodeLabel(node),
@@ -194,20 +151,13 @@ function astNodeToTreeNode(node: ASTNode, path: string = '0', depth: number = 0)
     childCount,
   }
 
-  // For depth optimization: only build immediate children up to maxInitialDepth
-  // After that, children will be built on-demand when expanded
-  const shouldBuildChildren = depth < LAZY_LOAD_CONFIG.maxInitialDepth
-
-  if (shouldBuildChildren) {
+  if (depth < LAZY_LOAD_CONFIG.maxInitialDepth) {
     result.children = buildChildrenForNode(node, path, depth)
   }
 
   return result
 }
 
-/**
- * Build children array for a given AST node
- */
 function buildChildrenForNode(node: ASTNode, parentPath: string, parentDepth: number): TreeNode[] {
   const children: TreeNode[] = []
 
@@ -223,7 +173,6 @@ function buildChildrenForNode(node: ASTNode, parentPath: string, parentDepth: nu
       )
       break
     case 'Link':
-    case 'NotLink':
       children.push(
         astNodeToTreeNode((node as { left: ASTNode }).left, `${parentPath}-0`, parentDepth + 1)
       )
@@ -259,11 +208,6 @@ function buildChildrenForNode(node: ASTNode, parentPath: string, parentDepth: nu
         )
       )
       break
-    case 'Power':
-      children.push(
-        astNodeToTreeNode((node as { base: ASTNode }).base, `${parentPath}-0`, parentDepth + 1)
-      )
-      break
     case 'Set':
       ;(node as { elements: ASTNode[] }).elements.forEach((el, i) => {
         children.push(astNodeToTreeNode(el, `${parentPath}-${i}`, parentDepth + 1))
@@ -274,36 +218,22 @@ function buildChildrenForNode(node: ASTNode, parentPath: string, parentDepth: nu
   return children
 }
 
-/**
- * Ensure children are loaded for a node (lazy loading trigger)
- */
 function ensureChildrenLoaded(treeNode: TreeNode, depth: number): void {
   if (treeNode.childCount > 0 && treeNode.children.length === 0) {
     const astNode = astNodeMap.value.get(treeNode.id)
-    if (astNode) {
-      treeNode.children = buildChildrenForNode(astNode, treeNode.id, depth)
-    }
+    if (astNode) treeNode.children = buildChildrenForNode(astNode, treeNode.id, depth)
   }
 }
 
-/**
- * Load more children for pagination
- */
 function loadMoreChildren(nodeId: string): void {
   const current = loadedChildrenCount.value.get(nodeId) || LAZY_LOAD_CONFIG.maxChildrenPerPage
   loadedChildrenCount.value.set(nodeId, current + LAZY_LOAD_CONFIG.maxChildrenPerPage)
-  // Trigger reactivity
   loadedChildrenCount.value = new Map(loadedChildrenCount.value)
 }
 
-/**
- * Get the number of visible children for a node (considering pagination)
- */
 function getVisibleChildrenCount(nodeId: string, totalChildren: number): number {
   const loaded = loadedChildrenCount.value.get(nodeId)
-  if (loaded !== undefined) {
-    return Math.min(loaded, totalChildren)
-  }
+  if (loaded !== undefined) return Math.min(loaded, totalChildren)
   return Math.min(LAZY_LOAD_CONFIG.maxChildrenPerPage, totalChildren)
 }
 
@@ -314,9 +244,7 @@ function getNodeLabel(node: ASTNode): string {
     case 'Statement':
       return 'Statement'
     case 'Link':
-      return '->'
-    case 'NotLink':
-      return '!->'
+      return '⟼'
     case 'Definition':
       return ':'
     case 'Equality':
@@ -328,9 +256,7 @@ function getNodeLabel(node: ASTNode): string {
     case 'Female':
       return '♀'
     case 'Not':
-      return '!'
-    case 'Power':
-      return `^${(node as { exponent: number }).exponent}`
+      return '¬'
     case 'Set':
       return '{...}'
     case 'Infinity':
@@ -343,8 +269,6 @@ function getNodeLabel(node: ASTNode): string {
       return `'${(node as { value: string }).value}'`
     case 'StringLit':
       return `"${(node as { value: string }).value}"`
-    case 'Bracket':
-      return (node as { side: string }).side === 'left' ? '[' : ']'
     default:
       return node.type
   }
@@ -356,7 +280,6 @@ function getNodeTypeClass(type: string): string {
     case 'Statement':
       return 'node-structural'
     case 'Link':
-    case 'NotLink':
       return 'node-link'
     case 'Definition':
       return 'node-define'
@@ -378,7 +301,6 @@ function getNodeTypeClass(type: string): string {
   }
 }
 
-// Format location for tooltip
 function formatLocation(loc?: SourceLocation): string {
   if (!loc) return ''
   if (loc.start.line === loc.end.line) {
@@ -387,17 +309,14 @@ function formatLocation(loc?: SourceLocation): string {
   return `Lines ${loc.start.line}-${loc.end.line}`
 }
 
-// Handle mouse enter on node
 function handleNodeEnter(loc?: SourceLocation) {
   emit('node-hover', loc || null)
 }
 
-// Handle mouse leave from node
 function handleNodeLeave() {
   emit('node-hover', null)
 }
 
-// Check if a node location contains the cursor position
 function isNodeHighlighted(nodeLoc?: SourceLocation): boolean {
   if (!nodeLoc || !props.highlightedNodeLoc) return false
 
@@ -405,28 +324,14 @@ function isNodeHighlighted(nodeLoc?: SourceLocation): boolean {
   const nodeStart = nodeLoc.start
   const nodeEnd = nodeLoc.end
 
-  // Check if cursor is within node's location range
-  // Line-based check first
-  if (cursor.line < nodeStart.line || cursor.line > nodeEnd.line) {
-    return false
-  }
+  if (cursor.line < nodeStart.line || cursor.line > nodeEnd.line) return false
 
-  // If on the same line, check column
   if (cursor.line === nodeStart.line && cursor.line === nodeEnd.line) {
     return cursor.column >= nodeStart.column && cursor.column <= nodeEnd.column
   }
 
-  // If on start line
-  if (cursor.line === nodeStart.line) {
-    return cursor.column >= nodeStart.column
-  }
-
-  // If on end line
-  if (cursor.line === nodeEnd.line) {
-    return cursor.column <= nodeEnd.column
-  }
-
-  // In between lines
+  if (cursor.line === nodeStart.line) return cursor.column >= nodeStart.column
+  if (cursor.line === nodeEnd.line) return cursor.column <= nodeEnd.column
   return true
 }
 
@@ -435,17 +340,14 @@ const treeData = computed<TreeNode | null>(() => {
   return astNodeToTreeNode(props.ast)
 })
 
-// Initialize expansion when AST changes
 watch(
   () => props.ast,
   newAst => {
     if (newAst && newAst !== lastAstRef.value) {
       lastAstRef.value = newAst
-      // Clear lazy loading caches
       astNodeMap.value.clear()
       loadedChildrenCount.value.clear()
-      const initialIds = collectInitialExpansion(newAst)
-      expandedNodes.value = new Set(initialIds)
+      expandedNodes.value = new Set(collectInitialExpansion(newAst))
     }
   },
   { immediate: true }
@@ -527,15 +429,13 @@ const TreeNodeComponent = defineComponent({
     const hasChildren = node.childCount > 0
     const expanded = this.isExpanded(node.id)
     const locTooltip = this.formatLocation(node.loc)
-    const indentSize = this.depth * 1.1 // 1.1rem per depth level
+    const indentSize = this.depth * 1.1
     const highlighted = this.isNodeHighlighted(node.loc)
 
-    // Lazy load children when expanding
     if (expanded && hasChildren && node.children.length === 0) {
       this.ensureChildrenLoaded(node, this.depth)
     }
 
-    // Calculate visible children for pagination
     const visibleCount = this.getVisibleChildrenCount(node.id, node.children.length)
     const visibleChildren = node.children.slice(0, visibleCount)
     const hasMoreChildren = visibleCount < node.children.length
@@ -564,7 +464,6 @@ const TreeNodeComponent = defineComponent({
             : h('span', { class: 'tree-toggle tree-leaf' }, '•'),
           h('span', { class: 'tree-label' }, node.label),
           h('span', { class: 'tree-type' }, node.type),
-          // Show child count when collapsed (for lazy loading awareness)
           hasChildren && !expanded
             ? h('span', { class: 'tree-child-count' }, `(${node.childCount})`)
             : null,
@@ -595,7 +494,6 @@ const TreeNodeComponent = defineComponent({
                 loadMoreChildren: this.loadMoreChildren,
               })
             ),
-            // "Load more" button for pagination
             hasMoreChildren
               ? h(
                   'div',
@@ -758,10 +656,6 @@ export default {
   text-align: left;
 }
 
-.tree-node {
-  /* margin-left is now dynamic based on depth */
-}
-
 .tree-node-content {
   display: flex;
   align-items: left;
@@ -821,10 +715,6 @@ export default {
   opacity: 0.7;
 }
 
-.tree-children {
-  /* Children indentation is now handled by individual nodes */
-}
-
 .tree-load-more {
   padding: 0.25rem 0;
 }
@@ -846,7 +736,6 @@ export default {
   border-style: solid;
 }
 
-/* Node type colors - Enhanced for better visibility */
 :deep(.node-structural .tree-label) {
   color: #94a3b8;
   font-weight: 500;

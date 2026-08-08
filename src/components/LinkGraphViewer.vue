@@ -25,7 +25,6 @@ const selectedLayout = ref<string>('cose')
 const showDotExport = ref(false)
 const dotOutput = ref('')
 
-/** Available layout algorithms */
 const layouts = [
   { id: 'cose', label: 'CoSE' },
   { id: 'breadthfirst', label: 'Дерево' },
@@ -34,9 +33,7 @@ const layouts = [
   { id: 'concentric', label: 'Концентрический' },
 ]
 
-/** Cytoscape stylesheet for МТС link graph */
 const cytoscapeStyle: cytoscape.Stylesheet[] = [
-  // Default node style
   {
     selector: 'node',
     style: {
@@ -52,7 +49,6 @@ const cytoscapeStyle: cytoscape.Stylesheet[] = [
       'border-color': '#475569',
     },
   },
-  // Link center nodes - small circles
   {
     selector: 'node[nodeType="link-center"]',
     style: {
@@ -63,7 +59,6 @@ const cytoscapeStyle: cytoscape.Stylesheet[] = [
       label: '',
     },
   },
-  // Atom nodes - identifiers, numbers, etc.
   {
     selector: 'node[nodeType="atom"]',
     style: {
@@ -76,7 +71,6 @@ const cytoscapeStyle: cytoscape.Stylesheet[] = [
       'font-weight': 'bold',
     },
   },
-  // Operator nodes - =, !=, :
   {
     selector: 'node[nodeType="operator"]',
     style: {
@@ -87,7 +81,6 @@ const cytoscapeStyle: cytoscape.Stylesheet[] = [
       'font-size': '14px',
     },
   },
-  // Unary operator nodes - !, ♂, ♀
   {
     selector: 'node[nodeType="unary"]',
     style: {
@@ -98,7 +91,6 @@ const cytoscapeStyle: cytoscape.Stylesheet[] = [
       height: 'label',
     },
   },
-  // Set nodes
   {
     selector: 'node[nodeType="set"]',
     style: {
@@ -109,18 +101,6 @@ const cytoscapeStyle: cytoscape.Stylesheet[] = [
       height: 'label',
     },
   },
-  // Power nodes
-  {
-    selector: 'node[nodeType="power"]',
-    style: {
-      'background-color': '#ec4899',
-      shape: 'round-rectangle',
-      padding: '6px',
-      width: 'label',
-      height: 'label',
-    },
-  },
-  // Default edge style
   {
     selector: 'edge',
     style: {
@@ -134,7 +114,6 @@ const cytoscapeStyle: cytoscape.Stylesheet[] = [
       'text-outline-width': 1,
     },
   },
-  // Link start edges - with cross marker
   {
     selector: 'edge[edgeType="link-start"]',
     style: {
@@ -147,7 +126,6 @@ const cytoscapeStyle: cytoscape.Stylesheet[] = [
       width: 2.5,
     },
   },
-  // Link end edges - with arrow
   {
     selector: 'edge[edgeType="link-end"]',
     style: {
@@ -157,7 +135,6 @@ const cytoscapeStyle: cytoscape.Stylesheet[] = [
       width: 2.5,
     },
   },
-  // Self-closing start edges
   {
     selector: 'edge[edgeType="self-start"]',
     style: {
@@ -173,7 +150,6 @@ const cytoscapeStyle: cytoscape.Stylesheet[] = [
       width: 2,
     },
   },
-  // Self-closing end edges
   {
     selector: 'edge[edgeType="self-end"]',
     style: {
@@ -186,7 +162,6 @@ const cytoscapeStyle: cytoscape.Stylesheet[] = [
       width: 2,
     },
   },
-  // Relation edges - dashed
   {
     selector: 'edge[edgeType="relation"]',
     style: {
@@ -198,7 +173,6 @@ const cytoscapeStyle: cytoscape.Stylesheet[] = [
       width: 1.5,
     },
   },
-  // Member edges - dotted
   {
     selector: 'edge[edgeType="member"]',
     style: {
@@ -209,7 +183,6 @@ const cytoscapeStyle: cytoscape.Stylesheet[] = [
       width: 1.5,
     },
   },
-  // Hover effects
   {
     selector: 'node:selected',
     style: {
@@ -235,11 +208,9 @@ function buildGraph(): LinkGraph | null {
     props.selectedStatement < props.ast.statements.length
   ) {
     const stmt = props.ast.statements[props.selectedStatement]
-    const normalized = normalize(stmt.expr)
-    return projectToGraph(normalized)
+    return projectToGraph(normalize(stmt.expr))
   }
 
-  // Project all statements
   const exprs: ASTNode[] = props.ast.statements.map(s => normalize(s.expr))
   return projectStatementsToGraph(exprs)
 }
@@ -254,20 +225,11 @@ function getLayoutOptions(layoutId: string): cytoscape.LayoutOptions {
         avoidOverlap: true,
       } as cytoscape.LayoutOptions
     case 'circle':
-      return {
-        name: 'circle',
-        avoidOverlap: true,
-      } as cytoscape.LayoutOptions
+      return { name: 'circle', avoidOverlap: true } as cytoscape.LayoutOptions
     case 'grid':
-      return {
-        name: 'grid',
-        avoidOverlap: true,
-      } as cytoscape.LayoutOptions
+      return { name: 'grid', avoidOverlap: true } as cytoscape.LayoutOptions
     case 'concentric':
-      return {
-        name: 'concentric',
-        avoidOverlap: true,
-      } as cytoscape.LayoutOptions
+      return { name: 'concentric', avoidOverlap: true } as cytoscape.LayoutOptions
     default:
       return {
         name: 'cose',
@@ -293,12 +255,9 @@ function renderGraph() {
   }
 
   graphStats.value = { nodes: graph.nodes.length, edges: graph.edges.length }
-
   const elements = toCytoscapeElements(graph)
 
-  if (cyInstance.value) {
-    cyInstance.value.destroy()
-  }
+  if (cyInstance.value) cyInstance.value.destroy()
 
   cyInstance.value = cytoscape({
     container: containerRef.value,
@@ -312,16 +271,11 @@ function renderGraph() {
 }
 
 function handleLayoutChange() {
-  if (cyInstance.value) {
-    const layout = cyInstance.value.layout(getLayoutOptions(selectedLayout.value))
-    layout.run()
-  }
+  if (cyInstance.value) cyInstance.value.layout(getLayoutOptions(selectedLayout.value)).run()
 }
 
 function handleFitGraph() {
-  if (cyInstance.value) {
-    cyInstance.value.fit(undefined, 30)
-  }
+  if (cyInstance.value) cyInstance.value.fit(undefined, 30)
 }
 
 function handleExportDOT() {
@@ -332,31 +286,22 @@ function handleExportDOT() {
 }
 
 function handleCopyDOT() {
-  if (dotOutput.value) {
-    navigator.clipboard.writeText(dotOutput.value)
-  }
+  if (dotOutput.value) navigator.clipboard.writeText(dotOutput.value)
 }
 
-// Watch for AST or selected statement changes
 watch(
   () => [props.ast, props.selectedStatement],
-  () => {
-    nextTick(() => renderGraph())
-  },
+  () => nextTick(() => renderGraph()),
   { deep: true }
 )
 
-// Watch layout changes
 watch(selectedLayout, handleLayoutChange)
 
-// ResizeObserver to re-fit graph when container size changes
 const resizeObserver = ref<ResizeObserver | null>(null)
 
 onMounted(() => {
   nextTick(() => {
     renderGraph()
-
-    // Watch for container resize and re-fit graph
     if (containerRef.value) {
       resizeObserver.value = new ResizeObserver(() => {
         if (cyInstance.value) {
@@ -403,7 +348,6 @@ onUnmounted(() => {
       </span>
     </div>
 
-    <!-- DOT export panel -->
     <div v-if="showDotExport" class="dot-export-panel">
       <div class="dot-header">
         <span>DOT (Graphviz)</span>
@@ -412,7 +356,6 @@ onUnmounted(() => {
       <pre class="dot-output">{{ dotOutput }}</pre>
     </div>
 
-    <!-- Graph container -->
     <div
       ref="containerRef"
       class="graph-container"
@@ -424,7 +367,6 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <!-- Legend -->
     <div class="graph-legend">
       <span class="legend-title">Легенда:</span>
       <span class="legend-item">
@@ -439,7 +381,7 @@ onUnmounted(() => {
         <span class="legend-line link-end-line"></span>
         <span class="legend-arrow">&rarr;</span> конец
       </span>
-      <span class="legend-item"> <span class="legend-dot unary-dot"></span> ♂/♀ </span>
+      <span class="legend-item"> <span class="legend-dot unary-dot"></span> ¬/♂/♀ </span>
     </div>
   </div>
 </template>
@@ -512,7 +454,6 @@ onUnmounted(() => {
   color: #64748b;
 }
 
-/* DOT export panel */
 .dot-export-panel {
   border-bottom: 1px solid var(--border-color);
   max-height: 200px;
@@ -547,7 +488,6 @@ onUnmounted(() => {
   background: rgba(0, 0, 0, 0.1);
 }
 
-/* Graph container */
 .graph-container {
   flex: 1;
   min-height: 200px;
@@ -578,7 +518,6 @@ onUnmounted(() => {
   font-size: 0.85rem;
 }
 
-/* Legend */
 .graph-legend {
   display: flex;
   align-items: center;
@@ -628,10 +567,7 @@ onUnmounted(() => {
   height: 2px;
 }
 
-.link-start-line {
-  background: #3b82f6;
-}
-
+.link-start-line,
 .link-end-line {
   background: #3b82f6;
 }
