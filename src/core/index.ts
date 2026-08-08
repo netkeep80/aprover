@@ -180,6 +180,23 @@ export {
   isQuatAnumContent,
 } from './quatAnum'
 
+export type {
+  AnumDenotationContext,
+  ProtocolAnchor,
+  DenotationRef,
+  DenotationNode,
+  StructuralAnumDenotation,
+  RawAnumDenotation,
+  QuotedRawAnumDenotation,
+  AnumDenotation,
+} from './anumDenotation'
+export {
+  denotateAnum,
+  validateAnumDenotation,
+  canonicalDenotationJson,
+  canonicalAnum,
+} from './anumDenotation'
+
 export type { FileMetadata, SupportedExtension } from './fileIO'
 export {
   SUPPORTED_EXTENSIONS,
