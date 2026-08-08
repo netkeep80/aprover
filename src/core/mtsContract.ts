@@ -3,6 +3,24 @@ export interface MtsContextRole {
   role: 'start' | 'end'
 }
 
+export interface MtsValueBundleContractRefV02 {
+  contract: 'contracts/mts-value-bundle-v0.2.json'
+  conformanceCorpus: 'contracts/mts-value-bundle-conformance-v0.2.json'
+  surface: '{...}'
+  staticRoles: ['ConstraintBundle', 'ValueBundle']
+  runtimeRoleGuessing: false
+  valueScope: 'flat-only'
+  semanticIdentity: 'extensional-set-of-resolved-link-identities'
+  sourceOccurrenceProvenance: true
+  crossKindSingletonCoercion: false
+  nestedValueBundle: false
+  bundleValuedDefinition: false
+  scalarOperatorLifting: false
+  expansionReadOnly: true
+  interpretMayRealize: false
+  interpretMayDelete: false
+}
+
 export interface MtsContractV02 {
   schema: 'mts-contract/v0.2'
   status: 'accepted'
@@ -44,6 +62,7 @@ export interface MtsContractV02 {
     aroot: {
       definition: string
     }
+    valueBundle: MtsValueBundleContractRefV02
   }
   anum: {
     operations: ['serialize', 'deserialize']
@@ -137,6 +156,13 @@ function string(value: unknown, name: string): string {
   return value
 }
 
+function exactArray(actual: unknown, expected: readonly unknown[], name: string): void {
+  const values = array(actual, name)
+  if (JSON.stringify(values) !== JSON.stringify(expected)) {
+    throw new TypeError(`${name} must be exactly ${JSON.stringify(expected)}`)
+  }
+}
+
 function validateContextRole(value: unknown, index: number): MtsContextRole {
   const role = record(value, `formalNotation.context.roles[${index}]`)
   const source = string(role.source, `context role ${index} source`)
@@ -150,6 +176,34 @@ function validateContextRole(value: unknown, index: number): MtsContextRole {
     throw new TypeError(`context role ${index} must be start or end`)
   }
   return { source, role: role.role }
+}
+
+function validateValueBundleRef(value: unknown): MtsValueBundleContractRefV02 {
+  const bundle = record(value, 'formalNotation.valueBundle')
+  exact(bundle.contract, 'contracts/mts-value-bundle-v0.2.json', 'valueBundle.contract')
+  exact(
+    bundle.conformanceCorpus,
+    'contracts/mts-value-bundle-conformance-v0.2.json',
+    'valueBundle.conformanceCorpus'
+  )
+  exact(bundle.surface, '{...}', 'valueBundle.surface')
+  exactArray(bundle.staticRoles, ['ConstraintBundle', 'ValueBundle'], 'valueBundle.staticRoles')
+  exact(bundle.runtimeRoleGuessing, false, 'valueBundle.runtimeRoleGuessing')
+  exact(bundle.valueScope, 'flat-only', 'valueBundle.valueScope')
+  exact(
+    bundle.semanticIdentity,
+    'extensional-set-of-resolved-link-identities',
+    'valueBundle.semanticIdentity'
+  )
+  exact(bundle.sourceOccurrenceProvenance, true, 'valueBundle.sourceOccurrenceProvenance')
+  exact(bundle.crossKindSingletonCoercion, false, 'valueBundle.crossKindSingletonCoercion')
+  exact(bundle.nestedValueBundle, false, 'valueBundle.nestedValueBundle')
+  exact(bundle.bundleValuedDefinition, false, 'valueBundle.bundleValuedDefinition')
+  exact(bundle.scalarOperatorLifting, false, 'valueBundle.scalarOperatorLifting')
+  exact(bundle.expansionReadOnly, true, 'valueBundle.expansionReadOnly')
+  exact(bundle.interpretMayRealize, false, 'valueBundle.interpretMayRealize')
+  exact(bundle.interpretMayDelete, false, 'valueBundle.interpretMayDelete')
+  return value as MtsValueBundleContractRefV02
 }
 
 export function validateMtsContractV02(value: unknown): MtsContractV02 {
@@ -203,16 +257,11 @@ export function validateMtsContractV02(value: unknown): MtsContractV02 {
 
   const aroot = record(formalNotation.aroot, 'formalNotation.aroot')
   string(aroot.definition, 'aroot.definition')
+  validateValueBundleRef(formalNotation.valueBundle)
 
   const anum = record(root.anum, 'anum')
-  const anumOperations = array(anum.operations, 'anum.operations')
-  if (JSON.stringify(anumOperations) !== JSON.stringify(['serialize', 'deserialize'])) {
-    throw new TypeError('anum.operations must be exactly serialize/deserialize')
-  }
-  const alphabet = array(anum.alphabet, 'anum.alphabet')
-  if (JSON.stringify(alphabet) !== JSON.stringify(['[', ']', '1', '0'])) {
-    throw new TypeError('anum.alphabet must be exactly [ ] 1 0')
-  }
+  exactArray(anum.operations, ['serialize', 'deserialize'], 'anum.operations')
+  exactArray(anum.alphabet, ['[', ']', '1', '0'], 'anum.alphabet')
   exact(
     anum.rawCarrierDescription,
     'contracts/anum-raw-carrier-v0.2.json',
@@ -243,6 +292,21 @@ export function validateMtsContractV02(value: unknown): MtsContractV02 {
   exact(anum.generalDenotationIssue, 89, 'anum.generalDenotationIssue')
 
   const memory = record(root.memory, 'memory')
+  exactArray(
+    memory.readOperations,
+    [
+      'find',
+      'poles',
+      'findLink',
+      'findStartProjection',
+      'findEndProjection',
+      'outgoing',
+      'incoming',
+      'allLinks',
+    ],
+    'memory.readOperations'
+  )
+  exactArray(memory.effectOperations, ['realize', 'delete'], 'memory.effectOperations')
   exact(memory.interpretMayMaterialize, false, 'memory.interpretMayMaterialize')
 
   const integration = record(root.integration, 'integration')
