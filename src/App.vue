@@ -7,6 +7,7 @@ import ASTViewer from './components/ASTViewer.vue'
 import ErrorPanel from './components/ErrorPanel.vue'
 import LinkGraphViewer from './components/LinkGraphViewer.vue'
 import ProofReplayPanel from './components/ProofReplayPanel.vue'
+import AnumDenotationPanel from './components/AnumDenotationPanel.vue'
 import SplitPane from './components/SplitPane.vue'
 import {
   readFileContent,
@@ -65,6 +66,7 @@ const recentFiles = ref<FileMetadata[]>([])
 const showConversion = ref(false)
 const conversionSteps = ref<ConversionStep[]>([])
 const quatConversionSteps = ref<QuatConversionStep[]>([])
+const anumRawLines = ref<string[]>([])
 
 const appVersion = __APP_VERSION__
 const splitPaneRef = ref<InstanceType<typeof SplitPane> | null>(null)
@@ -130,6 +132,7 @@ const loadFile = async (file: globalThis.File) => {
     currentFileName.value = file.name
     conversionSteps.value = []
     quatConversionSteps.value = []
+    anumRawLines.value = []
     showConversion.value = false
 
     if (extension === '.astr') {
@@ -143,6 +146,7 @@ const loadFile = async (file: globalThis.File) => {
     } else if (extension === '.anum') {
       currentFileType.value = 'anum'
       const lines = content.split('\n').filter(line => line.trim() && !line.trim().startsWith('//'))
+      anumRawLines.value = lines.map(line => line.trim())
       if (lines.length) {
         quatConversionSteps.value = visualizeQuatConversion(lines[0].trim())
         showConversion.value = true
@@ -175,6 +179,7 @@ const handleNewFile = () => {
   showConversion.value = false
   conversionSteps.value = []
   quatConversionSteps.value = []
+  anumRawLines.value = []
   input.value = CANONICAL_ROOT
 }
 
@@ -329,6 +334,10 @@ onUnmounted(() => {
         <code>{{ step.formal }}</code>
       </div>
     </div>
+    <AnumDenotationPanel
+      v-if="showConversion && currentFileType === 'anum' && anumRawLines.length"
+      :raw-lines="anumRawLines"
+    />
 
     <ErrorPanel :error="error" />
 
