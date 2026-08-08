@@ -2,7 +2,7 @@
 
 import { describe, expect, it } from 'vitest'
 import { LexerError } from '../../src/core/lexer'
-import { ParseError, parseExpr } from '../../src/core/parser'
+import { ParseError, parse, parseExpr } from '../../src/core/parser'
 import { toMtsSource } from '../../src/core/mtsSource'
 
 describe('Parser', () => {
@@ -51,6 +51,29 @@ describe('Parser', () => {
     expect(toMtsSource(parseExpr('{x,y}'))).toBe('{x, y}')
     expect(toMtsSource(parseExpr('{y,x}'))).toBe('{y, x}')
     expect(toMtsSource(parseExpr('{x,x}'))).toBe('{x, x}')
+  })
+
+  it('parses juxtaposition inside one line', () => {
+    expect(toMtsSource(parseExpr('a{b,c}'))).toBe('a{b, c}')
+    expect(toMtsSource(parseExpr('{}b'))).toBe('{}b')
+    expect(toMtsSource(parseExpr('{}{}'))).toBe('{}{}')
+    expect(toMtsSource(parseExpr('[][]'))).toBe('[][]')
+  })
+
+  it('keeps a newline as an application-level statement boundary', () => {
+    const file = parse('a : {x = y}\nb : {y = x}')
+    expect(file.statements).toHaveLength(2)
+    expect(toMtsSource(file.statements[0].expr)).toBe('a : {x = y}')
+    expect(toMtsSource(file.statements[1].expr)).toBe('b : {y = x}')
+  })
+
+  it('does not glue canonical root definitions across lines', () => {
+    const file = parse('∞ : {◁ = ∞, ▷ = ∞}\n(=) : {♀◁ = ♀▷, ◁♂ = ▷♂}')
+    expect(file.statements).toHaveLength(2)
+    expect(file.statements.map(statement => statement.expr.type)).toEqual([
+      'Definition',
+      'Definition',
+    ])
   })
 
   it('distinguishes round literals from judgments and link forms', () => {
