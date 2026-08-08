@@ -10,18 +10,22 @@ function pairKey(start: LinkRef, end: LinkRef): string {
   return `${start}:${end}`
 }
 
+type ProjectionIndexValue = LinkRef | null
+
 /**
  * Неизменяемое представление уже различённых связей приложения.
  *
  * Это граница, на которой приложение предоставляет существующие связи ядру
  * МТС. Интерпретация получает только операции чтения и не может создавать или
- * удалять связи.
+ * удалять связи. Проекционные индексы могут быть неоднозначны; такая
+ * неоднозначность становится ошибкой только при запросе соответствующей
+ * проекции и не запрещает хранить саму сеть связей.
  */
 export class ExplicitMemoryView implements MemoryView {
   private readonly linksById: ReadonlyMap<LinkRef, readonly [LinkRef, LinkRef]>
   private readonly linksByPoles: ReadonlyMap<string, LinkRef>
-  private readonly startProjections: ReadonlyMap<LinkRef, LinkRef>
-  private readonly endProjections: ReadonlyMap<LinkRef, LinkRef>
+  private readonly startProjections: ReadonlyMap<LinkRef, ProjectionIndexValue>
+  private readonly endProjections: ReadonlyMap<LinkRef, ProjectionIndexValue>
 
   constructor(links: readonly DistinguishedLink[]) {
     const byId = new Map<LinkRef, readonly [LinkRef, LinkRef]>()
@@ -44,24 +48,20 @@ export class ExplicitMemoryView implements MemoryView {
       byPoles.set(key, link.id)
     }
 
-    const startProjections = new Map<LinkRef, LinkRef>()
-    const endProjections = new Map<LinkRef, LinkRef>()
+    const startProjections = new Map<LinkRef, ProjectionIndexValue>()
+    const endProjections = new Map<LinkRef, ProjectionIndexValue>()
 
     for (const [link, poles] of byId) {
       const [start, end] = poles
       if (start === link) {
         const existing = startProjections.get(end)
-        if (existing !== undefined && existing !== link) {
-          throw new Error(`Ambiguous start projection for form ${end}`)
-        }
-        startProjections.set(end, link)
+        if (existing === undefined) startProjections.set(end, link)
+        else if (existing !== link) startProjections.set(end, null)
       }
       if (end === link) {
         const existing = endProjections.get(start)
-        if (existing !== undefined && existing !== link) {
-          throw new Error(`Ambiguous end projection for form ${start}`)
-        }
-        endProjections.set(start, link)
+        if (existing === undefined) endProjections.set(start, link)
+        else if (existing !== link) endProjections.set(start, null)
       }
     }
 
@@ -82,11 +82,15 @@ export class ExplicitMemoryView implements MemoryView {
   }
 
   findStartProjection(form: LinkRef): LinkRef | undefined {
-    return this.startProjections.get(form)
+    const projection = this.startProjections.get(form)
+    if (projection === null) throw new Error(`Ambiguous start projection for form ${form}`)
+    return projection
   }
 
   findEndProjection(form: LinkRef): LinkRef | undefined {
-    return this.endProjections.get(form)
+    const projection = this.endProjections.get(form)
+    if (projection === null) throw new Error(`Ambiguous end projection for form ${form}`)
+    return projection
   }
 
   /** Все существующие связи с данным первым полюсом. */
@@ -110,7 +114,7 @@ export class ExplicitMemoryView implements MemoryView {
     return [...this.linksById.keys()].sort((left, right) => left - right)
   }
 
-  /** Deterministic copy useful for diagnostics and non-mutation assertions. */
+  /** Детерминированная копия для диагностики и проверки отсутствия мутаций. */
   entries(): readonly (readonly [LinkRef, readonly [LinkRef, LinkRef]])[] {
     return [...this.linksById.entries()]
       .sort(([left], [right]) => left - right)
