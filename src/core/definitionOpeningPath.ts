@@ -2,7 +2,6 @@ import type { ASTNode } from './ast'
 import {
   DefinitionEnvironment,
   canonicalExpression,
-  definitionTargetKey,
   openDefinition,
   parseDefinition,
   parseDefinitionTarget,
@@ -115,11 +114,12 @@ export function environmentAt(
   return environment
 }
 
-function sameAddressableForm(left: ASTNode, right: ASTNode): boolean | null {
-  const leftKey = definitionTargetKey(left)
-  const rightKey = definitionTargetKey(right)
-  if (leftKey === null || rightKey === null) return null
-  return leftKey === rightKey
+function isForm(node: ASTNode): boolean {
+  return node.type !== 'Definition' && node.type !== 'Equality' && node.type !== 'Inequality'
+}
+
+function structurallySame(left: ASTNode, right: ASTNode): boolean {
+  return canonicalExpression(left) === canonicalExpression(right)
 }
 
 function sameDefinitionId(left: DefinitionId, right: DefinitionId): boolean {
@@ -139,20 +139,21 @@ export function verifyDefinitionOpeningPath(
   environment: DefinitionEnvironment
 ): OpeningPathVerification {
   if (witness.edges.length === 0) return { accepted: false, failure: 'empty-path' }
-
-  const firstMatch = sameAddressableForm(witness.startTarget, witness.edges[0].target)
-  if (firstMatch !== true) return { accepted: false, failure: 'start-target-mismatch' }
+  if (!structurallySame(witness.startTarget, witness.edges[0].target)) {
+    return { accepted: false, failure: 'start-target-mismatch' }
+  }
 
   const seen = new Set<string>()
   let replayBody: ASTNode | null = null
 
   for (const [index, edge] of witness.edges.entries()) {
     if (index > 0) {
-      if (replayBody === null || definitionTargetKey(replayBody) === null) {
+      if (replayBody === null || !isForm(replayBody)) {
         return { accepted: false, failure: 'previous-body-not-form' }
       }
-      const adjacent = sameAddressableForm(replayBody, edge.target)
-      if (adjacent !== true) return { accepted: false, failure: 'adjacency-mismatch' }
+      if (!structurallySame(replayBody, edge.target)) {
+        return { accepted: false, failure: 'adjacency-mismatch' }
+      }
     }
 
     const opening = openDefinition(edge.target, environment)
@@ -167,13 +168,13 @@ export function verifyDefinitionOpeningPath(
     if (seen.has(idKey)) return { accepted: false, failure: 'repeated-definition-id' }
     seen.add(idKey)
 
-    if (canonicalExpression(opening.body) !== canonicalExpression(edge.body)) {
+    if (!structurallySame(opening.body, edge.body)) {
       return { accepted: false, failure: 'body-mismatch' }
     }
     replayBody = opening.body
   }
 
-  if (replayBody === null || canonicalExpression(replayBody) !== canonicalExpression(witness.finalBody)) {
+  if (replayBody === null || !structurallySame(replayBody, witness.finalBody)) {
     return { accepted: false, failure: 'final-body-mismatch' }
   }
   return { accepted: true }
