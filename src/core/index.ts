@@ -126,6 +126,16 @@ export {
   checkProof,
 } from './proofReplay'
 
+// Untrusted proof construction. Its output becomes trusted only after checkProof().
+export type {
+  InterpretProofSearchInput,
+  ProvenSearchResult,
+  NotProvenSearchResult,
+  ProofSearchErrorResult,
+  InterpretProofSearchResult,
+} from './proofSearch'
+export { searchInterpretProof } from './proofSearch'
+
 export type {
   ProofContextView,
   ProofSubstitutionView,
