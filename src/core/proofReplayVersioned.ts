@@ -6,7 +6,7 @@ import {
 } from './proofReplay'
 import {
   MTS_PROOF_SCHEMA_V03,
-  checkProofV03,
+  checkJudgmentV03,
   parseProofObjectV03,
   type MtsProofObjectV03,
 } from './proofReplayV03'
@@ -39,7 +39,7 @@ export function parseVersionedProofObject(value: unknown): VersionedProofObject 
 export function checkVersionedProof(value: unknown): boolean {
   try {
     const proof = parseVersionedProofObject(value)
-    return 'schema' in proof ? checkProof(proof) : checkProofV03(proof)
+    return 'schema' in proof ? checkProof(proof) : proof.judgments.every(checkJudgmentV03)
   } catch {
     return false
   }
