@@ -13,6 +13,7 @@ const conformancePath = resolve(
   process.cwd(),
   'contracts/anum_docs-v0.2/mts-conformance-v0.2.json'
 )
+const proofPath = resolve(process.cwd(), 'contracts/anum_docs-v0.2/mts-proof-v0.2.json')
 const provenancePath = resolve(process.cwd(), 'contracts/anum_docs-v0.2/provenance.json')
 
 function readJson(path: string): unknown {
@@ -32,6 +33,20 @@ interface Provenance {
   sourceCommit: string
   contract: { path: string; gitBlobSha: string }
   conformance: { path: string; gitBlobSha: string }
+  proof: { path: string; sourceCommit: string; gitBlobSha: string }
+}
+
+interface ProofContractV02 {
+  schema: string
+  status: string
+  dependsOn: string
+  checker: {
+    trustedRuleSet: string[]
+    replaysCanonicalInterpreter: boolean
+    usesDisplayLabelsAsIdentity: boolean
+    mayMaterialize: boolean
+  }
+  explicitlyNotTrusted: string[]
 }
 
 function readProvenance(): Provenance {
@@ -59,6 +74,26 @@ describe('pinned anum_docs MTS v0.2 contract', () => {
     expect(gitBlobSha(conformancePath)).toBe(provenance.conformance.gitBlobSha)
     expect(provenance.contract.gitBlobSha).toBe('fb414a1541f3430fa9292c0fdfd89ca07d5db8ea')
     expect(provenance.conformance.gitBlobSha).toBe('96303366a8808d9e67ee548b445fcdbf2233f336')
+  })
+
+  it('pins the proof contract from its newer upstream commit without rewriting old provenance', () => {
+    const provenance = readProvenance()
+    const proof = readJson(proofPath) as ProofContractV02
+
+    expect(provenance.proof.sourceCommit).toBe(
+      'd4d8e7c2291d26ea868d01dcc66f90d1c319c6e9'
+    )
+    expect(gitBlobSha(proofPath)).toBe(provenance.proof.gitBlobSha)
+    expect(provenance.proof.gitBlobSha).toBe('7c125771be689ce2c825f5fa1be4674527f15dbb')
+    expect(proof.schema).toBe('mts-proof/v0.2')
+    expect(proof.status).toBe('candidate')
+    expect(proof.dependsOn).toBe('mts-contract/v0.2')
+    expect(proof.checker.trustedRuleSet).toEqual(['interpret'])
+    expect(proof.checker.replaysCanonicalInterpreter).toBe(true)
+    expect(proof.checker.usesDisplayLabelsAsIdentity).toBe(false)
+    expect(proof.checker.mayMaterialize).toBe(false)
+    expect(proof.explicitlyNotTrusted).toContain('transitivity')
+    expect(proof.explicitlyNotTrusted).toContain('modus-ponens')
   })
 
   it('treats the two context pronouns as atomic non-bracket code points', () => {
