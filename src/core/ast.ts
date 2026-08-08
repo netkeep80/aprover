@@ -1,203 +1,212 @@
 /**
- * AST types for МТС (Meta-Theory of Links) formal notation
- * Based on EBNF from "МТС — Чистовик v0.1.md"
+ * AST types for the МТС formal notation consumed from anum_docs.
+ *
+ * This module is shared by parser, prover and visual projection. Display text
+ * is never semantic identity: repeated forms remain separate AST occurrences.
  */
 
-/** Source location for error reporting */
 export interface SourceLocation {
   start: { line: number; column: number; offset: number }
   end: { line: number; column: number; offset: number }
 }
 
-/** Base interface for all AST nodes */
 export interface ASTNode {
   type: string
   loc?: SourceLocation
 }
 
-/** Link expression: a -> b */
 export interface LinkExpr extends ASTNode {
   type: 'Link'
   left: ASTNode
   right: ASTNode
 }
 
-/** Not-link expression: a !-> b (sugar for !(a -> b)) */
 export interface NotLinkExpr extends ASTNode {
   type: 'NotLink'
   left: ASTNode
   right: ASTNode
 }
 
-/** Definition expression: s : F */
 export interface DefExpr extends ASTNode {
   type: 'Definition'
   name: ASTNode
   form: ASTNode
 }
 
-/** Equality expression: A = B */
 export interface EqExpr extends ASTNode {
   type: 'Equality'
   left: ASTNode
   right: ASTNode
 }
 
-/** Inequality expression: A != B */
 export interface NeqExpr extends ASTNode {
   type: 'Inequality'
   left: ASTNode
   right: ASTNode
 }
 
-/** Male/self-closing start: ♂x */
+/** Glyph ♂ node. Canonical v0.2 uses it as postfix end projection F♂. */
 export interface MaleExpr extends ASTNode {
   type: 'Male'
   operand: ASTNode
 }
 
-/** Female/self-closing end: x♀ */
+/** Glyph ♀ node. Canonical v0.2 uses it as prefix start projection ♀F. */
 export interface FemaleExpr extends ASTNode {
   type: 'Female'
   operand: ASTNode
 }
 
-/** Negation/inversion: !x or ¬x */
 export interface NotExpr extends ASTNode {
   type: 'Not'
   operand: ASTNode
 }
 
-/** Power expression: a^n */
+/** Power is legacy application syntax; remove after prover consumers migrate. */
 export interface PowerExpr extends ASTNode {
   type: 'Power'
   base: ASTNode
   exponent: number
 }
 
-/** Set/package expression: { A, B, C } */
+/** Bundle expression: { A, B, C }. */
 export interface SetExpr extends ASTNode {
   type: 'Set'
   elements: ASTNode[]
 }
 
-/** Infinity/akorень: ∞ */
 export interface InfinityExpr extends ASTNode {
   type: 'Infinity'
 }
 
-/** Numeric constants: 0, 1 */
 export interface NumExpr extends ASTNode {
   type: 'Num'
   value: 0 | 1
 }
 
-/** Identifier: variable names */
 export interface IdentExpr extends ASTNode {
   type: 'Identifier'
   name: string
 }
 
-/** Abit literal: '...' (sequence of [, 0, 1, ] characters for quaternary abits) */
 export interface AbitLitExpr extends ASTNode {
   type: 'AbitLit'
   value: string
 }
 
-/** String literal: "..." (multi-character string, used for string anumbers) */
 export interface StringLitExpr extends ASTNode {
   type: 'StringLit'
   value: string
 }
 
-/** Bracket constants: [ and ] (abits) */
+/** Literal operator/boundary glyph inside a formal container, e.g. (=), (⟼), ([). */
+export interface LiteralExpr extends ASTNode {
+  type: 'Literal'
+  value: string
+}
+
+/** Explicit round formal form. Parentheses are not discarded by the parser. */
+export interface RoundExpr extends ASTNode {
+  type: 'Round'
+  content: ASTNode | null
+}
+
+/** Literal square-boundary glyph, retained for old application consumers. */
 export interface BracketExpr extends ASTNode {
   type: 'Bracket'
   side: 'left' | 'right'
 }
 
-/** Statement: expression followed by dot */
+/** Canonical L2 square form: [], [1], [0], [...]. */
+export interface SquareExpr extends ASTNode {
+  type: 'Square'
+  content: ASTNode | null
+}
+
+/** One of exactly two atomic current/ancestor context pronouns. */
+export interface ContextPronounExpr extends ASTNode {
+  type: 'ContextPronoun'
+  pole: 'start' | 'end'
+  /** 0=current context, 1=parent, 2=grandparent, ... */
+  up: number
+}
+
 export interface Statement extends ASTNode {
   type: 'Statement'
   expr: ASTNode
 }
 
-/** File: sequence of statements */
 export interface File extends ASTNode {
   type: 'File'
   statements: Statement[]
 }
 
-/** Type guards */
 export function isLinkExpr(node: ASTNode): node is LinkExpr {
   return node.type === 'Link'
 }
-
 export function isNotLinkExpr(node: ASTNode): node is NotLinkExpr {
   return node.type === 'NotLink'
 }
-
 export function isDefExpr(node: ASTNode): node is DefExpr {
   return node.type === 'Definition'
 }
-
 export function isEqExpr(node: ASTNode): node is EqExpr {
   return node.type === 'Equality'
 }
-
 export function isNeqExpr(node: ASTNode): node is NeqExpr {
   return node.type === 'Inequality'
 }
-
 export function isMaleExpr(node: ASTNode): node is MaleExpr {
   return node.type === 'Male'
 }
-
 export function isFemaleExpr(node: ASTNode): node is FemaleExpr {
   return node.type === 'Female'
 }
-
 export function isNotExpr(node: ASTNode): node is NotExpr {
   return node.type === 'Not'
 }
-
 export function isPowerExpr(node: ASTNode): node is PowerExpr {
   return node.type === 'Power'
 }
-
 export function isSetExpr(node: ASTNode): node is SetExpr {
   return node.type === 'Set'
 }
-
 export function isInfinityExpr(node: ASTNode): node is InfinityExpr {
   return node.type === 'Infinity'
 }
-
 export function isNumExpr(node: ASTNode): node is NumExpr {
   return node.type === 'Num'
 }
-
 export function isIdentExpr(node: ASTNode): node is IdentExpr {
   return node.type === 'Identifier'
 }
-
 export function isAbitLitExpr(node: ASTNode): node is AbitLitExpr {
   return node.type === 'AbitLit'
 }
-
 export function isStringLitExpr(node: ASTNode): node is StringLitExpr {
   return node.type === 'StringLit'
 }
-
+export function isLiteralExpr(node: ASTNode): node is LiteralExpr {
+  return node.type === 'Literal'
+}
+export function isRoundExpr(node: ASTNode): node is RoundExpr {
+  return node.type === 'Round'
+}
 export function isBracketExpr(node: ASTNode): node is BracketExpr {
   return node.type === 'Bracket'
 }
+export function isSquareExpr(node: ASTNode): node is SquareExpr {
+  return node.type === 'Square'
+}
+export function isContextPronounExpr(node: ASTNode): node is ContextPronounExpr {
+  return node.type === 'ContextPronoun'
+}
 
-/** Pretty print AST node for debugging */
+/** Human-readable structural printer; it preserves explicit containers. */
 export function astToString(node: ASTNode): string {
   switch (node.type) {
     case 'Link':
-      return `(${astToString((node as LinkExpr).left)} -> ${astToString((node as LinkExpr).right)})`
+      return `(${astToString((node as LinkExpr).left)} ⟼ ${astToString((node as LinkExpr).right)})`
     case 'NotLink':
       return `(${astToString((node as NotLinkExpr).left)} !-> ${astToString((node as NotLinkExpr).right)})`
     case 'Definition':
@@ -207,11 +216,11 @@ export function astToString(node: ASTNode): string {
     case 'Inequality':
       return `(${astToString((node as NeqExpr).left)} != ${astToString((node as NeqExpr).right)})`
     case 'Male':
-      return `♂${astToString((node as MaleExpr).operand)}`
+      return `${astToString((node as MaleExpr).operand)}♂`
     case 'Female':
-      return `${astToString((node as FemaleExpr).operand)}♀`
+      return `♀${astToString((node as FemaleExpr).operand)}`
     case 'Not':
-      return `!${astToString((node as NotExpr).operand)}`
+      return `¬${astToString((node as NotExpr).operand)}`
     case 'Power':
       return `${astToString((node as PowerExpr).base)}^${(node as PowerExpr).exponent}`
     case 'Set':
@@ -226,8 +235,22 @@ export function astToString(node: ASTNode): string {
       return `'${(node as AbitLitExpr).value}'`
     case 'StringLit':
       return `"${(node as StringLitExpr).value}"`
+    case 'Literal':
+      return (node as LiteralExpr).value
+    case 'Round': {
+      const content = (node as RoundExpr).content
+      return `(${content === null ? '' : astToString(content)})`
+    }
     case 'Bracket':
       return (node as BracketExpr).side === 'left' ? '[' : ']'
+    case 'Square': {
+      const content = (node as SquareExpr).content
+      return `[${content === null ? '' : astToString(content)}]`
+    }
+    case 'ContextPronoun': {
+      const pronoun = node as ContextPronounExpr
+      return `${'↑'.repeat(pronoun.up)}${pronoun.pole === 'start' ? '◁' : '▷'}`
+    }
     case 'Statement':
       return `${astToString((node as Statement).expr)}.`
     case 'File':

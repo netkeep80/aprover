@@ -139,7 +139,7 @@ function projectNode(node: ASTNode, state: GraphBuilderState): string {
     const centerId = createNode(
       state,
       'male',
-      `♂${getNodeLabel(node.operand)}`,
+      astToString(node),
       'unary',
       node
     )
@@ -154,7 +154,7 @@ function projectNode(node: ASTNode, state: GraphBuilderState): string {
     const centerId = createNode(
       state,
       'female',
-      `${getNodeLabel(node.operand)}♀`,
+      astToString(node),
       'unary',
       node
     )

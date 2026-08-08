@@ -258,15 +258,16 @@ export function createProverState(): ProverState {
   // !∞ = ∞
   addAxiomEq(state, '!∞', '∞')
 
-  // А8. Единица смысла: 1 : (♂∞ -> ∞♀)
-  state.definitions.set('1', parseAndNormalize('♂∞ -> ∞♀'))
+  // Legacy prover semantics still lives here until Phase E; only its parser-facing
+  // spellings are canonicalized now so it consumes the single v0.2 projection grammar.
+  state.definitions.set('1', parseAndNormalize('♀∞ -> ∞♂'))
 
   // А9. Нуль смысла: 0 : !1
   state.definitions.set('0', parseAndNormalize('!1'))
 
   // А10. Абиты
-  state.definitions.set('[', parseAndNormalize('♂∞'))
-  state.definitions.set(']', parseAndNormalize('∞♀'))
+  state.definitions.set('[', parseAndNormalize('♀∞'))
+  state.definitions.set(']', parseAndNormalize('∞♂'))
 
   // А11. Левоассоциативность: (a -> b -> c) = ((a -> b) -> c)
   // This is built into the parser
@@ -517,7 +518,6 @@ export function expandDefinitions(node: ASTNode, state: ProverState): ASTNode {
     }
     return node
   }
-
   if (isLinkExpr(node)) {
     return {
       ...node,

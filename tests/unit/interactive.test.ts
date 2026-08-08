@@ -120,15 +120,15 @@ describe('Interactive Proof Mode', () => {
       expect(reflexivityStep!.confidence).toBe(1.0)
     })
 
-    it('should suggest A5 axiom for male expressions', () => {
-      session.addGoalFromString('♂v = ♂v -> v')
+    it('should suggest A5 axiom for canonical end projection', () => {
+      session.addGoalFromString('v♂ = v♂ -> v')
       const steps = session.getAvailableSteps()
       const maleStep = steps.find(s => s.axiom?.id === 'A5')
       expect(maleStep).toBeDefined()
     })
 
-    it('should suggest A6 axiom for female expressions', () => {
-      session.addGoalFromString('r♀ = r -> r♀')
+    it('should suggest A6 axiom for canonical start projection', () => {
+      session.addGoalFromString('♀r = r -> ♀r')
       const steps = session.getAvailableSteps()
       const femaleStep = steps.find(s => s.axiom?.id === 'A6')
       expect(femaleStep).toBeDefined()
@@ -157,7 +157,7 @@ describe('Interactive Proof Mode', () => {
     })
 
     it('should have unique IDs for all steps', () => {
-      session.addGoalFromString('♂∞ = ♂∞ -> ∞')
+      session.addGoalFromString('∞♂ = ∞♂ -> ∞')
       const steps = session.getAvailableSteps()
       const ids = steps.map(s => s.id)
       const uniqueIds = new Set(ids)
@@ -174,14 +174,12 @@ describe('Interactive Proof Mode', () => {
 
     it('should apply step by ID', () => {
       session.addGoalFromString('a = a')
-      // Get steps - they are now cached
       const steps = session.getAvailableSteps()
       expect(steps.length).toBeGreaterThan(0)
-      const step = steps[0] // First step is highest confidence after sorting
+      const step = steps[0]
       expect(step).toBeDefined()
       expect(step.id).toBeDefined()
 
-      // Apply using the step ID - works because steps are cached
       const result = session.applyStep(step.id)
       expect(result.success).toBe(true)
     })
@@ -248,11 +246,9 @@ describe('Interactive Proof Mode', () => {
 
     it('should stop at max iterations', () => {
       const session = createProofSession('automatic')
-      // Add a goal that might take many iterations
       session.addGoalFromString('(aa -> bb) = (cc -> dd)')
       const results = session.runAutomatic()
 
-      // Should eventually stop even if not proved
       expect(results.length).toBeLessThanOrEqual(100)
     })
   })
@@ -358,9 +354,8 @@ describe('Interactive Proof Mode', () => {
     })
 
     it('should jump to specific history point', () => {
-      // Verify history exists before jumping
       expect(session.getHistory().length).toBeGreaterThan(0)
-      const targetIndex = 1 // Second action
+      const targetIndex = 1
 
       const result = session.jumpToHistory(targetIndex)
       expect(result).toBe(true)
@@ -396,11 +391,11 @@ describe('Interactive Proof Mode', () => {
         const steps = getSuggestedSteps(goal, state)
 
         expect(steps.length).toBeGreaterThan(0)
-        expect(steps.length).toBeLessThanOrEqual(5) // Default max
+        expect(steps.length).toBeLessThanOrEqual(5)
       })
 
       it('should respect maxSteps parameter', () => {
-        const goal = normalize(parseExpr('♂v = ♂v -> v'))
+        const goal = normalize(parseExpr('v♂ = v♂ -> v'))
         const state = createProverState()
         const steps = getSuggestedSteps(goal, state, 2)
 
@@ -424,8 +419,8 @@ describe('Interactive Proof Mode', () => {
         expect(result.success).toBe(true)
       })
 
-      it('should prove ♂v = ♂v -> v', () => {
-        const goal = normalize(parseExpr('♂v = ♂v -> v'))
+      it('should prove canonical end-projection fixture', () => {
+        const goal = normalize(parseExpr('v♂ = v♂ -> v'))
         const result = quickProof(goal)
 
         expect(result.success).toBe(true)
@@ -469,17 +464,17 @@ describe('Interactive Proof Mode', () => {
       expect(state.provenImplications.length).toBeGreaterThan(0)
     })
 
-    it('should prove with A5 axiom expansion', () => {
+    it('should prove with A5 axiom expansion through canonical end projection', () => {
       const session = createProofSession()
-      session.addGoalFromString('♂v = (♂v -> v) -> v')
+      session.addGoalFromString('v♂ = (v♂ -> v) -> v')
       session.runAutomatic()
 
       expect(session.status).toBe('completed')
     })
 
-    it('should prove with A6 axiom expansion', () => {
+    it('should prove with A6 axiom expansion through canonical start projection', () => {
       const session = createProofSession()
-      session.addGoalFromString('r♀ = r -> (r -> r♀)')
+      session.addGoalFromString('♀r = r -> (r -> ♀r)')
       session.runAutomatic()
 
       expect(session.status).toBe('completed')

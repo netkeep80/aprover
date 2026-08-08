@@ -11,6 +11,7 @@
 import type { ASTNode } from './ast'
 import {
   isLinkExpr,
+  isNotLinkExpr,
   isDefExpr,
   isEqExpr,
   isNeqExpr,
@@ -23,7 +24,11 @@ import {
   isIdentExpr,
   isAbitLitExpr,
   isStringLitExpr,
+  isLiteralExpr,
+  isRoundExpr,
   isBracketExpr,
+  isSquareExpr,
+  isContextPronounExpr,
   isPowerExpr,
 } from './ast'
 import type { ProofResult, ProverState, AxiomId } from './prover'
@@ -173,11 +178,15 @@ export interface ProverStateExport {
 }
 
 /**
- * Convert AST node to LaTeX notation
+ * Convert AST node to LaTeX notation while preserving canonical MTS v0.2
+ * structure and projection fixity.
  */
 export function astToLaTeX(node: ASTNode): string {
   if (isLinkExpr(node)) {
     return `(${astToLaTeX(node.left)} \\to ${astToLaTeX(node.right)})`
+  }
+  if (isNotLinkExpr(node)) {
+    return `(${astToLaTeX(node.left)} \\nrightarrow ${astToLaTeX(node.right)})`
   }
   if (isDefExpr(node)) {
     return `${astToLaTeX(node.name)} : ${astToLaTeX(node.form)}`
@@ -189,10 +198,10 @@ export function astToLaTeX(node: ASTNode): string {
     return `${astToLaTeX(node.left)} \\neq ${astToLaTeX(node.right)}`
   }
   if (isMaleExpr(node)) {
-    return `\\male{${astToLaTeX(node.operand)}}`
+    return `${astToLaTeX(node.operand)}\\male{}`
   }
   if (isFemaleExpr(node)) {
-    return `${astToLaTeX(node.operand)}\\female`
+    return `\\female{}${astToLaTeX(node.operand)}`
   }
   if (isNotExpr(node)) {
     return `\\lnot ${astToLaTeX(node.operand)}`
@@ -218,8 +227,21 @@ export function astToLaTeX(node: ASTNode): string {
   if (isStringLitExpr(node)) {
     return `\\text{"${node.value}"}`
   }
+  if (isLiteralExpr(node)) {
+    return stringToLaTeX(node.value)
+  }
+  if (isRoundExpr(node)) {
+    return `(${node.content === null ? '' : astToLaTeX(node.content)})`
+  }
   if (isBracketExpr(node)) {
     return node.side === 'left' ? '[' : ']'
+  }
+  if (isSquareExpr(node)) {
+    return `[${node.content === null ? '' : astToLaTeX(node.content)}]`
+  }
+  if (isContextPronounExpr(node)) {
+    const glyph = `${'↑'.repeat(node.up)}${node.pole === 'start' ? '◁' : '▷'}`
+    return `\\text{${glyph}}`
   }
   return `\\text{<unknown>}`
 }
@@ -230,6 +252,8 @@ export function astToLaTeX(node: ASTNode): string {
 export function stringToLaTeX(str: string): string {
   return str
     .replace(/∞/g, '\\infty')
+    .replace(/⟼/g, '\\to')
+    .replace(/↛/g, '\\nrightarrow')
     .replace(/→/g, '\\to')
     .replace(/->/g, '\\to')
     .replace(/♂/g, '\\male{}')
@@ -269,7 +293,7 @@ export function exportToLaTeX(
     }
     lines.push('')
     lines.push('% Custom commands for МТС notation')
-    lines.push('\\newcommand{\\male}[1]{\\text{♂}#1}')
+    lines.push('\\newcommand{\\male}{\\text{♂}}')
     lines.push('\\newcommand{\\female}{\\text{♀}}')
     lines.push('')
     lines.push('\\begin{document}')

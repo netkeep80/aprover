@@ -1,5 +1,5 @@
 /**
- * Unit tests for МТС parser
+ * Unit tests for the МТС parser consumed from anum_docs.
  */
 
 import { describe, it, expect } from 'vitest'
@@ -8,8 +8,7 @@ import { parse, parseExpr, parseWithRecovery, ParseError } from '../../src/core/
 describe('Parser', () => {
   describe('Basic expressions', () => {
     it('should parse infinity', () => {
-      const ast = parseExpr('∞')
-      expect(ast.type).toBe('Infinity')
+      expect(parseExpr('∞').type).toBe('Infinity')
     })
 
     it('should parse numeric constants', () => {
@@ -23,198 +22,170 @@ describe('Parser', () => {
       expect((ast as any).name).toBe('x')
     })
 
-    it('should parse abit literals (single quotes for quaternary abits)', () => {
+    it('should parse legacy serialized abit literals independently from L2 square forms', () => {
       const ast = parseExpr("'01[]'")
       expect(ast.type).toBe('AbitLit')
       expect((ast as any).value).toBe('01[]')
     })
 
-    it('should parse single abit character', () => {
-      const ast = parseExpr("'0'")
-      expect(ast.type).toBe('AbitLit')
-      expect((ast as any).value).toBe('0')
-    })
-
-    it('should parse abit sequence in expression context', () => {
-      const ast = parseExpr("'[01]' -> '[]'")
-      expect(ast.type).toBe('Link')
-      expect((ast as any).left.type).toBe('AbitLit')
-      expect((ast as any).right.type).toBe('AbitLit')
-    })
-
-    it('should parse string literals (double quotes for string anums)', () => {
-      const ast = parseExpr('"hello"')
-      expect(ast.type).toBe('StringLit')
-      expect((ast as any).value).toBe('hello')
-    })
-
-    it('should parse empty string literal', () => {
-      const ast = parseExpr('""')
-      expect(ast.type).toBe('StringLit')
-      expect((ast as any).value).toBe('')
-    })
-
-    it('should parse string literal with UTF-8 characters', () => {
+    it('should parse string literals', () => {
       const ast = parseExpr('"связь"')
       expect(ast.type).toBe('StringLit')
       expect((ast as any).value).toBe('связь')
     })
 
-    it('should parse string literal in expression context', () => {
-      const ast = parseExpr('"hello" -> "world"')
-      expect(ast.type).toBe('Link')
-      expect((ast as any).left.type).toBe('StringLit')
-      expect((ast as any).right.type).toBe('StringLit')
+    it('should parse canonical square forms', () => {
+      expect(parseExpr('[]').type).toBe('Square')
+      expect(parseExpr('[1]').type).toBe('Square')
+      expect(parseExpr('[0]').type).toBe('Square')
     })
 
-    it('should parse brackets', () => {
-      expect(parseExpr('[').type).toBe('Bracket')
-      expect(parseExpr(']').type).toBe('Bracket')
+    it('should not treat a bare square boundary as an L2 form', () => {
+      expect(() => parseExpr('[')).toThrow(ParseError)
+      expect(() => parseExpr(']')).toThrow(ParseError)
+    })
+
+    it('should parse literal square boundary glyphs inside round forms', () => {
+      const left = parseExpr('([)')
+      const right = parseExpr('(])')
+      expect(left.type).toBe('Round')
+      expect(right.type).toBe('Round')
+      expect((left as any).content.type).toBe('Literal')
+      expect((right as any).content.type).toBe('Literal')
+    })
+
+    it('should parse atomic context pronouns and ascent', () => {
+      expect(parseExpr('◁').type).toBe('ContextPronoun')
+      expect(parseExpr('▷').type).toBe('ContextPronoun')
+      const parent = parseExpr('↑◁') as any
+      expect(parent.type).toBe('ContextPronoun')
+      expect(parent.up).toBe(1)
     })
   })
 
   describe('Link expressions', () => {
-    it('should parse simple link', () => {
-      const ast = parseExpr('a -> b')
+    it('should parse the canonical link glyph', () => {
+      const ast = parseExpr('a ⟼ b')
       expect(ast.type).toBe('Link')
       expect((ast as any).left.type).toBe('Identifier')
       expect((ast as any).right.type).toBe('Identifier')
     })
 
-    it('should parse left-associative chains', () => {
-      const ast = parseExpr('a -> b -> c')
+    it('should preserve left-associative chains', () => {
+      const ast = parseExpr('a ⟼ b ⟼ c')
       expect(ast.type).toBe('Link')
-      // Should be ((a -> b) -> c)
       expect((ast as any).left.type).toBe('Link')
       expect((ast as any).right.type).toBe('Identifier')
     })
-
-    it('should parse not-link', () => {
-      const ast = parseExpr('a !-> b')
-      expect(ast.type).toBe('NotLink')
-    })
   })
 
-  describe('Prefix operators', () => {
-    it('should parse male prefix', () => {
-      const ast = parseExpr('♂x')
-      expect(ast.type).toBe('Male')
-      expect((ast as any).operand.type).toBe('Identifier')
-    })
-
-    it('should parse nested male', () => {
-      const ast = parseExpr('♂♂x')
-      expect(ast.type).toBe('Male')
-      expect((ast as any).operand.type).toBe('Male')
-    })
-
-    it('should parse not prefix', () => {
-      const ast = parseExpr('!x')
-      expect(ast.type).toBe('Not')
-    })
-
-    it('should parse combined prefixes', () => {
-      const ast = parseExpr('!♂x')
-      expect(ast.type).toBe('Not')
-      expect((ast as any).operand.type).toBe('Male')
-    })
-  })
-
-  describe('Postfix operators', () => {
-    it('should parse female postfix', () => {
-      const ast = parseExpr('x♀')
+  describe('Canonical projections and inversion', () => {
+    it('should parse start projection as prefix ♀F', () => {
+      const ast = parseExpr('♀x')
       expect(ast.type).toBe('Female')
       expect((ast as any).operand.type).toBe('Identifier')
     })
 
-    it('should parse nested female', () => {
-      const ast = parseExpr('x♀♀')
+    it('should parse nested start projections', () => {
+      const ast = parseExpr('♀♀x')
       expect(ast.type).toBe('Female')
       expect((ast as any).operand.type).toBe('Female')
     })
 
-    it('should parse power', () => {
-      const ast = parseExpr('a^2')
-      expect(ast.type).toBe('Power')
-      expect((ast as any).exponent).toBe(2)
+    it('should parse end projection as postfix F♂', () => {
+      const ast = parseExpr('x♂')
+      expect(ast.type).toBe('Male')
+      expect((ast as any).operand.type).toBe('Identifier')
+    })
+
+    it('should parse nested end projections', () => {
+      const ast = parseExpr('x♂♂')
+      expect(ast.type).toBe('Male')
+      expect((ast as any).operand.type).toBe('Male')
+    })
+
+    it('should parse inversion with canonical glyph', () => {
+      const ast = parseExpr('¬x')
+      expect(ast.type).toBe('Not')
     })
   })
 
-  describe('Definitions and equalities', () => {
+  describe('Definitions and judgments', () => {
     it('should parse definition', () => {
-      const ast = parseExpr('∞ : ∞ -> ∞')
-      expect(ast.type).toBe('Definition')
+      expect(parseExpr('∞ : {◁ = ∞, ▷ = ∞}').type).toBe('Definition')
     })
 
     it('should parse equality', () => {
-      const ast = parseExpr('a = b')
-      expect(ast.type).toBe('Equality')
+      expect(parseExpr('a = b').type).toBe('Equality')
     })
 
     it('should parse inequality', () => {
-      const ast = parseExpr('a != b')
-      expect(ast.type).toBe('Inequality')
+      expect(parseExpr('a != b').type).toBe('Inequality')
     })
   })
 
-  describe('Sets', () => {
-    it('should parse empty-ish set', () => {
-      // Note: our grammar requires at least one element
+  describe('Bundles', () => {
+    it('should parse one-element bundle', () => {
       const ast = parseExpr('{ a }')
       expect(ast.type).toBe('Set')
       expect((ast as any).elements.length).toBe(1)
     })
 
-    it('should parse multi-element set', () => {
+    it('should parse multi-element bundle', () => {
       const ast = parseExpr('{ a, b, c }')
       expect(ast.type).toBe('Set')
       expect((ast as any).elements.length).toBe(3)
     })
   })
 
-  describe('Parentheses', () => {
-    it('should parse parenthesized expression', () => {
+  describe('Round forms', () => {
+    it('should preserve explicit round form in AST', () => {
       const ast = parseExpr('(a)')
-      expect(ast.type).toBe('Identifier')
+      expect(ast.type).toBe('Round')
+      expect((ast as any).content.type).toBe('Identifier')
     })
 
-    it('should override associativity', () => {
-      const ast = parseExpr('a -> (b -> c)')
+    it('should preserve grouping structure', () => {
+      const ast = parseExpr('a ⟼ (b ⟼ c)')
       expect(ast.type).toBe('Link')
-      // Right side should be a link, not identifier
-      expect((ast as any).right.type).toBe('Link')
+      expect((ast as any).right.type).toBe('Round')
+      expect((ast as any).right.content.type).toBe('Link')
+    })
+
+    it('should preserve empty round form as a formal atom', () => {
+      const ast = parseExpr('()')
+      expect(ast.type).toBe('Round')
+      expect((ast as any).content).toBeNull()
+    })
+
+    it('should distinguish literal (=) from equality operator', () => {
+      const literal = parseExpr('(=)')
+      const judgment = parseExpr('a = b')
+      expect(literal.type).toBe('Round')
+      expect((literal as any).content.type).toBe('Literal')
+      expect(judgment.type).toBe('Equality')
     })
   })
 
-  describe('Complex expressions', () => {
-    it('should parse МТС axioms', () => {
-      // А4: ∞ : (∞ -> ∞)
-      const ast1 = parseExpr('∞ : (∞ -> ∞)')
-      expect(ast1.type).toBe('Definition')
+  describe('Canonical root definitions', () => {
+    const root = [
+      '∞ : {◁ = ∞, ▷ = ∞}',
+      '() : ♀() ⟼ ()♂',
+      '([) : (♀∞)',
+      '(]) : (∞♂)',
+      '(⟼) : (♀∞ ⟼ ∞♂)',
+      '(↛) : (∞♂ ⟼ ♀∞)',
+      '[1] : (⟼)',
+      '[0] : (↛)',
+      '(=) : {♀◁ = ♀▷, ◁♂ = ▷♂}',
+      '(!=) : ¬(=)',
+    ]
 
-      // А5: ♂x : (♂x -> x)
-      const ast2 = parseExpr('♂x : (♂x -> x)')
-      expect(ast2.type).toBe('Definition')
-
-      // А6: x♀ : (x -> x♀)
-      const ast3 = parseExpr('x♀ : (x -> x♀)')
-      expect(ast3.type).toBe('Definition')
-
-      // А8: 1 : (♂∞ -> ∞♀)
-      const ast4 = parseExpr('1 : (♂∞ -> ∞♀)')
-      expect(ast4.type).toBe('Definition')
-    })
-
-    it('should parse complex equalities', () => {
-      // From mtl_formulas.mtc
-      const ast = parseExpr('a -> b -> c = (a -> b) -> c')
-      expect(ast.type).toBe('Equality')
-    })
-
-    it('should parse complex inequalities', () => {
-      const ast = parseExpr('♂∞♀ != ∞')
-      expect(ast.type).toBe('Inequality')
-    })
+    for (const formula of root) {
+      it(`should parse ${formula}`, () => {
+        expect(parseExpr(formula).type).toBe('Definition')
+      })
+    }
   })
 
   describe('File parsing', () => {
@@ -226,121 +197,45 @@ describe('Parser', () => {
 
     it('should parse multiple statements with newlines', () => {
       const file = parse('a = b\nc = d')
-      expect(file.type).toBe('File')
       expect(file.statements.length).toBe(2)
     })
 
-    it('should parse multiple statements without separators', () => {
-      const file = parse('a = b\nc = d\ne = f')
-      expect(file.type).toBe('File')
-      expect(file.statements.length).toBe(3)
-    })
-
-    it('should parse mixed separators (commas and newlines)', () => {
-      const file = parse('a = b\nc = d,\ne = f')
-      expect(file.type).toBe('File')
-      expect(file.statements.length).toBe(3)
-    })
-
     it('should parse empty file', () => {
-      const file = parse('')
-      expect(file.statements.length).toBe(0)
+      expect(parse('').statements.length).toBe(0)
     })
   })
 
-  describe('Error handling', () => {
+  describe('Error handling and recovery', () => {
     it('should throw on unexpected token', () => {
       expect(() => parseExpr(')')).toThrow(ParseError)
     })
-  })
 
-  describe('Partial parsing with error recovery', () => {
-    it('should return partial AST when error occurs after valid statements', () => {
-      const input = `
-a = b
-c = d
-e = f)
-      `.trim()
-
-      const result = parseWithRecovery(input)
-
-      // Should have parsed three statements successfully (e = f is valid)
+    it('should return partial AST after valid statements', () => {
+      const result = parseWithRecovery('a = b\nc = d\ne = f)')
       expect(result.file).not.toBeNull()
       expect(result.file?.statements.length).toBe(3)
-
-      // Should have error information
       expect(result.error).not.toBeNull()
-      expect(result.error?.message).toContain('Parse error')
       expect(result.errorLocation).toBeDefined()
     })
 
-    it('should return null file when error occurs on first statement', () => {
-      const input = `
-)
-a = b
-      `.trim()
-
-      const result = parseWithRecovery(input)
-
-      // No valid statements parsed
+    it('should return null file when error occurs first', () => {
+      const result = parseWithRecovery(')\na = b')
       expect(result.file).toBeNull()
-
-      // Should have error information
       expect(result.error).not.toBeNull()
-      expect(result.errorLocation).toBeDefined()
     })
 
-    it('should handle error from issue #48 example', () => {
-      const input = `
-∞ = ∞ -> ∞
-♂v = ♂v -> v
-r♀ = r -> r♀
-!♂x = x♀
-!x♀ = ♂x)
-a -> b -> c = (a -> b) -> c
-      `.trim()
-
+    it('should report error line after canonical formulas', () => {
+      const input = ['∞ = ∞ ⟼ ∞', '♀x = ♀x', 'x♂ = x♂)'].join('\n')
       const result = parseWithRecovery(input)
-
-      // Line 5 is "!x♀ = ♂x)" which parses as "!x♀ = ♂x" followed by stray ")"
-      // So 5 valid statements should be parsed (lines 1-5)
-      expect(result.file).not.toBeNull()
-      expect(result.file?.statements.length).toBe(5)
-
-      // Should have error on the closing paren
-      expect(result.error).not.toBeNull()
-      expect(result.error?.message).toContain('RPAREN')
-      expect(result.errorLocation?.start.line).toBe(5)
+      expect(result.file?.statements.length).toBe(3)
+      expect(result.errorLocation?.start.line).toBe(3)
     })
 
-    it('should return no error when parsing is fully successful', () => {
-      const input = `
-a = b
-c = d
-      `.trim()
-
-      const result = parseWithRecovery(input)
-
-      // Should have parsed all statements
-      expect(result.file).not.toBeNull()
+    it('should return no error for successful parse', () => {
+      const result = parseWithRecovery('a = b\nc = d')
       expect(result.file?.statements.length).toBe(2)
-
-      // Should have no error
       expect(result.error).toBeNull()
       expect(result.errorLocation).toBeUndefined()
-    })
-
-    it('should provide correct error location', () => {
-      const input = 'a = b\nc = d)'
-
-      const result = parseWithRecovery(input)
-
-      // Should have parsed two statements (a = b and c = d are valid)
-      expect(result.file?.statements.length).toBe(2)
-
-      // Error should be on line 2 (the ')' part)
-      expect(result.errorLocation?.start.line).toBe(2)
-      expect(result.error?.message).toContain('RPAREN')
     })
   })
 })

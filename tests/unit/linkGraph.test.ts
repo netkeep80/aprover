@@ -47,14 +47,16 @@ describe('LinkGraph', () => {
     })
 
     it('projects male and female self-closing forms', () => {
-      const male = projectToGraph(normalize(parseExpr('♂x')))
-      const female = projectToGraph(normalize(parseExpr('x♀')))
+      const male = projectToGraph(normalize(parseExpr('x♂')))
+      const female = projectToGraph(normalize(parseExpr('♀x')))
 
       expect(male.nodes.filter(n => n.nodeType === 'unary')).toHaveLength(1)
+      expect(male.nodes.find(n => n.nodeType === 'unary')?.label).toBe('x♂')
       expect(male.edges.filter(e => e.edgeType === 'self-start')).toHaveLength(1)
       expect(male.edges.filter(e => e.edgeType === 'link-end')).toHaveLength(1)
 
       expect(female.nodes.filter(n => n.nodeType === 'unary')).toHaveLength(1)
+      expect(female.nodes.find(n => n.nodeType === 'unary')?.label).toBe('♀x')
       expect(female.edges.filter(e => e.edgeType === 'link-start')).toHaveLength(1)
       expect(female.edges.filter(e => e.edgeType === 'self-end')).toHaveLength(1)
     })

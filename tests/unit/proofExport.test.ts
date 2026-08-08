@@ -55,14 +55,14 @@ describe('Proof Export Module', () => {
       expect(astToLaTeX(node)).toBe('a \\neq b')
     })
 
-    it('should convert male expression to LaTeX', () => {
-      const node = parseExpr('♂x')
-      expect(astToLaTeX(node)).toBe('\\male{x}')
+    it('should preserve canonical postfix end projection in LaTeX', () => {
+      const node = parseExpr('x♂')
+      expect(astToLaTeX(node)).toBe('x\\male{}')
     })
 
-    it('should convert female expression to LaTeX', () => {
-      const node = parseExpr('x♀')
-      expect(astToLaTeX(node)).toBe('x\\female')
+    it('should preserve canonical prefix start projection in LaTeX', () => {
+      const node = parseExpr('♀x')
+      expect(astToLaTeX(node)).toBe('\\female{}x')
     })
 
     it('should convert negation to LaTeX', () => {
@@ -82,9 +82,15 @@ describe('Proof Export Module', () => {
       expect(astToLaTeX(node1)).toBe('1')
     })
 
-    it('should convert complex expressions', () => {
-      const node = parseExpr('♂∞ -> ∞♀')
-      expect(astToLaTeX(node)).toBe('(\\male{\\infty} \\to \\infty\\female)')
+    it('should convert canonical projection expressions', () => {
+      const node = parseExpr('♀∞ -> ∞♂')
+      expect(astToLaTeX(node)).toBe('(\\female{}\\infty \\to \\infty\\male{})')
+    })
+
+    it('should export canonical containers and context pronouns', () => {
+      expect(astToLaTeX(parseExpr('(=)'))).toBe('(=)')
+      expect(astToLaTeX(parseExpr('[1]'))).toBe('[1]')
+      expect(astToLaTeX(parseExpr('↑◁'))).toBe('\\text{↑◁}')
     })
   })
 
@@ -93,14 +99,16 @@ describe('Proof Export Module', () => {
       expect(stringToLaTeX('∞')).toBe('\\infty')
     })
 
-    it('should convert arrow', () => {
+    it('should convert arrows', () => {
+      expect(stringToLaTeX('a ⟼ b')).toBe('a \\to b')
+      expect(stringToLaTeX('a ↛ b')).toBe('a \\nrightarrow b')
       expect(stringToLaTeX('a → b')).toBe('a \\to b')
       expect(stringToLaTeX('a -> b')).toBe('a \\to b')
     })
 
-    it('should convert male/female symbols', () => {
-      expect(stringToLaTeX('♂x')).toBe('\\male{}x')
-      expect(stringToLaTeX('x♀')).toBe('x\\female{}')
+    it('should preserve canonical male/female fixity', () => {
+      expect(stringToLaTeX('x♂')).toBe('x\\male{}')
+      expect(stringToLaTeX('♀x')).toBe('\\female{}x')
     })
 
     it('should convert inequality', () => {
@@ -124,13 +132,10 @@ describe('Proof Export Module', () => {
       expect(latex).toContain('a = a')
     })
 
-    it('should export failed proof to LaTeX', () => {
-      // Use ♂∞ = ∞♀ which should fail because they are structurally different
-      const { result, goal } = verifyExpression('♂∞ = ∞♀')
+    it('should export a structurally different canonical projection goal', () => {
+      const { result, goal } = verifyExpression('∞♂ = ♀∞')
       const latex = exportToLaTeX(result, goal)
 
-      // Note: This may or may not fail depending on prover implementation
-      // Just verify the export works
       expect(latex).toContain('Результат')
     })
 
@@ -147,7 +152,6 @@ describe('Proof Export Module', () => {
       const { result, goal } = verifyExpression('∞ = ∞ -> ∞')
       const latex = exportToLaTeX(result, goal, { useProofEnvironment: true })
 
-      // Only check if proof steps exist
       if (result.proofSteps && result.proofSteps.length > 0) {
         expect(latex).toContain('\\begin{proof}')
         expect(latex).toContain('\\end{proof}')
@@ -181,12 +185,10 @@ describe('Proof Export Module', () => {
       expect(text).toContain('✓ Доказано')
     })
 
-    it('should export failed proof to text', () => {
-      // Use an expression that fails - verifying any export contains required structure
-      const { result, goal } = verifyExpression('♂∞ = ∞♀')
+    it('should export canonical projection goal to text', () => {
+      const { result, goal } = verifyExpression('∞♂ = ♀∞')
       const text = exportToText(result, goal)
 
-      // Note: Just verify export works, don't depend on proof result
       expect(text).toContain('ДОКАЗАТЕЛЬСТВО МТС')
       expect(text).toContain('Результат')
     })
@@ -236,13 +238,11 @@ describe('Proof Export Module', () => {
       expect(data.goal).toBe('(a=a)')
     })
 
-    it('should export failed proof to JSON', () => {
-      // Test that JSON export works regardless of proof outcome
-      const { result, goal, state } = verifyExpression('♂∞ = ∞♀')
+    it('should export canonical projection goal to JSON', () => {
+      const { result, goal, state } = verifyExpression('∞♂ = ♀∞')
       const json = exportToJSON(result, goal, state)
       const data: ProofExportData = JSON.parse(json)
 
-      // Verify JSON structure
       expect(data.version).toBe('1.0')
       expect(typeof data.success).toBe('boolean')
       expect(data.goal).toBeDefined()
@@ -341,7 +341,6 @@ describe('Proof Export Module', () => {
       const { result, goal } = verifyExpression('∞ = ∞ -> ∞')
       const dot = exportToDOT(result, goal, { includeAxiomLabels: true })
 
-      // May or may not have axiom labels depending on proof steps
       expect(dot).toContain('digraph')
     })
 
@@ -361,7 +360,6 @@ describe('Proof Export Module', () => {
       const dotColorful = exportToDOT(result, goal, { colorScheme: 'colorful' })
       const dotMono = exportToDOT(result, goal, { colorScheme: 'monochrome' })
 
-      // All should be valid DOT format
       expect(dotDefault).toContain('fillcolor')
       expect(dotColorful).toContain('fillcolor')
       expect(dotMono).toContain('fillcolor')
@@ -374,7 +372,6 @@ describe('Proof Export Module', () => {
       const dotEllipse = exportToDOT(result, goal, { nodeShape: 'ellipse' })
       const dotDiamond = exportToDOT(result, goal, { nodeShape: 'diamond' })
 
-      // Goal node is always ellipse, but step nodes use the configured shape
       expect(dotBox).toContain('shape=')
       expect(dotEllipse).toContain('shape=')
       expect(dotDiamond).toContain('shape=')
@@ -440,37 +437,35 @@ describe('Proof Export Module', () => {
       const json = exportToJSON(result, goal)
       const dot = exportToDOT(result, goal)
 
-      // All formats should work
       expect(latex.length).toBeGreaterThan(0)
       expect(text.length).toBeGreaterThan(0)
       expect(json.length).toBeGreaterThan(0)
       expect(dot.length).toBeGreaterThan(0)
     })
 
-    it('should export proof for male axiom (A5)', () => {
-      const { result, goal } = verifyExpression('♂v = ♂v -> v')
+    it('should export proof for end-projection axiom (legacy A5 semantics)', () => {
+      const { result, goal } = verifyExpression('v♂ = v♂ -> v')
 
       const text = exportToText(result, goal)
       expect(text).toContain('✓ Доказано')
     })
 
-    it('should export proof for female axiom (A6)', () => {
-      const { result, goal } = verifyExpression('r♀ = r -> r♀')
+    it('should export proof for start-projection axiom (legacy A6 semantics)', () => {
+      const { result, goal } = verifyExpression('♀r = r -> ♀r')
 
       const text = exportToText(result, goal)
       expect(text).toContain('✓ Доказано')
     })
 
-    it('should export proof for inversion axiom (A7)', () => {
-      const { result, goal } = verifyExpression('!♂x = x♀')
+    it('should export proof for inversion axiom (legacy A7 semantics)', () => {
+      const { result, goal } = verifyExpression('!x♂ = ♀x')
 
       const text = exportToText(result, goal)
       expect(text).toContain('✓ Доказано')
     })
 
     it('should handle various proofs with hints', () => {
-      // Test with an expression - just verify export works
-      const { result, goal } = verifyExpression('♂∞ = ∞♀')
+      const { result, goal } = verifyExpression('∞♂ = ♀∞')
 
       const text = exportToText(result, goal)
       expect(text).toContain('ДОКАЗАТЕЛЬСТВО МТС')
