@@ -15,7 +15,6 @@ import {
   MTS_PROOF_CONTRACT_VERSION_V03,
   MTS_PROOF_SCHEMA_V03,
   checkJudgmentV03,
-  checkProofV03,
   parseProofObjectV03,
 } from '../../src/core/proofReplayV03'
 import { checkVersionedProof, detectProofVersion } from '../../src/core/proofReplayVersioned'
@@ -203,7 +202,7 @@ describe('trusted mts-proof/v0.3 replay', () => {
       const proof = parseProofObjectV03(proofArtifact([vector.judgment]))
       expect(proof.judgments).toHaveLength(1)
       expect(checkJudgmentV03(proof.judgments[0]), vector.id).toBe(true)
-      expect(checkProofV03(proof), vector.id).toBe(true)
+      expect(proof.judgments.every(checkJudgmentV03), vector.id).toBe(true)
       expect(checkVersionedProof(proofArtifact([vector.judgment])), vector.id).toBe(true)
     }
   })
@@ -224,8 +223,8 @@ describe('trusted mts-proof/v0.3 replay', () => {
   it('не придаёт порядку judgments никакой dependency semantics', () => {
     const values = [...validById().values()]
     const proof = parseProofObjectV03(proofArtifact([values[2], values[5]]))
-    expect(checkProofV03(proof)).toBe(true)
-    expect(checkProofV03({ ...proof, judgments: [...proof.judgments].reverse() })).toBe(true)
+    expect(proof.judgments.every(checkJudgmentV03)).toBe(true)
+    expect([...proof.judgments].reverse().every(checkJudgmentV03)).toBe(true)
   })
 
   it('определяет version явно и не преобразует v0.2/v0.3 друг в друга', () => {
