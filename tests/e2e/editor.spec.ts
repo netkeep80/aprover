@@ -42,6 +42,65 @@ test.describe('aprover canonical MTS v0.2 UI', () => {
     await expect(page.locator('text=statements verified')).toHaveCount(0)
   })
 
+  test('loads and independently replays an mts-proof/v0.2 artifact', async ({ page }) => {
+    const artifact = JSON.stringify({
+      schema: 'mts-proof/v0.2',
+      contractVersion: 'mts-contract/v0.2',
+      steps: [
+        {
+          rule: 'interpret',
+          expression: '[] = ◁',
+          context: { start: 10, end: 12 },
+          expected: {
+            success: true,
+            substitutions: [{ path: [0], link: 10 }],
+            aliases: [],
+          },
+        },
+      ],
+    })
+
+    await page.locator('.proof-replay-toggle').click()
+    await expect(page.getByTestId('proof-replay-panel')).toBeVisible()
+    await page.locator('#proof-artifact-source').fill(artifact)
+
+    await expect(page.locator('.proof-verdict')).toContainText('REPLAY ACCEPTED')
+    await expect(page.locator('.proof-summary')).toContainText('mts-proof/v0.2')
+    await expect(page.locator('.proof-expression')).toContainText('[] = ◁')
+    await expect(page.locator('.proof-step')).toContainText('[] @ 0 → LinkRef 10')
+  })
+
+  test('separates proof validation errors from replay rejection', async ({ page }) => {
+    await page.locator('.proof-replay-toggle').click()
+    const source = page.locator('#proof-artifact-source')
+
+    await source.fill(
+      JSON.stringify({
+        schema: 'mts-proof/v0.2',
+        contractVersion: 'mts-contract/v0.2',
+        steps: [
+          {
+            rule: 'interpret',
+            expression: '[] = ◁',
+            context: { start: 10, end: 12 },
+            expected: {
+              success: true,
+              substitutions: [{ path: [0], link: 12 }],
+              aliases: [],
+            },
+          },
+        ],
+      })
+    )
+    await expect(page.locator('.proof-verdict')).toContainText('REPLAY REJECTED')
+    await expect(page.locator('.proof-invalid')).toHaveCount(0)
+
+    await source.fill('{"schema":"wrong","contractVersion":"mts-contract/v0.2","steps":[]}')
+    await expect(page.locator('.proof-invalid')).toContainText('Validation error')
+    await expect(page.locator('.proof-invalid')).toContainText('$.schema')
+    await expect(page.locator('.proof-verdict')).toHaveCount(0)
+  })
+
   test('keeps AST inspection and source highlighting', async ({ page }) => {
     const editor = page.locator('.code-input')
     await editor.fill('[] = ◁')
@@ -78,6 +137,7 @@ test.describe('aprover canonical MTS v0.2 UI', () => {
     await expect(page.locator('.toolbar-btn[title*="Открыть"]')).toBeVisible()
     await expect(page.locator('.toolbar-btn[title*="Сохранить"]')).toBeVisible()
     await expect(page.locator('.recent-btn')).toBeVisible()
+    await expect(page.locator('.proof-replay-toggle')).toBeVisible()
     await expect(page.locator('.toolbar-btn[title*="Результаты"]')).toHaveCount(0)
   })
 

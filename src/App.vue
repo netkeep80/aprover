@@ -6,6 +6,7 @@ import Editor from './components/Editor.vue'
 import ASTViewer from './components/ASTViewer.vue'
 import ErrorPanel from './components/ErrorPanel.vue'
 import LinkGraphViewer from './components/LinkGraphViewer.vue'
+import ProofReplayPanel from './components/ProofReplayPanel.vue'
 import SplitPane from './components/SplitPane.vue'
 import {
   readFileContent,
@@ -51,6 +52,8 @@ const ast = ref<MtsFile | null>(null)
 
 const showAST = ref(true)
 const showGraph = ref(false)
+const showProofReplay = ref(false)
+const proofSource = ref('')
 const highlightedLoc = ref<SourceLocation | null>(null)
 const highlightedNodeLoc = ref<SourceLocation | null>(null)
 
@@ -70,6 +73,7 @@ const autosaveInterval = ref<ReturnType<typeof setInterval> | null>(null)
 const handleSplitResize = () => window.dispatchEvent(new Event('resize'))
 const toggleAST = () => (showAST.value = !showAST.value)
 const toggleGraph = () => (showGraph.value = !showGraph.value)
+const toggleProofReplay = () => (showProofReplay.value = !showProofReplay.value)
 
 const handleNodeHover = (loc: SourceLocation | null) => {
   highlightedLoc.value = loc
@@ -211,6 +215,7 @@ const handleKeyDown = (event: KeyboardEvent) => {
     handleNewFile()
   } else if (event.key === 'Escape') {
     showRecentFiles.value = false
+    showProofReplay.value = false
   }
 }
 
@@ -266,6 +271,14 @@ onUnmounted(() => {
             </div>
           </div>
           <button class="toolbar-btn" title="Сохранить код (Ctrl+S)" @click="handleSaveCode">💾 <span>Сохранить</span></button>
+          <button
+            class="toolbar-btn proof-replay-toggle"
+            :class="{ active: showProofReplay }"
+            title="Trusted proof replay"
+            @click="toggleProofReplay"
+          >
+            PRF <span>Proof</span>
+          </button>
         </div>
         <div class="view-controls">
           <button
@@ -293,8 +306,14 @@ onUnmounted(() => {
     </header>
 
     <div class="runtime-note">
-      Trusted proof path: <code>mts-proof/v0.2</code> replay-only. Старые A0–A11/MP semantics удаляются в Phase E; proof search вернётся только поверх trusted checker.
+      Trusted proof path: <code>mts-proof/v0.2</code> replay-only. Legacy A0–A11/MP semantics удалены; proof search будет строиться только поверх independent checker.
     </div>
+
+    <ProofReplayPanel
+      v-if="showProofReplay"
+      v-model="proofSource"
+      @close="showProofReplay = false"
+    />
 
     <div v-if="showConversion && conversionSteps.length" class="conversion-panel">
       <div v-for="(step, index) in conversionSteps" :key="index" class="conversion-step">
@@ -444,7 +463,7 @@ button { font-family: inherit; }
 .header-right, .toolbar, .view-controls { display: flex; align-items: center; gap: .35rem; }
 .toolbar-btn, .toggle-btn, .recent-clear-btn { background: var(--accent-color); color: #cbd5e1; border: 1px solid var(--border-color); padding: .35rem .55rem; border-radius: 4px; cursor: pointer; }
 .toolbar-btn:hover, .toggle-btn:hover, .recent-clear-btn:hover { color: white; }
-.toggle-btn.active { border-color: #667eea; color: white; }
+.toolbar-btn.active, .toggle-btn.active { border-color: #667eea; color: white; }
 .toggle-btn:disabled { opacity: .45; cursor: not-allowed; }
 .dropdown-container { position: relative; }
 .recent-files-dropdown { position: absolute; right: 0; top: calc(100% + .25rem); z-index: 20; min-width: 290px; background: var(--panel-bg); border: 1px solid var(--border-color); border-radius: 4px; padding: .35rem; }

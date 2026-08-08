@@ -126,6 +126,18 @@ export {
   checkProof,
 } from './proofReplay'
 
+export type {
+  ProofContextView,
+  ProofSubstitutionView,
+  ProofAliasView,
+  ProofStepReplayView,
+  EmptyProofArtifactView,
+  InvalidProofArtifactView,
+  ReplayedProofArtifactView,
+  ProofArtifactView,
+} from './proofArtifactPresentation'
+export { presentProofArtifactJson } from './proofArtifactPresentation'
+
 export type { StringAnumOptions, ConversionStep, StringAnumStats } from './stringAnum'
 export {
   StringAnumError,
