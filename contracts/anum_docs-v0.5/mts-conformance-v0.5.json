@@ -4,10 +4,30 @@
   "contract": "mts-contract/v0.5",
   "composition": "all referenced accepted corpora are required; no prior vector is copied, weakened or replaced",
   "requiredCorpora": [
-    {"role":"base-v0.4","path":"contracts/mts-conformance-v0.4.json","schema":"mts-conformance/v0.4","contract":"mts-contract/v0.4"},
-    {"role":"opening-path-v0.4","path":"contracts/mts-opening-path-conformance-v0.4.json","schema":"mts-opening-path-conformance/v0.4","contract":"mts-opening-path/v0.4"},
-    {"role":"proof-v0.4","path":"contracts/mts-proof-conformance-v0.4.json","schema":"mts-proof-conformance/v0.4","contract":"mts-proof/v0.4"},
-    {"role":"direct-deixis-v0.5","path":"contracts/mts-direct-deixis-conformance-v0.5.json","schema":"mts-direct-deixis-conformance/v0.5","contract":"mts-direct-deixis/v0.5"}
+    {
+      "role": "base-v0.4",
+      "path": "contracts/mts-conformance-v0.4.json",
+      "schema": "mts-conformance/v0.4",
+      "contract": "mts-contract/v0.4"
+    },
+    {
+      "role": "opening-path-v0.4",
+      "path": "contracts/mts-opening-path-conformance-v0.4.json",
+      "schema": "mts-opening-path-conformance/v0.4",
+      "contract": "mts-opening-path/v0.4"
+    },
+    {
+      "role": "proof-v0.4",
+      "path": "contracts/mts-proof-conformance-v0.4.json",
+      "schema": "mts-proof-conformance/v0.4",
+      "contract": "mts-proof/v0.4"
+    },
+    {
+      "role": "direct-deixis-v0.5",
+      "path": "contracts/mts-direct-deixis-conformance-v0.5.json",
+      "schema": "mts-direct-deixis-conformance/v0.5",
+      "contract": "mts-direct-deixis/v0.5"
+    }
   ],
   "releaseAssertions": {
     "allRequiredCorporaMustPass": true,
