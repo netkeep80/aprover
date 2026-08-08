@@ -1,397 +1,174 @@
 /**
- * Quaternary (Abit) Anumbers parser for МТС (Meta-Theory of Links)
+ * `.anum` raw-carrier adapter for aprover.
  *
- * Quaternary notation (.anum) uses exactly 4 symbols:
- * - '[' (♂∞): beginning abit - query to form of self-closed beginning
- * - ']' (∞♀): ending abit - query to form of self-closed ending
- * - '1' (♂∞ -> ∞♀): truth abit - presence of directed link
- * - '0' (∞♀ -> ♂∞): falsehood abit - absence/inverse of link
- *
- * Nested contexts [ ... ] are supported and interpreted as context boundaries.
- *
- * Example: 01010001[010100[1001]010]...
- *
- * The parsing process:
- * 1. Validate that only valid abits are present
- * 2. Parse nested contexts structure
- * 3. Convert to string anumber (UTF-8 string of same 4 characters)
- * 4. Further convert to formal notation using stringAnum module
+ * Normative semantics live in the vendored anum_docs contracts. This module
+ * implements only the accepted `anum-raw-carrier/v0.2` transport description.
+ * It deliberately does NOT assign L2 denotation to individual abits and does
+ * not implement recursive denotation locally.
  */
 
-import type { ASTNode, File } from './ast'
-import {
-  makeLoc,
-  makeInfinity,
-  makeLink,
-  makeMale,
-  makeFemale,
-  makeAbitLit,
-  extractLinkChain,
-} from './astHelpers'
-import type { SourceLocation } from './ast'
-import { parseFileLines, fileToMtl } from './utils'
+import { fileToMtl } from './utils'
 
-/** Valid abit characters in quaternary notation */
+export const ANUM_RAW_CARRIER_SCHEMA = 'anum-raw-carrier/v0.2' as const
 export const VALID_ABITS = ['0', '1', '[', ']'] as const
 export type AbitChar = (typeof VALID_ABITS)[number]
 
-/** Error during quaternary anumber parsing */
+export const ABIT_ROLES: Record<AbitChar, `abit:${AbitChar}`> = {
+  '[': 'abit:[',
+  ']': 'abit:]',
+  '1': 'abit:1',
+  '0': 'abit:0',
+}
+
 export class QuatAnumError extends Error {
   constructor(
     message: string,
     public offset: number,
     public char?: string
   ) {
-    super(`QuatAnum error at position ${offset}: ${message}`)
+    super(`Anum raw-carrier error at position ${offset}: ${message}`)
     this.name = 'QuatAnumError'
   }
 }
 
-/** Options for quaternary anumber parsing */
 export interface QuatAnumOptions {
-  /** Whether to preserve line breaks as separate statements */
   lineAsStatement?: boolean
-  /** Whether to skip empty lines */
   skipEmptyLines?: boolean
-  /** Whether to skip lines starting with // (comments) */
   skipComments?: boolean
-  /** Whether to validate bracket matching strictly */
-  strictBrackets?: boolean
 }
 
 const defaultOptions: QuatAnumOptions = {
   lineAsStatement: true,
   skipEmptyLines: true,
   skipComments: true,
-  strictBrackets: true,
 }
 
-/** Abit symbol definitions in MTS formal notation */
-export const ABIT_DEFINITIONS = {
-  '[': '♂∞', // Beginning abit: self-closed beginning
-  ']': '∞♀', // Ending abit: self-closed ending
-  '1': '(♂∞ -> ∞♀)', // Truth: directed link from beginning to ending
-  '0': '(∞♀ -> ♂∞)', // Falsehood: inverse direction (or !1)
-} as const
-
-/** Parsed abit with position information */
-export interface ParsedAbit {
-  /** The abit character */
-  char: AbitChar
-  /** Position in original content */
-  offset: number
-  /** Line number (1-based) */
-  line: number
-  /** Column number (1-based) */
-  column: number
-  /** Nesting depth (for context abits) */
-  depth: number
-}
-
-/** Parsed context (nested [ ... ]) */
-export interface ParsedContext {
-  /** Content inside the context */
-  content: ParsedAbit[]
-  /** Opening bracket position */
-  openOffset: number
-  /** Closing bracket position */
-  closeOffset: number
-  /** Nesting depth */
-  depth: number
-}
-
-/** Result of quaternary anumber validation */
 export interface ValidationResult {
-  /** Whether the content is valid */
   valid: boolean
-  /** Error message if invalid */
   error?: string
-  /** Position of error if invalid */
   errorOffset?: number
 }
 
-/**
- * Check if a character is a valid abit
- */
+export type RawCarrierRole = 'root' | `abit:${AbitChar}`
+export type RawCarrierRef = { role: RawCarrierRole } | { node: number }
+
+export interface RawCarrierNode {
+  id: number
+  start: RawCarrierRef
+  end: RawCarrierRef
+}
+
+export interface RawCarrierDescription {
+  kind: 'raw-carrier'
+  raw: string
+  nodes: RawCarrierNode[]
+  root: RawCarrierRef
+}
+
+export interface QuatConversionStep {
+  abit: string
+  index: number
+  definition: string
+  formal: string
+  description: string
+}
+
+export interface QuatAnumStats {
+  abitCount: number
+  zeroCount: number
+  oneCount: number
+  openCount: number
+  closeCount: number
+}
+
 export function isValidAbit(char: string): char is AbitChar {
   return VALID_ABITS.includes(char as AbitChar)
 }
 
+function stripLineComment(line: string): string {
+  const comment = line.indexOf('//')
+  return comment >= 0 ? line.slice(0, comment) : line
+}
+
 /**
- * Validate quaternary anumber content
- *
- * Checks that:
- * 1. Only valid abit characters are present (0, 1, [, ])
- * 2. Brackets are properly matched and nested
+ * Raw carrier validation is intentionally syntax-light: bracket balance is
+ * NOT a carrier invariant. Inputs such as `][` are valid raw carriers and are
+ * interpreted only by a later, separately contracted denotation layer.
  */
 export function validateQuatAnum(content: string): ValidationResult {
-  const bracketStack: number[] = []
+  for (let index = 0; index < content.length; index++) {
+    const char = content[index]
 
-  for (let i = 0; i < content.length; i++) {
-    const char = content[i]
-
-    // Skip whitespace and newlines
-    if (char === ' ' || char === '\t' || char === '\n' || char === '\r') {
+    if (/\s/.test(char)) continue
+    if (char === '/' && content[index + 1] === '/') {
+      while (index < content.length && content[index] !== '\n') index++
       continue
     }
-
-    // Skip comments
-    if (char === '/' && content[i + 1] === '/') {
-      // Skip to end of line
-      while (i < content.length && content[i] !== '\n') {
-        i++
-      }
-      continue
-    }
-
     if (!isValidAbit(char)) {
       return {
         valid: false,
-        error: `Invalid character '${char}' at position ${i}. Only 0, 1, [, ] are allowed in quaternary notation.`,
-        errorOffset: i,
+        error: `Invalid raw abit '${char}'. Only 0, 1, [, ] are allowed.`,
+        errorOffset: index,
       }
-    }
-
-    if (char === '[') {
-      bracketStack.push(i)
-    } else if (char === ']') {
-      if (bracketStack.length === 0) {
-        return {
-          valid: false,
-          error: `Unmatched closing bracket ']' at position ${i}.`,
-          errorOffset: i,
-        }
-      }
-      bracketStack.pop()
-    }
-  }
-
-  if (bracketStack.length > 0) {
-    return {
-      valid: false,
-      error: `Unmatched opening bracket '[' at position ${bracketStack[0]}.`,
-      errorOffset: bracketStack[0],
     }
   }
 
   return { valid: true }
 }
 
-/**
- * Clean quaternary anumber content - remove whitespace and comments
- */
 export function cleanQuatAnum(content: string): string {
-  const lines = content.split('\n')
-  const cleaned: string[] = []
-
-  for (const line of lines) {
-    let cleanedLine = ''
-    for (let i = 0; i < line.length; i++) {
-      const char = line[i]
-
-      // Skip comments
-      if (char === '/' && line[i + 1] === '/') {
-        break
-      }
-
-      // Skip whitespace
-      if (char === ' ' || char === '\t' || char === '\r') {
-        continue
-      }
-
-      if (isValidAbit(char)) {
-        cleanedLine += char
-      }
-    }
-
-    if (cleanedLine.length > 0) {
-      cleaned.push(cleanedLine)
-    }
-  }
-
-  return cleaned.join('')
+  return content
+    .split('\n')
+    .map(stripLineComment)
+    .join('')
+    .replace(/\s/g, '')
 }
 
-/**
- * Parse a single abit to its AST representation
- *
- * According to MTS axioms:
- * - '[' : ♂∞
- * - ']' : ∞♀
- * - '1' : (♂∞ -> ∞♀)
- * - '0' : (∞♀ -> ♂∞) which equals !1
- */
-export function parseAbitToAST(abit: AbitChar, loc?: SourceLocation): ASTNode {
-  const inf = makeInfinity()
+export function describeRawCarrier(content: string): RawCarrierDescription {
+  const validation = validateQuatAnum(content)
+  if (!validation.valid) {
+    throw new QuatAnumError(validation.error ?? 'Invalid raw carrier', validation.errorOffset ?? 0)
+  }
 
-  switch (abit) {
-    case '[':
-      // ♂∞ - Male applied to infinity
-      return makeMale(inf, loc)
+  const raw = cleanQuatAnum(content)
+  const nodes: RawCarrierNode[] = []
+  let current: RawCarrierRef = { role: 'root' }
 
-    case ']':
-      // ∞♀ - Female applied to infinity
-      return makeFemale(inf, loc)
+  for (let id = 0; id < raw.length; id++) {
+    const char = raw[id]
+    if (!isValidAbit(char)) throw new QuatAnumError(`Invalid raw abit '${char}'`, id, char)
+    const node: RawCarrierNode = {
+      id,
+      start: current,
+      end: { role: ABIT_ROLES[char] },
+    }
+    nodes.push(node)
+    current = { node: id }
+  }
 
-    case '1':
-      // ♂∞ -> ∞♀
-      return makeLink(makeMale(inf), makeFemale(makeInfinity()), loc)
-
-    case '0':
-      // ∞♀ -> ♂∞ (inverse of 1)
-      return makeLink(makeFemale(makeInfinity()), makeMale(inf), loc)
+  return {
+    kind: 'raw-carrier',
+    raw,
+    nodes,
+    root: current,
   }
 }
 
-/**
- * Convert quaternary anumber to formal notation string
- *
- * Each abit is converted to its formal MTS representation.
- * The sequence is interpreted as left-associative chain.
- *
- * Example: "01" → "((∞ -> (∞♀ -> ♂∞)) -> (♂∞ -> ∞♀))"
- */
-export function quatAnumToFormal(content: string): string {
-  const cleaned = cleanQuatAnum(content)
-
-  if (cleaned.length === 0) {
-    return '∞'
-  }
-
-  let result = '∞'
-
-  for (const char of cleaned) {
-    if (isValidAbit(char)) {
-      const formal = ABIT_DEFINITIONS[char]
-      result = `(${result} -> ${formal})`
-    }
-  }
-
-  return result
-}
-
-/**
- * Convert quaternary anumber to string anumber format
- *
- * Since string anumbers use UTF-8 characters, and the 4 abit
- * characters (0, 1, [, ]) are valid UTF-8, we can simply
- * clean the content and return it as the string anumber.
- */
 export function quatAnumToStringAnum(content: string): string {
+  const validation = validateQuatAnum(content)
+  if (!validation.valid) {
+    throw new QuatAnumError(validation.error ?? 'Invalid raw carrier', validation.errorOffset ?? 0)
+  }
   return cleanQuatAnum(content)
 }
 
 /**
- * Parse a single line of quaternary anumber to AST
+ * Lossless presentation bridge for the existing editor.
  *
- * Builds (∞ -> 'abits') where 'abits' is an AbitLit containing the abit sequence.
- */
-export function parseQuatAnumLine(
-  line: string,
-  lineNumber: number = 1,
-  startOffset: number = 0
-): ASTNode {
-  const cleaned = cleanQuatAnum(line)
-
-  // Empty line produces ∞
-  if (cleaned.length === 0) {
-    const loc = makeLoc(lineNumber, 1, startOffset, lineNumber, 1, startOffset)
-    return makeInfinity(loc)
-  }
-
-  // Build (∞ -> 'cleaned') where cleaned contains only abit characters
-  const infLoc = makeLoc(lineNumber, 1, startOffset, lineNumber, 1, startOffset)
-  const inf = makeInfinity(infLoc)
-
-  const abitLoc = makeLoc(
-    lineNumber,
-    1,
-    startOffset,
-    lineNumber,
-    cleaned.length + 1,
-    startOffset + cleaned.length
-  )
-  const abitNode = makeAbitLit(cleaned, abitLoc)
-
-  const linkLoc = makeLoc(
-    lineNumber,
-    1,
-    startOffset,
-    lineNumber,
-    cleaned.length + 1,
-    startOffset + cleaned.length
-  )
-
-  return makeLink(inf, abitNode, linkLoc)
-}
-
-/**
- * Parse quaternary anumber file content to AST
- *
- * Each non-empty, non-comment line becomes a statement.
- */
-export function parseQuatAnum(content: string, options: QuatAnumOptions = {}): File {
-  const opts = { ...defaultOptions, ...options }
-
-  // Validate content first if strict mode
-  if (opts.strictBrackets) {
-    const validation = validateQuatAnum(content)
-    if (!validation.valid) {
-      throw new QuatAnumError(validation.error || 'Invalid content', validation.errorOffset || 0)
-    }
-  }
-
-  return parseFileLines(
-    content,
-    { skipComments: opts.skipComments, skipEmptyLines: opts.skipEmptyLines },
-    (line, _trimmed) => cleanQuatAnum(line).length === 0,
-    (line, _trimmed, lineNumber, offset) => ({
-      expr: parseQuatAnumLine(line, lineNumber, offset),
-      length: line.length,
-    })
-  )
-}
-
-/**
- * Parse a single quaternary anumber expression
- */
-export function parseQuatAnumExpr(content: string): ASTNode {
-  const validation = validateQuatAnum(content)
-  if (!validation.valid) {
-    throw new QuatAnumError(validation.error || 'Invalid content', validation.errorOffset || 0)
-  }
-
-  return parseQuatAnumLine(content, 1, 0)
-}
-
-/**
- * Convert AST back to quaternary anumber format
- *
- * This extracts values from AbitLit nodes and validates that
- * only valid abit characters are present.
- */
-export function toQuatAnum(node: ASTNode): string | null {
-  return extractLinkChain(node, 'AbitLit', value => {
-    for (const char of value) {
-      if (!isValidAbit(char)) return false
-    }
-    return true
-  })
-}
-
-/**
- * Check if an AST node represents a valid quaternary anumber
- */
-export function isQuatAnumExpr(node: ASTNode): boolean {
-  return toQuatAnum(node) !== null
-}
-
-/**
- * Generate .mtl content from .anum content
- *
- * Each line in .anum becomes a statement in .mtl.
- * The conversion preserves the quaternary notation semantically
- * by converting each abit sequence to formal notation.
+ * The single-quoted value is an AbitLit transport literal. It is not the
+ * denotation of the raw carrier and does not expand protocol roles into MTS
+ * formulas. Recursive denotation remains solely defined by the pinned L3
+ * contracts.
  */
 export function quatAnumFileToMtl(content: string, options: QuatAnumOptions = {}): string {
   const opts = { ...defaultOptions, ...options }
@@ -401,151 +178,60 @@ export function quatAnumFileToMtl(content: string, options: QuatAnumOptions = {}
     {
       skipEmptyLines: opts.skipEmptyLines,
       headerLines: [
-        '// Generated from .anum file (quaternary notation)',
-        '// Each line represents a quaternary anumber (abit sequence)',
-        '// Abits: [ = ♂∞, ] = ∞♀, 1 = ♂∞ -> ∞♀, 0 = ∞♀ -> ♂∞',
+        '// Generated from .anum raw carrier',
+        `// Contract: ${ANUM_RAW_CARRIER_SCHEMA}`,
+        '// AbitLit below is lossless transport presentation; no L2 denotation is implied.',
       ],
     },
-    (line, _trimmed) => cleanQuatAnum(line).length === 0,
-    line => quatAnumToFormal(line)
+    line => cleanQuatAnum(line).length === 0,
+    line => {
+      const raw = cleanQuatAnum(opts.lineAsStatement ? line.trim() : line)
+      const validation = validateQuatAnum(raw)
+      if (!validation.valid) {
+        throw new QuatAnumError(validation.error ?? 'Invalid raw carrier', validation.errorOffset ?? 0)
+      }
+      return `'${raw}'`
+    }
   )
 }
 
-/**
- * Visualization of quaternary anumber conversion process
- *
- * Returns an array of intermediate steps showing how
- * the abit sequence is converted to formal notation.
- */
-export interface QuatConversionStep {
-  /** Current abit being processed */
-  abit: string
-  /** Index of the abit (0-based) */
-  index: number
-  /** MTS definition for this abit */
-  definition: string
-  /** Current chain in formal notation */
-  formal: string
-  /** Description of this step */
-  description: string
-}
-
 export function visualizeQuatConversion(content: string): QuatConversionStep[] {
-  const cleaned = cleanQuatAnum(content)
-
-  if (cleaned.length === 0) {
+  const carrier = describeRawCarrier(content)
+  if (carrier.nodes.length === 0) {
     return [
       {
         abit: '',
         index: -1,
-        definition: '∞',
-        formal: '∞',
-        description: 'Empty sequence equals akorern (∞)',
+        definition: 'role:root',
+        formal: "''",
+        description: 'Empty anum raw carrier; no denotation performed',
       },
     ]
   }
 
-  const steps: QuatConversionStep[] = []
-  let currentFormal = '∞'
-
-  steps.push({
-    abit: '',
-    index: -1,
-    definition: '∞',
-    formal: currentFormal,
-    description: 'Start from akorern (∞)',
-  })
-
-  for (let i = 0; i < cleaned.length; i++) {
-    const abit = cleaned[i]
-    if (!isValidAbit(abit)) continue
-
-    const definition = ABIT_DEFINITIONS[abit]
-    currentFormal = `(${currentFormal} -> ${definition})`
-
-    let abitName: string
-    switch (abit) {
-      case '[':
-        abitName = 'opening bracket (♂∞)'
-        break
-      case ']':
-        abitName = 'closing bracket (∞♀)'
-        break
-      case '1':
-        abitName = 'one/truth (♂∞ -> ∞♀)'
-        break
-      case '0':
-        abitName = 'zero/false (∞♀ -> ♂∞)'
-        break
-    }
-
-    steps.push({
+  return carrier.nodes.map(node => {
+    const abit = carrier.raw[node.id] as AbitChar
+    return {
       abit,
-      index: i,
-      definition,
-      formal: currentFormal,
-      description: `Link abit '${abit}' - ${abitName}`,
-    })
-  }
-
-  return steps
-}
-
-/**
- * Get statistics about a quaternary anumber
- */
-export interface QuatAnumStats {
-  /** Total number of abits */
-  abitCount: number
-  /** Count of each abit type */
-  abitCounts: {
-    '[': number
-    ']': number
-    '0': number
-    '1': number
-  }
-  /** Number of links in the chain */
-  linkCount: number
-  /** Maximum nesting depth */
-  maxDepth: number
-  /** Whether brackets are balanced */
-  balanced: boolean
+      index: node.id,
+      definition: ABIT_ROLES[abit],
+      formal: `'${carrier.raw.slice(0, node.id + 1)}'`,
+      description: `raw-carrier node ${node.id}: append protocol role ${ABIT_ROLES[abit]}`,
+    }
+  })
 }
 
 export function getQuatAnumStats(content: string): QuatAnumStats {
-  const cleaned = cleanQuatAnum(content)
-  const counts = { '[': 0, ']': 0, '0': 0, '1': 0 }
-  let depth = 0
-  let maxDepth = 0
-
-  for (const char of cleaned) {
-    if (isValidAbit(char)) {
-      counts[char]++
-      if (char === '[') {
-        depth++
-        maxDepth = Math.max(maxDepth, depth)
-      } else if (char === ']') {
-        depth--
-      }
-    }
-  }
-
+  const raw = quatAnumToStringAnum(content)
   return {
-    abitCount: cleaned.length,
-    abitCounts: counts,
-    linkCount: cleaned.length, // Each abit creates one link
-    maxDepth,
-    balanced: counts['['] === counts[']'],
+    abitCount: raw.length,
+    zeroCount: [...raw].filter(char => char === '0').length,
+    oneCount: [...raw].filter(char => char === '1').length,
+    openCount: [...raw].filter(char => char === '[').length,
+    closeCount: [...raw].filter(char => char === ']').length,
   }
 }
 
-/**
- * Check if content could be a quaternary anumber file
- *
- * Returns true if the content (ignoring whitespace and comments)
- * only contains valid abit characters.
- */
 export function isQuatAnumContent(content: string): boolean {
-  const validation = validateQuatAnum(content)
-  return validation.valid
+  return validateQuatAnum(content).valid
 }
