@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { presentProofArtifactJson } from '../core/proofArtifactPresentation'
+import { presentVersionedProofArtifactJson } from '../core/proofArtifactPresentationVersioned'
 import ProofSearchPanel from './ProofSearchPanel.vue'
 
 const props = defineProps<{
@@ -14,7 +14,7 @@ const emit = defineEmits<{
 
 const fileInput = ref<HTMLInputElement | null>(null)
 const mode = ref<'replay' | 'search'>('replay')
-const view = computed(() => presentProofArtifactJson(props.modelValue))
+const view = computed(() => presentVersionedProofArtifactJson(props.modelValue))
 
 const updateSource = (event: Event) => {
   emit('update:modelValue', (event.target as HTMLTextAreaElement).value)
@@ -49,7 +49,7 @@ const openGeneratedProof = (source: string) => {
     <header class="proof-replay-header">
       <div>
         <strong>Trusted proof replay</strong>
-        <span class="proof-replay-subtitle">mts-proof/v0.2 · replay-only</span>
+        <span class="proof-replay-subtitle">mts-proof/v0.2 + v0.3 · replay-only</span>
       </div>
       <div class="proof-replay-actions">
         <input
@@ -75,7 +75,7 @@ const openGeneratedProof = (source: string) => {
         class="proof-source"
         :value="modelValue"
         spellcheck="false"
-        placeholder="Paste an mts-proof/v0.2 JSON artifact here"
+        placeholder="Paste an mts-proof/v0.2 or mts-proof/v0.3 JSON artifact here"
         @input="updateSource"
       />
 
@@ -99,7 +99,7 @@ const openGeneratedProof = (source: string) => {
             <code>{{ view.contractVersion }}</code>
           </div>
 
-          <div class="proof-steps">
+          <div v-if="view.version === 'v0.2'" class="proof-steps">
             <article v-for="step in view.steps" :key="step.index" class="proof-step">
               <div class="proof-step-header">
                 <span class="proof-step-number">#{{ step.index }}</span>
@@ -144,6 +144,62 @@ const openGeneratedProof = (source: string) => {
                   </code>
                 </div>
                 <span v-else class="proof-none">none</span>
+              </div>
+            </article>
+          </div>
+
+          <div v-else class="proof-steps proof-judgments" data-testid="proof-v03-judgments">
+            <article v-for="judgment in view.judgments" :key="judgment.index" class="proof-step">
+              <div class="proof-step-header">
+                <span class="proof-step-number">#{{ judgment.index }}</span>
+                <code>{{ judgment.relation }}</code>
+                <span
+                  class="step-verdict"
+                  :class="{ accepted: judgment.accepted, rejected: !judgment.accepted }"
+                >
+                  {{ judgment.accepted ? 'accepted' : 'rejected' }}
+                </span>
+              </div>
+
+              <code class="proof-expression">{{ judgment.primary }}</code>
+
+              <div v-if="judgment.context.length" class="proof-section">
+                <span class="proof-section-title">Context</span>
+                <div class="context-rows">
+                  <code v-for="frame in judgment.context" :key="frame.depth">
+                    {{ frame.depth === 0 ? 'current' : `parent↑${frame.depth}` }}:
+                    ◁={{ frame.start }} · ▷={{ frame.end }}
+                  </code>
+                </div>
+              </div>
+
+              <div v-if="judgment.meta.length" class="proof-meta">
+                <span v-for="item in judgment.meta" :key="item">{{ item }}</span>
+              </div>
+
+              <div v-if="judgment.details.length" class="proof-section">
+                <span class="proof-section-title">Replay claim</span>
+                <div class="proof-values">
+                  <code v-for="item in judgment.details" :key="item">{{ item }}</code>
+                </div>
+              </div>
+
+              <div v-if="judgment.substitutions.length" class="proof-section">
+                <span class="proof-section-title">Expected substitutions</span>
+                <div class="proof-values">
+                  <code v-for="item in judgment.substitutions" :key="`${item.occurrence}:${item.link}`">
+                    [] @ {{ item.occurrence }} → LinkRef {{ item.link }}
+                  </code>
+                </div>
+              </div>
+
+              <div v-if="judgment.aliases.length" class="proof-section">
+                <span class="proof-section-title">Expected aliases</span>
+                <div class="proof-values">
+                  <code v-for="item in judgment.aliases" :key="`${item.occurrence}:${item.target}`">
+                    [] @ {{ item.occurrence }} → [] @ {{ item.target }}
+                  </code>
+                </div>
               </div>
             </article>
           </div>
