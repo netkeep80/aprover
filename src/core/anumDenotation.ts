@@ -58,9 +58,7 @@ class RecursiveDecodeError extends Error {}
 
 function normalizeRaw(raw: string): string {
   const validation = validateQuatAnum(raw)
-  if (!validation.valid) {
-    throw new Error(validation.error ?? 'Invalid Anum raw carrier')
-  }
+  if (!validation.valid) throw new Error(validation.error ?? 'Invalid Anum raw carrier')
   return cleanQuatAnum(raw)
 }
 
@@ -73,12 +71,7 @@ function atomForAnchor(anchor: ProtocolAnchor): '0' | '1' {
 }
 
 function anchorDenotation(anchor: ProtocolAnchor): StructuralAnumDenotation {
-  return {
-    kind: 'structural',
-    anchors: [anchor],
-    nodes: [],
-    root: { anchor },
-  }
+  return { kind: 'structural', anchors: [anchor], nodes: [], root: { anchor } }
 }
 
 function pairDenotation(start: ProtocolAnchor, end: ProtocolAnchor): StructuralAnumDenotation {
@@ -104,15 +97,16 @@ function denotatePairSubset(raw: string, context: AnumDenotationContext): AnumDe
   if (raw === '1' || raw === '[]') return anchorDenotation('protocol:1')
 
   if (raw.length === 2 && /^[01]{2}$/.test(raw)) {
-    const start = anchorForAtom(raw[0] as '0' | '1')
-    const end = anchorForAtom(raw[1] as '0' | '1')
-    return pairDenotation(start, end)
+    return pairDenotation(
+      anchorForAtom(raw[0] as '0' | '1'),
+      anchorForAtom(raw[1] as '0' | '1')
+    )
   }
 
   return { kind: 'raw', raw }
 }
 
-/** Execute the accepted pair + recursive v0.2 denotation observable behavior. */
+/** Execute the accepted pair + recursive v0.2 observable denotation behavior. */
 export function denotateAnum(
   source: string,
   context: AnumDenotationContext = 'root'
@@ -241,12 +235,8 @@ function treeToDenotation(tree: RecursiveAnumTree): StructuralAnumDenotation {
     return { node: id }
   }
 
-  return {
-    kind: 'structural',
-    anchors: [...anchors].sort(),
-    nodes,
-    root: emit(tree),
-  }
+  const root = emit(tree)
+  return { kind: 'structural', anchors: [...anchors].sort(), nodes, root }
 }
 
 function treeFromStructural(value: StructuralAnumDenotation): RecursiveAnumTree {
@@ -284,10 +274,7 @@ function treeFromStructural(value: StructuralAnumDenotation): RecursiveAnumTree 
   }
 
   const declared = new Set<ProtocolAnchor>(value.anchors)
-  if (
-    declared.size !== usedAnchors.size ||
-    [...declared].some(anchor => !usedAnchors.has(anchor))
-  ) {
+  if (declared.size !== usedAnchors.size || [...declared].some(anchor => !usedAnchors.has(anchor))) {
     throw new Error('Recursive denotation contains unused or missing anchors')
   }
 
