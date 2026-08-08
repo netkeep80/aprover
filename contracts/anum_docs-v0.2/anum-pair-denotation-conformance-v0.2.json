@@ -1,0 +1,155 @@
+{
+  "schema": "anum-pair-denotation-conformance/v0.2",
+  "contract": "anum-pair-denotation/v0.2",
+  "status": "accepted",
+  "positive": [
+    {
+      "name": "atom-zero",
+      "context": "root",
+      "raw": "0",
+      "denotation": {
+        "kind": "structural",
+        "anchors": ["protocol:0"],
+        "nodes": [],
+        "root": {"anchor": "protocol:0"}
+      },
+      "canonicalRaw": "0"
+    },
+    {
+      "name": "atom-one",
+      "context": "root",
+      "raw": "1",
+      "denotation": {
+        "kind": "structural",
+        "anchors": ["protocol:1"],
+        "nodes": [],
+        "root": {"anchor": "protocol:1"}
+      },
+      "canonicalRaw": "1"
+    },
+    {
+      "name": "pair-00",
+      "context": "root",
+      "raw": "00",
+      "denotation": {
+        "kind": "structural",
+        "anchors": ["protocol:0"],
+        "nodes": [
+          {
+            "id": 0,
+            "start": {"anchor": "protocol:0"},
+            "end": {"anchor": "protocol:0"}
+          }
+        ],
+        "root": {"node": 0}
+      },
+      "canonicalRaw": "00"
+    },
+    {
+      "name": "pair-01",
+      "context": "root",
+      "raw": "01",
+      "denotation": {
+        "kind": "structural",
+        "anchors": ["protocol:0", "protocol:1"],
+        "nodes": [
+          {
+            "id": 0,
+            "start": {"anchor": "protocol:0"},
+            "end": {"anchor": "protocol:1"}
+          }
+        ],
+        "root": {"node": 0}
+      },
+      "canonicalRaw": "01"
+    },
+    {
+      "name": "pair-10",
+      "context": "root",
+      "raw": "10",
+      "denotation": {
+        "kind": "structural",
+        "anchors": ["protocol:0", "protocol:1"],
+        "nodes": [
+          {
+            "id": 0,
+            "start": {"anchor": "protocol:1"},
+            "end": {"anchor": "protocol:0"}
+          }
+        ],
+        "root": {"node": 0}
+      },
+      "canonicalRaw": "10"
+    },
+    {
+      "name": "pair-11",
+      "context": "root",
+      "raw": "11",
+      "denotation": {
+        "kind": "structural",
+        "anchors": ["protocol:1"],
+        "nodes": [
+          {
+            "id": 0,
+            "start": {"anchor": "protocol:1"},
+            "end": {"anchor": "protocol:1"}
+          }
+        ],
+        "root": {"node": 0}
+      },
+      "canonicalRaw": "11"
+    }
+  ],
+  "aliases": [
+    {
+      "raw": "][",
+      "sameDenotationAs": "0",
+      "canonicalRaw": "0"
+    },
+    {
+      "raw": "[]",
+      "sameDenotationAs": "1",
+      "canonicalRaw": "1"
+    }
+  ],
+  "nonDenoting": [
+    {
+      "name": "open-open-root",
+      "context": "root",
+      "raw": "[[",
+      "kind": "raw"
+    },
+    {
+      "name": "close-close-root",
+      "context": "root",
+      "raw": "]]",
+      "kind": "raw"
+    },
+    {
+      "name": "longer-direct-sequence",
+      "context": "root",
+      "raw": "010",
+      "kind": "raw"
+    },
+    {
+      "name": "quote-one-level",
+      "context": "quote",
+      "raw": "[01]",
+      "kind": "quoted-raw",
+      "payload": "01"
+    },
+    {
+      "name": "quote-two-levels",
+      "context": "quote",
+      "raw": "[[01]]",
+      "kind": "quoted-raw",
+      "payload": "[01]"
+    },
+    {
+      "name": "relative-pair",
+      "context": "relative",
+      "raw": "01",
+      "kind": "raw"
+    }
+  ]
+}
