@@ -330,24 +330,23 @@ export class DefinitionEnvironment {
     return { kind: 'registered', entry }
   }
 
+  private lookupKey(key: string): DefinitionOpeningResult {
+    if (this.conflicts.has(key)) return { kind: 'conflict' }
+    const entry = this.entries.get(key)
+    if (entry !== undefined) {
+      return {
+        kind: 'match',
+        definitionId: entry.id,
+        body: entry.definition.form,
+      }
+    }
+    return this.parent?.lookupKey(key) ?? { kind: 'no-match' }
+  }
+
   lookup(target: ASTNode): DefinitionOpeningResult {
     const key = definitionTargetKey(target)
     if (key === null) return { kind: 'non-addressable' }
-
-    let current: DefinitionEnvironment | null = this
-    while (current !== null) {
-      if (current.conflicts.has(key)) return { kind: 'conflict' }
-      const entry = current.entries.get(key)
-      if (entry !== undefined) {
-        return {
-          kind: 'match',
-          definitionId: entry.id,
-          body: entry.definition.form,
-        }
-      }
-      current = current.parent
-    }
-    return { kind: 'no-match' }
+    return this.lookupKey(key)
   }
 }
 
