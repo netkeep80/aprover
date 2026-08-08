@@ -76,22 +76,20 @@ describe('mts-proof/v0.2 replay checker', () => {
   })
 
   it('rejects unknown rules instead of extending trust', () => {
-    const candidate = proof([substitutionStep]) as unknown as {
-      schema: string
-      contractVersion: string
-      steps: Array<Record<string, unknown>>
+    const candidate = {
+      schema: MTS_PROOF_SCHEMA,
+      contractVersion: MTS_CONTRACT_VERSION,
+      steps: [{ ...substitutionStep, rule: 'transitivity' }],
     }
-    candidate.steps[0].rule = 'transitivity'
     expect(checkProof(candidate as unknown as MtsProofObjectV02)).toBe(false)
   })
 
   it('rejects wrong contract provenance', () => {
-    const candidate = proof([]) as unknown as {
-      schema: string
-      contractVersion: string
-      steps: []
+    const candidate = {
+      schema: MTS_PROOF_SCHEMA,
+      contractVersion: 'mts-contract/v0.1',
+      steps: [],
     }
-    candidate.contractVersion = 'mts-contract/v0.1'
     expect(checkProof(candidate as unknown as MtsProofObjectV02)).toBe(false)
   })
 
