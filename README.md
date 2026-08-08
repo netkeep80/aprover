@@ -1,6 +1,6 @@
 # aprover
 
-Веб-приложение для разбора, визуализации, contextual interpretation и trusted replay формальной нотации Метатеории Связей (МТС).
+Веб-приложение для разбора, визуализации, contextual interpretation, untrusted proof search и independent trusted replay формальной нотации Метатеории Связей (МТС).
 
 Публичная версия: <https://netkeep80.github.io/aprover/>
 
@@ -13,19 +13,19 @@
 ```text
 anum_docs
 ├── каноническая теория МТС
-├── mts-contract/v0.2
-├── mts-conformance/v0.2
+├── mts-contract/v0.2 + conformance
+├── Anum L3 contracts + conformance
 ├── mts-proof/v0.2
 └── minimal reference core/checker
         │
         ▼
 aprover
-├── Vue/TypeScript application
 ├── pinned upstream artifacts + provenance
 ├── canonical lexer / parser / AST
 ├── read-only contextual interpreter
 ├── immutable ExplicitMemoryView
 ├── occurrence-safe visual graph
+├── untrusted proof construction/search
 └── independent proof replay checker
 ```
 
@@ -43,47 +43,37 @@ aprover
 F♂ — форма конца F
 ```
 
+Canonical binary LinkForm использует `⟼`; inversion — `¬F`; inequality — `!=`. Compatibility spellings `->`, `!->`, bare `!`, `¬=`, `≠`, binary `↛` и `^` не входят в application grammar.
+
 Display label не является semantic identity. `interpret` выполняется read-only и не материализует отсутствующие связи.
 
 ## Trusted proof boundary
 
-После Phase E старый независимый prover удалён. В production path больше нет hard-coded A0–A11, lowercase metavariables, global equality rewrite, symmetry/transitivity/congruence или Modus Ponens как неявно trusted правил.
+Старый независимый prover удалён. В production path нет hard-coded A0–A11, lowercase metavariables, global equality rewrite, symmetry/transitivity/congruence или Modus Ponens как неявно trusted правил.
 
-Текущий proof contract — candidate `mts-proof/v0.2`. Его trusted rule set содержит только:
+`src/core/proofReplay.ts` независимо проверяет `mts-proof/v0.2` proof objects через canonical parser + `InterpretationSession` + immutable `ExplicitMemoryView`. Unknown rules, forged substitutions/aliases, неверная provenance/version и implicit realization отвергаются.
 
-```text
-interpret
-```
-
-`src/core/proofReplay.ts` независимо повторяет заявленный proof step через canonical parser + `InterpretationSession` + immutable `ExplicitMemoryView` и сверяет:
-
-```text
-contractVersion
-rule
-success
-substitutions
-aliases
-```
-
-Unknown rules, forged substitutions, неверная provenance/version и implicit realization отвергаются.
-
-Proof search намеренно отсутствует до Phase F: search не должен определять trusted semantics.
+`src/core/proofSearch.ts` находится **над** trusted checker: он может строить candidate proof object, но результат считается доказательством только после независимого `checkProof()`.
 
 ## Реализованный runtime
 
-- canonical lexer/parser без compatibility grammar `♂F / F♀`;
-- AST с `Round`, `Square`, `Literal`, `ContextPronoun`;
-- occurrence identity по structural AST path;
+- canonical lexer/parser/AST без legacy compatibility grammar;
+- `Round`, `Square`, `Literal`, `ContextPronoun` и occurrence identity по structural AST path;
 - `ContextFrame(start, end, parent)`;
-- immutable `ExplicitMemoryView`;
-- `InterpretationSession`;
+- immutable `ExplicitMemoryView` и `InterpretationSession`;
 - upstream lexing/canonicalization/interpretation conformance;
-- substitutions / aliases / trace presentation model;
+- substitutions / aliases / trace presentation;
 - occurrence-safe link graph;
-- `mts-proof/v0.2` replay checker;
-- editor и `.mtl/.astr/.anum` file workflow.
+- `mts-proof/v0.2` replay checker + untrusted proof search;
+- editor и `.mtl/.astr/.anum` workflow.
 
-Главный web screen сейчас честно выполняет parse/visualize. Он не показывает старые «proof verdicts» до появления нового proof UI поверх trusted checker.
+## Форматы приложения
+
+- `.mtl` — canonical MTS formal notation;
+- `.astr` — application UTF-8 adapter, который проецирует значение в shared AST и canonical `⟼` syntax; это не вторая грамматика МТС;
+- `.anum` — raw Anum transport consumer `anum-raw-carrier/v0.2`; raw carrier **не является denotation**. Приложение не содержит локальной таблицы значений абит или отдельной recursive semantics.
+
+Полная Anum denotation принадлежит pinned L3 contracts из `anum_docs` (`anum-denotation`, `anum-pair-denotation`, `anum-recursive-denotation` и их conformance corpora).
 
 ## Структура
 
@@ -97,24 +87,21 @@ src/core/
   interpreter.ts
   memoryView.ts
   interpretationSession.ts
-  interpretationPresentation.ts
   proofReplay.ts
+  proofSearch.ts
   linkGraph.ts
-
-src/components/
-  Editor.vue
-  ASTViewer.vue
-  LinkGraphViewer.vue
-  InterpretationPanel.vue
+  stringAnum.ts
+  quatAnum.ts
 
 contracts/anum_docs-v0.2/
   mts-contract-v0.2.json
   mts-conformance-v0.2.json
   mts-proof-v0.2.json
+  anum-*-v0.2.json
   provenance.json
 ```
 
-Историю удалённого v0.1 prover machinery хранит Git; compatibility implementation в текущем дереве не сохраняется.
+Историю удалённого v0.1 prover/grammar machinery хранит Git; compatibility implementation в текущем дереве не сохраняется.
 
 ## Разработка
 
@@ -133,14 +120,6 @@ npm run build
 npm run test:e2e
 ```
 
-## Форматы приложения
-
-- `.mtl` — canonical formal notation;
-- `.astr` — прикладной строковый Anum carrier;
-- `.anum` — прикладной четверичный Anum carrier.
-
-Подробности нормативной МТС следует читать в `anum_docs`, а не выводить из implementation `aprover`.
-
 ## Roadmap
 
 Программа миграции: [`aprover#107`](https://github.com/netkeep80/aprover/issues/107).
@@ -149,5 +128,7 @@ npm run test:e2e
 - Phase B — occurrence-safe identity: завершена;
 - Phase C — canonical lexer/AST/parser: завершена;
 - Phase D — contextual interpreter/runtime/presentation: завершена;
-- Phase E — trusted replay + удаление independent prover semantics: текущий merge gate;
-- Phase F — visual proof objects/search UI поверх independent trusted checker.
+- Phase E — trusted replay + удаление independent prover semantics: завершена;
+- Phase F — proof-object/search UI и дальнейшая application integration поверх independent checker.
+
+Нормативную МТС следует читать в `anum_docs`, а не выводить из implementation `aprover`.
