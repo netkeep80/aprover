@@ -1,9 +1,10 @@
 {
   "sourceRepository": "netkeep80/anum_docs",
-  "sourceCommit": "9921ce2c6c5ccf5cc62ec27daca571752e116fe9",
+  "sourceCommit": "62901cfc94831af41cf86cdc3acb1507c46c05c7",
   "contract": {
     "path": "contracts/mts-contract-v0.2.json",
-    "gitBlobSha": "a8fc7c1d565a87941dbd4c8d691ffd4887aec620"
+    "sourceCommit": "62901cfc94831af41cf86cdc3acb1507c46c05c7",
+    "gitBlobSha": "93c39e34f14fb716d850136249e4928599d75130"
   },
   "conformance": {
     "path": "contracts/mts-conformance-v0.2.json",
@@ -17,27 +18,47 @@
   },
   "anumBoundaryProjection": {
     "path": "contracts/anum-boundary-projection-v0.2.json",
-    "sourceCommit": "013c18cd2c41b0e3c5960e4bd7389a136d1958e1",
-    "gitBlobSha": "8229fc65d0c48a811b9f97e5512fcf6e350b512d"
+    "sourceCommit": "62901cfc94831af41cf86cdc3acb1507c46c05c7",
+    "gitBlobSha": "822165f7940a4ec764bb7ac59e24e875ae03fb44"
   },
   "anumDenotation": {
     "path": "contracts/anum-denotation-v0.2.json",
-    "sourceCommit": "ddf139c1900f00be896646cffaa395b8c085d144",
-    "gitBlobSha": "2c9681e2651276f70d54bac91ec1166203872812"
+    "sourceCommit": "62901cfc94831af41cf86cdc3acb1507c46c05c7",
+    "gitBlobSha": "2c0544c1b2ff57bf9c5999b50bd881622b48159d"
   },
   "anumDenotationConformance": {
     "path": "contracts/anum-denotation-conformance-v0.2.json",
-    "sourceCommit": "ddf139c1900f00be896646cffaa395b8c085d144",
+    "sourceCommit": "62901cfc94831af41cf86cdc3acb1507c46c05c7",
     "gitBlobSha": "af0740a358d40e8d70a9770387a26ef8303d5eaa"
   },
   "anumPairDenotation": {
     "path": "contracts/anum-pair-denotation-v0.2.json",
-    "sourceCommit": "9921ce2c6c5ccf5cc62ec27daca571752e116fe9",
-    "gitBlobSha": "b07d3989f8819185424782cce80759aa8310e465"
+    "sourceCommit": "62901cfc94831af41cf86cdc3acb1507c46c05c7",
+    "gitBlobSha": "d09b4e4eccd9a5f439d20086bd1004cadc05b280"
   },
   "anumPairDenotationConformance": {
     "path": "contracts/anum-pair-denotation-conformance-v0.2.json",
-    "sourceCommit": "9921ce2c6c5ccf5cc62ec27daca571752e116fe9",
-    "gitBlobSha": "0d59c92ad30b82d23e598188f64feb3644bc81a8"
+    "sourceCommit": "62901cfc94831af41cf86cdc3acb1507c46c05c7",
+    "gitBlobSha": "0d5954625267299993aa66e71c55d95172a73625"
+  },
+  "anumRawCarrier": {
+    "path": "contracts/anum-raw-carrier-v0.2.json",
+    "sourceCommit": "62901cfc94831af41cf86cdc3acb1507c46c05c7",
+    "gitBlobSha": "d5c0ddbb6c2d57967621c08551fbadd4f2cdd132"
+  },
+  "anumRawCarrierConformance": {
+    "path": "contracts/anum-raw-carrier-conformance-v0.2.json",
+    "sourceCommit": "62901cfc94831af41cf86cdc3acb1507c46c05c7",
+    "gitBlobSha": "39064ed361b4b53014f5f9fb7f026b2deba4b0f1"
+  },
+  "anumRecursiveDenotation": {
+    "path": "contracts/anum-recursive-denotation-v0.2.json",
+    "sourceCommit": "62901cfc94831af41cf86cdc3acb1507c46c05c7",
+    "gitBlobSha": "f0fc16e989c4b49c6df476393108bc7bfb41cbb4"
+  },
+  "anumRecursiveDenotationConformance": {
+    "path": "contracts/anum-recursive-denotation-conformance-v0.2.json",
+    "sourceCommit": "62901cfc94831af41cf86cdc3acb1507c46c05c7",
+    "gitBlobSha": "70375b06f2031982bd42c62c8552a2edae1be4c1"
   }
 }
