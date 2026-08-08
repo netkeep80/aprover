@@ -1,0 +1,50 @@
+{
+  "schema": "anum-pair-denotation/v0.2",
+  "status": "accepted",
+  "dependsOn": [
+    "anum-boundary-projection/v0.2",
+    "anum-denotation/v0.2"
+  ],
+  "conformanceCorpus": "contracts/anum-pair-denotation-conformance-v0.2.json",
+  "context": "root",
+  "anchors": {
+    "0": "protocol:0",
+    "1": "protocol:1"
+  },
+  "acceptedStructuralRaw": [
+    "0",
+    "1",
+    "00",
+    "01",
+    "10",
+    "11"
+  ],
+  "acceptedRootAliases": {
+    "][": "0",
+    "[]": "1"
+  },
+  "pairRule": "for exactly two direct protocol atoms ab, create one Link node from anchor(a) to anchor(b)",
+  "canonicalInverse": {
+    "anchor:protocol:0": "0",
+    "anchor:protocol:1": "1",
+    "singleNodePair": "concatenate pole atoms in start/end order",
+    "aliasesCanonicalize": true
+  },
+  "nonDenoting": {
+    "root": "any other raw carrier remains typed raw",
+    "quote": "quote projection remains typed quoted-raw",
+    "relative": "relative context remains typed raw",
+    "openOpen": "[[ remains non-denoting boundary form",
+    "closeClose": "]] remains non-denoting boundary form"
+  },
+  "effects": {
+    "mayReadMemory": false,
+    "mayMutateMemory": false,
+    "mayRealize": false,
+    "persistentLinkIdAllowed": false
+  },
+  "deferred": {
+    "recursiveBracketGrammarIssue": 95,
+    "generalDenotationIssue": 89
+  }
+}
