@@ -114,11 +114,7 @@ export type {
 export { formatOccurrencePath, presentInterpretation } from './interpretationPresentation'
 
 // Candidate mts-proof/v0.2 trusted replay boundary. No proof search lives here.
-export type {
-  ProofExpectedResult,
-  InterpretProofStep,
-  MtsProofObjectV02,
-} from './proofReplay'
+export type { ProofExpectedResult, InterpretProofStep, MtsProofObjectV02 } from './proofReplay'
 export {
   MTS_PROOF_SCHEMA,
   MTS_CONTRACT_VERSION,
@@ -171,7 +167,7 @@ export {
   isQuatAnumContent,
 } from './quatAnum'
 
-export type { FileMetadata, ExportResult, SupportedExtension } from './fileIO'
+export type { FileMetadata, SupportedExtension } from './fileIO'
 export {
   SUPPORTED_EXTENSIONS,
   readFileContent,
