@@ -104,7 +104,7 @@ describe('canonical Anum inverse vetoes', () => {
     expect(() => canonicalAnum(value)).toThrow(/shared node references/i)
   })
 
-  it('rejects unused nodes and mismatched anchor declarations', () => {
+  it('rejects unused nodes and invalid or unused anchor declarations', () => {
     const unusedNode: StructuralAnumDenotation = {
       kind: 'structural',
       anchors: ['protocol:0', 'protocol:1'],
@@ -136,7 +136,15 @@ describe('canonical Anum inverse vetoes', () => {
       ],
       root: { node: 0 },
     }
-    expect(() => canonicalAnum(missingAnchor)).toThrow(/unused or missing anchors/i)
+    expect(() => canonicalAnum(missingAnchor)).toThrow(/undeclared anchor/i)
+
+    const unusedAnchor: StructuralAnumDenotation = {
+      kind: 'structural',
+      anchors: ['protocol:0', 'protocol:1'],
+      nodes: [],
+      root: { anchor: 'protocol:0' },
+    }
+    expect(() => canonicalAnum(unusedAnchor)).toThrow(/unused or missing anchors/i)
   })
 
   it('rejects external anchors even when supplied through untyped data', () => {
