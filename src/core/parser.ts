@@ -232,12 +232,20 @@ export class Parser {
     return left
   }
 
-  /** Каноническое соположение: a{b,c}, {}b, {}{}, [][], ... */
+  /**
+   * Каноническое соположение внутри одной строки: a{b,c}, {}b, {}{}, [][], ...
+   *
+   * В файловом/editor workflow aprover перевод строки остаётся границей формул.
+   * Это application-boundary: сам L2 AST не получает отдельного newline-оператора.
+   */
   private parseSequence(): ASTNode {
     const first = this.parsePref()
     const items: ASTNode[] = [first]
 
-    while (FORM_STARTS.has(this.current().type)) {
+    while (
+      FORM_STARTS.has(this.current().type) &&
+      this.current().loc.start.line === items[items.length - 1].loc!.end.line
+    ) {
       items.push(this.parsePref())
     }
 
