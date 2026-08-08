@@ -376,7 +376,7 @@ describe('ProofMetrics', () => {
     })
 
     it('should attach metrics to inequality verification', () => {
-      const expr = parseExpr('♂∞ != ∞♀')
+      const expr = parseExpr('∞♂ != ♀∞')
       const result = verify(expr, state)
 
       expect(result.metrics).toBeDefined()
