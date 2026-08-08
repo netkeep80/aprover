@@ -1,6 +1,6 @@
 # aprover
 
-Веб-приложение для разбора, визуализации, contextual interpretation и дальнейшей проверки доказательств в формальной нотации Метатеории Связей (МТС).
+Веб-приложение для разбора, визуализации, contextual interpretation и trusted replay формальной нотации Метатеории Связей (МТС).
 
 Публичная версия: <https://netkeep80.github.io/aprover/>
 
@@ -8,36 +8,34 @@
 
 `aprover` — **consumer**, а не второй нормативный источник МТС.
 
-Каноническое изложение теории, formal-language contract, root definitions и conformance corpus находятся в [`netkeep80/anum_docs`](https://github.com/netkeep80/anum_docs).
+Каноническая теория, root definitions и machine-readable contracts находятся в [`netkeep80/anum_docs`](https://github.com/netkeep80/anum_docs).
 
 ```text
 anum_docs
 ├── каноническая теория МТС
-├── единая формальная нотация
 ├── mts-contract/v0.2
 ├── mts-conformance/v0.2
-└── минимальное reference core
+├── mts-proof/v0.2
+└── minimal reference core/checker
         │
         ▼
 aprover
 ├── Vue/TypeScript application
-├── pinned contract consumer
-├── lexer / parser / canonical AST
+├── pinned upstream artifacts + provenance
+├── canonical lexer / parser / AST
 ├── read-only contextual interpreter
-├── visual occurrence graph
-├── substitutions / aliases / trace presentation
-└── proof search / proof checker application layer
+├── immutable ExplicitMemoryView
+├── occurrence-safe visual graph
+└── independent proof replay checker
 ```
 
-Локальная копия contract/conformance хранится в `contracts/anum_docs-v0.2/` вместе с provenance. CI проверяет Git blob SHA, поэтому локальная семантика не может незаметно разойтись с upstream.
+Локальные copies в `contracts/anum_docs-v0.2/` закреплены Git blob SHA. Они являются pinned dependencies, а не fork теории.
 
 ## Канонический язык МТС v0.2
 
-Ключевые правила, которые приложение **потребляет** из upstream contract:
-
 ```text
-◁  — начало текущего бинарного контекста
-▷  — конец текущего бинарного контекста
+◁  — начало текущего контекста
+▷  — конец текущего контекста
 ↑  — подъём к внешнему контексту
 [] — occurrence-local anonymous form
 
@@ -45,71 +43,87 @@ aprover
 F♂ — форма конца F
 ```
 
-Квадратные скобки не являются context-address syntax. Display label не является semantic identity. `interpret` выполняется read-only и не материализует отсутствующие связи.
+Display label не является semantic identity. `interpret` выполняется read-only и не материализует отсутствующие связи.
 
-Подробности теории следует читать в `anum_docs`, а не выводить из application implementation.
+## Trusted proof boundary
 
-## Реализованный v0.2 runtime
+После Phase E старый независимый prover удалён. В production path больше нет hard-coded A0–A11, lowercase metavariables, global equality rewrite, symmetry/transitivity/congruence или Modus Ponens как неявно trusted правил.
 
-На текущем этапе в `aprover` есть:
+Текущий proof contract — candidate `mts-proof/v0.2`. Его trusted rule set содержит только:
 
-- pinned `mts-contract/v0.2` и executable conformance corpus;
+```text
+interpret
+```
+
+`src/core/proofReplay.ts` независимо повторяет заявленный proof step через canonical parser + `InterpretationSession` + immutable `ExplicitMemoryView` и сверяет:
+
+```text
+contractVersion
+rule
+success
+substitutions
+aliases
+```
+
+Unknown rules, forged substitutions, неверная provenance/version и implicit realization отвергаются.
+
+Proof search намеренно отсутствует до Phase F: search не должен определять trusted semantics.
+
+## Реализованный runtime
+
 - canonical lexer/parser без compatibility grammar `♂F / F♀`;
 - AST с `Round`, `Square`, `Literal`, `ContextPronoun`;
-- structural occurrence identity для одинаково отображаемых форм;
+- occurrence identity по structural AST path;
 - `ContextFrame(start, end, parent)`;
 - immutable `ExplicitMemoryView`;
-- `InterpretationSession` как application boundary;
-- прямое исполнение upstream lexing/canonicalization/interpretation vectors;
-- presentation model/component для substitutions, aliases и resolution trace;
-- visual link graph, editor, file operations и proof-related UI.
+- `InterpretationSession`;
+- upstream lexing/canonicalization/interpretation conformance;
+- substitutions / aliases / trace presentation model;
+- occurrence-safe link graph;
+- `mts-proof/v0.2` replay checker;
+- editor и `.mtl/.astr/.anum` file workflow.
 
-## Важный текущий переход
-
-Старое proof machinery проекта исторически содержало собственную v0.1 semantics: hard-coded A0–A11, lowercase metavariables и дополнительные equality/congruence/transitivity assumptions.
-
-Эта semantics **не является МТС v0.2**. Она удаляется в Phase E по [`#107`](https://github.com/netkeep80/aprover/issues/107) по мере миграции consumers; отдельный `proverV2` или compatibility implementation не создаётся.
+Главный web screen сейчас честно выполняет parse/visualize. Он не показывает старые «proof verdicts» до появления нового proof UI поверх trusted checker.
 
 ## Структура
 
 ```text
 src/core/
-  ast.ts                       canonical AST
-  lexer.ts                     lexer
-  parser.ts                    parser
-  normalizer.ts                canonicalization
-  mtsContract.ts               pinned upstream contract boundary
-  interpreter.ts               read-only contextual interpreter
-  memoryView.ts                immutable application memory adapter
-  interpretationSession.ts     application session
-  interpretationPresentation.ts presentation view model
-  linkGraph.ts                 occurrence-safe visual graph
-  prover.ts                    legacy proof machinery being migrated in Phase E
+  ast.ts
+  lexer.ts
+  parser.ts
+  normalizer.ts
+  mtsContract.ts
+  interpreter.ts
+  memoryView.ts
+  interpretationSession.ts
+  interpretationPresentation.ts
+  proofReplay.ts
+  linkGraph.ts
 
 src/components/
-  InterpretationPanel.vue      substitutions / aliases / trace
-  LinkGraphViewer.vue          visual graph
-  ProverPanel.vue              proof UI
-  Editor.vue                   editor
+  Editor.vue
+  ASTViewer.vue
+  LinkGraphViewer.vue
+  InterpretationPanel.vue
 
 contracts/anum_docs-v0.2/
   mts-contract-v0.2.json
   mts-conformance-v0.2.json
+  mts-proof-v0.2.json
   provenance.json
 ```
 
-`docs/mts/README.md` описывает только границу документации приложения. Нормативные теоретические документы находятся upstream.
+Историю удалённого v0.1 prover machinery хранит Git; compatibility implementation в текущем дереве не сохраняется.
 
 ## Разработка
-
-Требуется Node.js/npm.
 
 ```bash
 npm install
 npm run dev
 ```
 
-Основные проверки:
+Полный gate:
 
 ```bash
 npm run lint:check
@@ -119,25 +133,21 @@ npm run build
 npm run test:e2e
 ```
 
-CI выполняет lint, type-check, unit tests, production build и Playwright E2E.
+## Форматы приложения
 
-## Форматы файлов приложения
+- `.mtl` — canonical formal notation;
+- `.astr` — прикладной строковый Anum carrier;
+- `.anum` — прикладной четверичный Anum carrier.
 
-- `.mtl` — текст canonical formal notation, разбираемый parser-ом;
-- `.astr` — прикладной строковый anum format;
-- `.anum` — прикладной четверичный anum format.
-
-Документация `.astr/.anum` может жить в `aprover`, поскольку это implementation/application surface. Определение самой формальной нотации МТС остаётся в `anum_docs`.
+Подробности нормативной МТС следует читать в `anum_docs`, а не выводить из implementation `aprover`.
 
 ## Roadmap
 
-Текущая интеграционная программа ведётся в [`aprover#107`](https://github.com/netkeep80/aprover/issues/107):
+Программа миграции: [`aprover#107`](https://github.com/netkeep80/aprover/issues/107).
 
 - Phase A — pinned canonical contract: завершена;
 - Phase B — occurrence-safe identity: завершена;
 - Phase C — canonical lexer/AST/parser: завершена;
 - Phase D — contextual interpreter/runtime/presentation: завершена;
-- Phase E — удаление старой независимой prover semantics: выполняется;
-- Phase F — replayable proof objects и trusted checker поверх canonical contract.
-
-Историю старых теоретических документов и реализаций хранит Git; после миграции consumers legacy не сохраняется как параллельный production path.
+- Phase E — trusted replay + удаление independent prover semantics: текущий merge gate;
+- Phase F — visual proof objects/search UI поверх independent trusted checker.

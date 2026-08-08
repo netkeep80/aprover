@@ -4,17 +4,16 @@
 
 Каноническое изложение теории, формальная нотация, root definitions и machine-readable contracts находятся в [`netkeep80/anum_docs`](https://github.com/netkeep80/anum_docs).
 
-Приложение потребляет pinned MTS v0.2 contract и conformance corpus из `anum_docs` и не должно вводить собственные аксиомы, грамматику или интерпретацию как конкурирующий канон.
+Приложение потребляет pinned MTS v0.2 artifacts из `anum_docs` и не вводит собственные аксиомы, грамматику или proof semantics как конкурирующий канон.
 
 ## Что относится к aprover
 
-В этом каталоге остаётся только документация, необходимая для самого приложения:
+В этом каталоге остаётся только документация application-specific форматов и границ. Например:
 
 - `03-notations/03-string-anum.md` — прикладной формат `.astr`;
-- `03-notations/04-quaternary.md` — прикладной формат `.anum`;
-- `05-prover/` — техническая документация UI/proof machinery приложения.
+- `03-notations/04-quaternary.md` — прикладной формат `.anum`.
 
-Формальная нотация МТС в коде определяется pinned contract, а не prose-файлами `aprover`.
+Старый каталог `05-prover/` удалён в Phase E вместе с A0–A11/MP implementation. Его историю хранит Git.
 
 ## Канонический runtime boundary
 
@@ -23,6 +22,7 @@ anum_docs
   theory + formal notation
   mts-contract/v0.2
   mts-conformance/v0.2
+  mts-proof/v0.2
         │
         ▼
 aprover
@@ -30,19 +30,21 @@ aprover
   canonical AST
   ContextFrame + read-only MemoryView
   InterpretationSession
-  substitutions / aliases / resolution trace UI
-  proof search/check application layer
+  substitutions / aliases / trace presentation
+  trusted proof replay checker
 ```
 
-Ключевые правила границы:
+Ключевые правила:
 
 - `[]` имеет occurrence-local structural identity;
-- `◁` и `▷` — роли текущего бинарного контекста, `↑` — подъём к внешнему контексту;
+- `◁` и `▷` — роли текущего контекста, `↑` — подъём к внешнему контексту;
 - canonical projection syntax: `♀F` и `F♂`;
 - `interpret` read-only и не выполняет implicit `realize`;
 - display label не является semantic identity;
-- после миграции consumers legacy implementation удаляется, а не сохраняется как compatibility path.
+- trusted `mts-proof/v0.2` rule set сейчас содержит только replay `interpret`;
+- proof search, когда появится, обязан выдавать proof object для независимой проверки;
+- legacy implementation после миграции не сохраняется как compatibility path.
 
-## Где искать нормативное определение
+## Нормативное определение
 
-См. `netkeep80/anum_docs`, в первую очередь опубликованные versioned contract/conformance artifacts и активную теоретическую документацию. Историю удалённых v0.1-текстов `aprover` при необходимости хранит Git.
+См. `netkeep80/anum_docs`. В `aprover` pinned contracts являются dependency/provenance boundary, а не отдельным определением МТС.
