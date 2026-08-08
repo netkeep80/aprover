@@ -38,20 +38,21 @@ import type { ASTNode } from './core/ast'
 import type { ProverState, ProofStep } from './core/prover'
 
 const input = ref(`// МТС — Ассоциативный прувер
-// Примеры аксиом и формул
+// Синтаксис примеров соответствует canonical MTS v0.2.
+// A4-A7 ниже пока демонстрируют legacy proof semantics приложения до Phase E.
 
-// А4. Смысл (акорень): ∞ : (∞ -> ∞)
+// А4. Смысл (акорень)
 ∞ = ∞ -> ∞
 
-// А5. Самозамыкание начала: ♂x : (♂x -> x)
-♂v = ♂v -> v
+// Legacy A5 semantics через canonical end projection F♂
+v♂ = v♂ -> v
 
-// А6. Самозамыкание конца: x♀ : (x -> x♀)
-r♀ = r -> r♀
+// Legacy A6 semantics через canonical start projection ♀F
+♀r = r -> ♀r
 
-// А7. Инверсия
-!♂x = x♀
-!x♀ = ♂x
+// Legacy A7 inversion semantics
+!x♂ = ♀x
+!♀x = x♂
 
 // А11. Левоассоциативность
 a -> b -> c = (a -> b) -> c
