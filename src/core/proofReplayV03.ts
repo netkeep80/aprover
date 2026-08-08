@@ -479,12 +479,13 @@ export function checkJudgmentV03(value: MtsProofJudgmentV03): boolean {
   }
 }
 
-/** Independently replay every base judgment; array order has no inference meaning. */
+/** Independently replay every already decoded base judgment; order has no inference meaning. */
 export function checkProofV03(proof: MtsProofObjectV03): boolean {
-  try {
-    const decoded = parseProofObjectV03(proof)
-    return decoded.judgments.every(checkJudgmentV03)
-  } catch {
+  if (
+    proof.proofVersion !== MTS_PROOF_SCHEMA_V03 ||
+    proof.contractVersion !== MTS_PROOF_CONTRACT_VERSION_V03
+  ) {
     return false
   }
+  return proof.judgments.every(checkJudgmentV03)
 }
