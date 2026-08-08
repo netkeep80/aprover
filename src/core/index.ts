@@ -1,25 +1,11 @@
 /**
- * aprover - МТС (Meta-Theory of Links) Theorem Prover
+ * aprover public core API.
  *
- * This is the main entry point for using aprover as a library.
- * It re-exports all public APIs from the core modules.
- *
- * @example
- * ```typescript
- * import { parse, createProverState, verify } from './core'
- *
- * const state = createProverState()
- * const file = parse('∞ = ∞ -> ∞')
- * const result = verify(file.statements[0].expr, state)
- * console.log(result.success ? 'Proven!' : 'Failed')
- * ```
- *
- * @packageDocumentation
+ * `anum_docs` is the normative source for MTS theory/contracts. This package
+ * exposes the canonical parser/runtime plus the pinned mts-proof/v0.2 replay
+ * checker; legacy A0-A11 proof-search semantics are intentionally not public.
  */
 
-// ============================================================================
-// AST Module - Abstract Syntax Tree types and utilities
-// ============================================================================
 export type {
   SourceLocation,
   ASTNode,
@@ -38,7 +24,11 @@ export type {
   IdentExpr,
   AbitLitExpr,
   StringLitExpr,
+  LiteralExpr,
+  RoundExpr,
   BracketExpr,
+  SquareExpr,
+  ContextPronounExpr,
   Statement,
   File,
 } from './ast'
@@ -63,9 +53,6 @@ export {
   astToString,
 } from './ast'
 
-// ============================================================================
-// AST Helpers Module - Shared AST node factory functions
-// ============================================================================
 export {
   makeLoc,
   makeInfinity,
@@ -78,32 +65,16 @@ export {
   extractLinkChain,
 } from './astHelpers'
 
-// ============================================================================
-// Utils Module - Shared utility functions
-// ============================================================================
 export type { FileParseOptions, FileToMtlOptions } from './utils'
-
 export { escapeLabel, parseFileLines, fileToMtl } from './utils'
 
-// ============================================================================
-// Lexer Module - Lexical analysis
-// ============================================================================
 export type { TokenType, Token } from './lexer'
-
 export { Lexer, LexerError, tokenize } from './lexer'
 
-// ============================================================================
-// Parser Module - Syntactic analysis
-// ============================================================================
 export type { ParseResult } from './parser'
-
 export { Parser, ParseError, parse, parseWithRecovery, parseExpr } from './parser'
 
-// ============================================================================
-// Normalizer Module - AST normalization and canonicalization
-// ============================================================================
 export type { NormalizerOptions } from './normalizer'
-
 export {
   NormalizationError,
   normalize,
@@ -116,89 +87,46 @@ export {
   getNormalizationCache,
 } from './normalizer'
 
-// ============================================================================
-// Prover Module - Theorem prover core
-// ============================================================================
+// Canonical MTS v0.2 contextual interpretation.
 export type {
-  Substitution,
-  AxiomId,
-  AxiomInfo,
-  ProofStep,
-  VerificationHint,
-  ProofResult,
-  ProvenEquality,
-  ProvenImplication,
-  ProverState,
-} from './prover'
+  LinkRef,
+  OccurrencePath,
+  MemoryView,
+  ContextFrame,
+  HoleId,
+  InterpretationSubstitution,
+  InterpretationAlias,
+  InterpretationResult,
+} from './interpreter'
+export { InterpretationError, resolveContextPronoun, interpretConstraints } from './interpreter'
 
-export {
-  AXIOMS,
-  createProverState,
-  unify,
-  applySubstitution,
-  expandDefinitions,
-  checkEquality,
-  checkInequality,
-  verify,
-  addProvenEquality,
-  addProvenFact,
-  addProvenImplication,
-  tryModusPonens,
-  applyModusPonens,
-} from './prover'
+export type { DistinguishedLink } from './memoryView'
+export { ExplicitMemoryView } from './memoryView'
 
-// ============================================================================
-// Interactive Module - Interactive proof sessions
-// ============================================================================
+export type { InterpretationSessionConfig } from './interpretationSession'
+export { InterpretationSession } from './interpretationSession'
+
 export type {
-  ProofStrategy,
-  StepType,
-  AvailableStep,
-  ProofSnapshot,
-  StepResult,
-  SessionStatus,
-} from './interactive'
+  InterpretationStatus,
+  InterpretationViewModel,
+} from './interpretationPresentation'
+export { toInterpretationViewModel } from './interpretationPresentation'
 
-export {
-  STRATEGY_DESCRIPTIONS,
-  ProofSession,
-  createProofSession,
-  getSuggestedSteps,
-  quickProof,
-} from './interactive'
-
-// ============================================================================
-// Proof Export Module - Export proofs to various formats
-// ============================================================================
+// Candidate mts-proof/v0.2 trusted replay boundary. No proof search lives here.
 export type {
-  ExportFormat,
-  LaTeXExportOptions,
-  TextExportOptions,
-  JSONExportOptions,
-  DOTExportOptions,
-  ProofExportData,
-  ProofStepExport,
-  AxiomExport,
-  ProverStateExport,
-} from './proofExport'
-
+  ProofExpectedResult,
+  InterpretProofStep,
+  MtsProofObjectV02,
+} from './proofReplay'
 export {
-  astToLaTeX,
-  stringToLaTeX,
-  exportToLaTeX,
-  exportToText,
-  exportToJSON,
-  exportToDOT,
-  exportProof,
-  getExportExtension,
-  getExportMimeType,
-} from './proofExport'
+  MTS_PROOF_SCHEMA,
+  MTS_CONTRACT_VERSION,
+  MTS_TRUSTED_PROOF_RULE,
+  checkInterpretProofStep,
+  checkProof,
+} from './proofReplay'
 
-// ============================================================================
-// String Aнumber Module - String aнumber (.astr) support
-// ============================================================================
 export type { StringAnumOptions, ConversionStep, StringAnumStats } from './stringAnum'
-
 export {
   StringAnumError,
   parseStringAnumLine,
@@ -212,9 +140,6 @@ export {
   getStringAnumStats,
 } from './stringAnum'
 
-// ============================================================================
-// Quaternary Aнumber Module - Quaternary aнumber (.anum) support
-// ============================================================================
 export type {
   AbitChar,
   QuatAnumOptions,
@@ -224,7 +149,6 @@ export type {
   QuatConversionStep,
   QuatAnumStats,
 } from './quatAnum'
-
 export {
   VALID_ABITS,
   ABIT_DEFINITIONS,
@@ -246,11 +170,7 @@ export {
   isQuatAnumContent,
 } from './quatAnum'
 
-// ============================================================================
-// File I/O Module - File operations
-// ============================================================================
 export type { FileMetadata, ExportResult, SupportedExtension } from './fileIO'
-
 export {
   SUPPORTED_EXTENSIONS,
   readFileContent,
@@ -265,52 +185,12 @@ export {
   saveAutosave,
   loadAutosave,
   clearAutosave,
-  formatResultsForExport,
   formatAstForExport,
   generateMtlFromAst,
   downloadFile,
   openFileDialog,
 } from './fileIO'
 
-// ============================================================================
-// Proof Cache Module - Caching verification results
-// ============================================================================
-export type { ProofCacheStats } from './proofCache'
-
-export {
-  getProofCache,
-  getCachedProof,
-  cacheProof,
-  isProofCached,
-  clearProofCache,
-  setProofCacheEnabled,
-  isProofCacheEnabled,
-  getProofCacheStats,
-  setProofCacheMaxSize,
-  generateStateSignature,
-} from './proofCache'
-
-// ============================================================================
-// Proof Metrics Module - Proof verification metrics and analysis
-// ============================================================================
-export type {
-  ProofComplexity,
-  ProofMetrics,
-  SerializableProofMetrics,
-  MetricsCollector,
-} from './proofMetrics'
-
-export {
-  classifyComplexity,
-  createMetricsCollector,
-  metricsToSerializable,
-  formatMetricsSummary,
-  aggregateMetrics,
-} from './proofMetrics'
-
-// ============================================================================
-// Link Graph Module - Visualization of link formulas as directed graphs
-// ============================================================================
 export type {
   LinkGraphNodeType,
   LinkGraphNode,
@@ -318,7 +198,6 @@ export type {
   LinkGraphEdge,
   LinkGraph,
 } from './linkGraph'
-
 export {
   projectToGraph,
   projectStatementsToGraph,
