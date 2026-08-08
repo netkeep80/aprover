@@ -190,7 +190,12 @@ export type {
   QuotedRawAnumDenotation,
   AnumDenotation,
 } from './anumDenotation'
-export { denotateAnum, canonicalAnum } from './anumDenotation'
+export {
+  denotateAnum,
+  validateAnumDenotation,
+  canonicalDenotationJson,
+  canonicalAnum,
+} from './anumDenotation'
 
 export type { FileMetadata, SupportedExtension } from './fileIO'
 export {
