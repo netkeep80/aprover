@@ -118,10 +118,25 @@
     "consumerMayUseHiddenInterpreterIdentity": false
   },
   "nextGates": {
-    "proofComposition": {"issue": 122, "status": "DefinitionOpeningPath accepted; broader calculus remains open"},
-    "interpreterFocus": {"issue": 148, "status": "research; explicit ContextFrame remains accepted boundary"},
-    "contextInvariance": {"issue": 156, "status": "direct deixis accepted; universal/indirect claims remain deferred"},
-    "relativeAnum": {"issue": 123, "status": "candidate research only"},
-    "persistentL4": {"issue": 124, "status": "persistent backend conformance required"}
+    "proofComposition": {
+      "issue": 122,
+      "status": "DefinitionOpeningPath accepted; broader calculus remains open"
+    },
+    "interpreterFocus": {
+      "issue": 148,
+      "status": "research; explicit ContextFrame remains accepted boundary"
+    },
+    "contextInvariance": {
+      "issue": 156,
+      "status": "direct deixis accepted; universal/indirect claims remain deferred"
+    },
+    "relativeAnum": {
+      "issue": 123,
+      "status": "candidate research only"
+    },
+    "persistentL4": {
+      "issue": 124,
+      "status": "persistent backend conformance required"
+    }
   }
 }
