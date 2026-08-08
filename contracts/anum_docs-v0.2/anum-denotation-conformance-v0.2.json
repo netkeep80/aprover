@@ -69,7 +69,7 @@
         "kind": "quoted-raw",
         "raw": "[01]"
       },
-      "canonicalJson": "{\"kind\":\"quoted-raw\",\"raw\":\"[01]"}
+      "canonicalJson": "{\"kind\":\"quoted-raw\",\"raw\":\"[01]\"}"
     }
   ],
   "invalid": [
