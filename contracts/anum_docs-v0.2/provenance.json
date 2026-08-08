@@ -1,17 +1,43 @@
 {
   "sourceRepository": "netkeep80/anum_docs",
-  "sourceCommit": "294aa5e3d141e16fa93f88c0c18c4b78f8ae168c",
+  "sourceCommit": "9921ce2c6c5ccf5cc62ec27daca571752e116fe9",
   "contract": {
     "path": "contracts/mts-contract-v0.2.json",
-    "gitBlobSha": "fb414a1541f3430fa9292c0fdfd89ca07d5db8ea"
+    "gitBlobSha": "a8fc7c1d565a87941dbd4c8d691ffd4887aec620"
   },
   "conformance": {
     "path": "contracts/mts-conformance-v0.2.json",
+    "sourceCommit": "294aa5e3d141e16fa93f88c0c18c4b78f8ae168c",
     "gitBlobSha": "96303366a8808d9e67ee548b445fcdbf2233f336"
   },
   "proof": {
     "path": "contracts/mts-proof-v0.2.json",
     "sourceCommit": "d4d8e7c2291d26ea868d01dcc66f90d1c319c6e9",
     "gitBlobSha": "7c125771be689ce2c825f5fa1be4674527f15dbb"
+  },
+  "anumBoundaryProjection": {
+    "path": "contracts/anum-boundary-projection-v0.2.json",
+    "sourceCommit": "013c18cd2c41b0e3c5960e4bd7389a136d1958e1",
+    "gitBlobSha": "8229fc65d0c48a811b9f97e5512fcf6e350b512d"
+  },
+  "anumDenotation": {
+    "path": "contracts/anum-denotation-v0.2.json",
+    "sourceCommit": "ddf139c1900f00be896646cffaa395b8c085d144",
+    "gitBlobSha": "2c9681e2651276f70d54bac91ec1166203872812"
+  },
+  "anumDenotationConformance": {
+    "path": "contracts/anum-denotation-conformance-v0.2.json",
+    "sourceCommit": "ddf139c1900f00be896646cffaa395b8c085d144",
+    "gitBlobSha": "af0740a358d40e8d70a9770387a26ef8303d5eaa"
+  },
+  "anumPairDenotation": {
+    "path": "contracts/anum-pair-denotation-v0.2.json",
+    "sourceCommit": "9921ce2c6c5ccf5cc62ec27daca571752e116fe9",
+    "gitBlobSha": "b07d3989f8819185424782cce80759aa8310e465"
+  },
+  "anumPairDenotationConformance": {
+    "path": "contracts/anum-pair-denotation-conformance-v0.2.json",
+    "sourceCommit": "9921ce2c6c5ccf5cc62ec27daca571752e116fe9",
+    "gitBlobSha": "0d59c92ad30b82d23e598188f64feb3644bc81a8"
   }
 }
