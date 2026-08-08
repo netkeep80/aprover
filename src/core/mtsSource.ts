@@ -1,14 +1,12 @@
 import type {
   ASTNode,
   LinkExpr,
-  NotLinkExpr,
   DefExpr,
   EqExpr,
   NeqExpr,
   MaleExpr,
   FemaleExpr,
   NotExpr,
-  PowerExpr,
   SetExpr,
   NumExpr,
   IdentExpr,
@@ -16,7 +14,6 @@ import type {
   StringLitExpr,
   LiteralExpr,
   RoundExpr,
-  BracketExpr,
   SquareExpr,
   ContextPronounExpr,
 } from './ast'
@@ -59,12 +56,6 @@ function render(node: ASTNode, parentPrecedence = 0, rightOfLeftAssociative = fa
       precedence = PRECEDENCE.link
       break
     }
-    case 'NotLink': {
-      const link = node as NotLinkExpr
-      text = `${render(link.left, PRECEDENCE.link)} ↛ ${render(link.right, PRECEDENCE.link, true)}`
-      precedence = PRECEDENCE.link
-      break
-    }
     case 'Not': {
       const expression = node as NotExpr
       text = `¬${render(expression.operand, PRECEDENCE.prefix)}`
@@ -80,12 +71,6 @@ function render(node: ASTNode, parentPrecedence = 0, rightOfLeftAssociative = fa
     case 'Male': {
       const expression = node as MaleExpr
       text = `${render(expression.operand, PRECEDENCE.postfix)}♂`
-      precedence = PRECEDENCE.postfix
-      break
-    }
-    case 'Power': {
-      const expression = node as PowerExpr
-      text = `${render(expression.base, PRECEDENCE.postfix)}^${expression.exponent}`
       precedence = PRECEDENCE.postfix
       break
     }
@@ -137,10 +122,6 @@ function render(node: ASTNode, parentPrecedence = 0, rightOfLeftAssociative = fa
       text = `"${(node as StringLitExpr).value}"`
       precedence = PRECEDENCE.atom
       break
-    case 'Bracket':
-      text = (node as BracketExpr).side === 'left' ? '[' : ']'
-      precedence = PRECEDENCE.atom
-      break
     default:
       throw new Error(`Cannot format unsupported AST node type: ${node.type}`)
   }
@@ -152,13 +133,7 @@ function render(node: ASTNode, parentPrecedence = 0, rightOfLeftAssociative = fa
   return needsParentheses ? `(${text})` : text
 }
 
-/**
- * Serialize one canonical MTS v0.2 AST expression back to formal source.
- *
- * This is a syntax formatter only. It preserves explicit Round/Square forms,
- * canonical projection fixity (`♀F`, `F♂`) and bundle order; it does not
- * normalize or interpret the expression.
- */
+/** Serialize one canonical MTS v0.2 AST expression back to formal source. */
 export function toMtsSource(node: ASTNode): string {
   return render(node)
 }
