@@ -1,8 +1,9 @@
 /**
- * Occurrence-preserving link graph projection for МТС.
+ * Проекция AST МТС в граф с сохранением отдельных вхождений.
  *
- * Display labels are presentation only. Equal labels remain distinct graph
- * occurrences unless a canonical runtime explicitly supplies shared identity.
+ * Видимые подписи служат только отображению. Одинаковые подписи остаются
+ * разными вхождениями, пока каноническое исполнение явно не задаст общую
+ * семантическую сущность.
  */
 
 import type { ASTNode } from './ast'
@@ -15,6 +16,7 @@ import {
   isFemaleExpr,
   isNotExpr,
   isSetExpr,
+  isSequenceExpr,
   isInfinityExpr,
   isNumExpr,
   isIdentExpr,
@@ -24,7 +26,13 @@ import {
 import { astToString } from './ast'
 import { escapeLabel } from './utils'
 
-export type LinkGraphNodeType = 'link-center' | 'atom' | 'operator' | 'unary' | 'set'
+export type LinkGraphNodeType =
+  | 'link-center'
+  | 'atom'
+  | 'operator'
+  | 'unary'
+  | 'set'
+  | 'sequence'
 
 export interface LinkGraphNode {
   id: string
@@ -135,13 +143,7 @@ function projectNode(node: ASTNode, state: GraphBuilderState): string {
   }
 
   if (isNotExpr(node)) {
-    const centerId = createNode(
-      state,
-      'not',
-      `¬${getNodeLabel(node.operand)}`,
-      'unary',
-      node
-    )
+    const centerId = createNode(state, 'not', `¬${getNodeLabel(node.operand)}`, 'unary', node)
     const operandId = projectNode(node.operand, state)
     addEdge(state, operandId, centerId, 'relation', '¬')
     return centerId
@@ -176,10 +178,19 @@ function projectNode(node: ASTNode, state: GraphBuilderState): string {
 
   if (isSetExpr(node)) {
     const centerId = createNode(state, 'set', '{…}', 'set', node)
-    for (const element of node.elements) {
+    node.elements.forEach((element, index) => {
       const elementId = projectNode(element, state)
-      addEdge(state, centerId, elementId, 'member')
-    }
+      addEdge(state, centerId, elementId, 'member', String(index))
+    })
+    return centerId
+  }
+
+  if (isSequenceExpr(node)) {
+    const centerId = createNode(state, 'sequence', 'соположение', 'sequence', node)
+    node.items.forEach((item, index) => {
+      const itemId = projectNode(item, state)
+      addEdge(state, centerId, itemId, 'member', String(index))
+    })
     return centerId
   }
 
@@ -249,6 +260,7 @@ export function linkGraphToDOT(graph: LinkGraph, title?: string): string {
     operator: 'shape=diamond, style=filled, fillcolor="#fff3e0"',
     unary: 'shape=ellipse, style=filled, fillcolor="#f3e5f5"',
     set: 'shape=box, style=filled, fillcolor="#e8eaf6"',
+    sequence: 'shape=box, style="filled,rounded", fillcolor="#f5f5f5"',
   }
 
   for (const node of graph.nodes) {
