@@ -1,9 +1,8 @@
 /**
- * Parser for the canonical МТС formal notation consumed from anum_docs.
+ * Единственный parser канонической формальной нотации МТС из anum_docs.
  *
- * This is the single aprover parser. Projection fixity follows МТС v0.2:
- * `♀F` is start projection and `F♂` is end projection. Compatibility grammar
- * (`->`, binary `↛`, power, bare `!`) is intentionally absent.
+ * Фиксация проекций v0.2: `♀F` — проекция начала, `F♂` — проекция конца.
+ * Старая совместимая грамматика (`->`, binary `↛`, power, bare `!`) отсутствует.
  */
 
 import type { Token, TokenType } from './lexer'
@@ -20,6 +19,7 @@ import type {
   FemaleExpr,
   NotExpr,
   SetExpr,
+  SequenceExpr,
   InfinityExpr,
   NumExpr,
   IdentExpr,
@@ -56,6 +56,25 @@ const ROUND_LITERALS = new Set<TokenType>([
   'DEFINE',
   'LBRACKET',
   'RBRACKET',
+])
+
+/** Токены, с которых может начинаться следующая форма в соположении. */
+const FORM_STARTS = new Set<TokenType>([
+  'INFINITY',
+  'ZERO',
+  'ONE',
+  'CONTEXT_START',
+  'CONTEXT_END',
+  'CONTEXT_UP',
+  'ID',
+  'NAT',
+  'ABIT_LIT',
+  'STRING_LIT',
+  'LBRACE',
+  'LPAREN',
+  'LBRACKET',
+  'NOT',
+  'FEMALE',
 ])
 
 export class Parser {
@@ -195,12 +214,13 @@ export class Parser {
     return this.parseChain()
   }
 
+  /** `⟼` имеет меньший приоритет, чем соположение форм. */
   private parseChain(): ASTNode {
-    let left = this.parsePref()
+    let left = this.parseSequence()
 
     while (this.check('ARROW')) {
       this.advance()
-      const right = this.parsePref()
+      const right = this.parseSequence()
       left = {
         type: 'Link',
         left,
@@ -212,7 +232,25 @@ export class Parser {
     return left
   }
 
-  /** Canonical prefix operators: inversion `¬` and start projection `♀`. */
+  /** Каноническое соположение: a{b,c}, {}b, {}{}, [][], ... */
+  private parseSequence(): ASTNode {
+    const first = this.parsePref()
+    const items: ASTNode[] = [first]
+
+    while (FORM_STARTS.has(this.current().type)) {
+      items.push(this.parsePref())
+    }
+
+    if (items.length === 1) return first
+    const last = items[items.length - 1]
+    return {
+      type: 'Sequence',
+      items,
+      loc: this.mergeLoc(first.loc!, last.loc!),
+    } as SequenceExpr
+  }
+
+  /** Канонические префиксные операторы: инверсия `¬` и проекция начала `♀`. */
   private parsePref(): ASTNode {
     const prefixes: { type: 'NOT' | 'FEMALE'; loc: SourceLocation }[] = []
 
@@ -244,7 +282,7 @@ export class Parser {
     return node
   }
 
-  /** Canonical postfix operator: end projection `F♂`. */
+  /** Канонический постфиксный оператор: проекция конца `F♂`. */
   private parsePost(): ASTNode {
     let node = this.parseAtom()
 
