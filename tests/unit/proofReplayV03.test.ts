@@ -104,7 +104,7 @@ function forgeryJudgment(vector: ProofCorpus['forgeries'][number]): Record<strin
   if (vector.judgment !== undefined) return clone(vector.judgment)
   const source = validById().get(vector.sourceJudgment ?? '')
   if (source === undefined) throw new Error(`missing source judgment ${vector.sourceJudgment}`)
-  let result = vector.patch === undefined ? clone(source) : patchDotted(source, vector.patch)
+  const result = vector.patch === undefined ? clone(source) : patchDotted(source, vector.patch)
   if (vector.replaceRelation !== undefined) result.relation = vector.replaceRelation
   for (const key of vector.remove ?? []) delete result[key]
   return result
