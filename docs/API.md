@@ -15,7 +15,7 @@ const recovered = parseWithRecovery('[] = ◁')
 console.log(recovered.file, recovered.error)
 ```
 
-The parser consumes the v0.2 surface, including atomic `◁`/`▷`, separate `↑`, occurrence-local `[]`, `♀F` and `F♂`. The rejected projection grammar `♂F / F♀` is not a compatibility language.
+The parser consumes the v0.2 surface, including atomic `◁`/`▷`, separate `↑`, occurrence-local `[]`, `♀F` and `F♂`. Canonical link/inversion/inequality spellings are `⟼`, `¬F`, `!=`; legacy aliases are not a compatibility language.
 
 ## Contextual interpretation
 
@@ -31,24 +31,11 @@ const session = new InterpretationSession({
 const result = session.interpret(parseExpr('[] = ◁'))
 ```
 
-`InterpretationSession` owns an immutable `ExplicitMemoryView`. Interpretation cannot `realize` or delete links.
+`InterpretationSession` owns an immutable `ExplicitMemoryView`. Interpretation cannot `realize` or delete links. Anonymous forms are identified by occurrence paths, not display labels.
 
-`InterpretationResult` contains:
+## Trusted proof replay and untrusted search
 
-```ts
-interface InterpretationResult {
-  success: boolean
-  substitutions: readonly { path: readonly number[]; link: number }[]
-  aliases: readonly { path: readonly number[]; targetPath: readonly number[] }[]
-  trace: readonly string[]
-}
-```
-
-Occurrence paths, not display labels, identify anonymous forms.
-
-## Trusted proof replay
-
-The current proof contract is candidate `mts-proof/v0.2`. The only trusted rule is `interpret` replay.
+The trusted boundary is `mts-proof/v0.2` replay.
 
 ```ts
 import {
@@ -75,62 +62,68 @@ const proof: MtsProofObjectV02 = {
   ],
 }
 
-console.log(checkProof(proof)) // true
+console.log(checkProof(proof))
 ```
 
-The checker independently parses the expression, reconstructs immutable distinguished memory and replays the canonical interpreter. It rejects unknown rules, wrong contract versions, forged substitutions/aliases and claims requiring implicit materialization.
+`searchInterpretProof()` is an **untrusted constructor/search API**. Its output becomes trusted only after independent `checkProof()` replay. Search never extends the trusted rule set.
 
-The following historical aprover mechanisms are intentionally **not** trusted MTS v0.2 APIs and were removed in Phase E:
-
-```text
-A0-A11 built-in axiom table
-lowercase single-letter metavariables
-global textual substitution
-global equality rewrite
-symmetry / transitivity / congruence as implicit rules
-Modus Ponens
-legacy interactive proof strategy
-legacy proof cache / metrics / export path
-```
-
-Future proof search belongs above `checkProof`; search output must be replayed by the independent checker.
+Historical A0–A11 tables, lowercase metavariables, global substitution/rewrite, implicit symmetry/transitivity/congruence, Modus Ponens and legacy proof caches are not MTS v0.2 APIs.
 
 ## Memory view
 
 ```ts
 import { ExplicitMemoryView } from '../src/core/index'
 
-const memory = new ExplicitMemoryView([
-  { id: 30, start: 2, end: 3 },
-])
-
-memory.poles(30)          // [2, 3]
-memory.findLink(2, 3)    // 30
+const memory = new ExplicitMemoryView([{ id: 30, start: 2, end: 3 }])
+memory.poles(30)
+memory.findLink(2, 3)
 ```
 
 Duplicate IDs and ambiguous `(start,end) -> LinkRef` identities are rejected.
 
-## Interpretation presentation
-
-```ts
-import { presentInterpretation } from '../src/core/index'
-
-const presentation = presentInterpretation(result)
-```
-
-This layer formats substitutions, aliases and trace for UI. It does not parse, interpret or mutate memory.
-
 ## Visual graph
 
 ```ts
-import { parse, projectStatementsToGraph, toCytoscapeElements } from '../src/core/index'
+import { parse, projectStatementsToGraph } from '../src/core/index'
 
 const file = parse('[] = []')
 const graph = projectStatementsToGraph(file.statements)
-const elements = toCytoscapeElements(graph)
 ```
 
 Graph node identity is occurrence-safe. Equal display labels are not automatically merged.
+
+## `.astr` application adapter
+
+`.astr` is not a second MTS grammar. A UTF-8 line is represented through the shared AST as `Link(Infinity, StringLit)` and presentation source uses canonical `⟼`:
+
+```ts
+import { stringAnumToFormal } from '../src/core/index'
+
+stringAnumToFormal('hello') // (∞ ⟼ "hello")
+```
+
+## `.anum` raw-carrier adapter
+
+The `.anum` application path consumes `anum-raw-carrier/v0.2`. It does **not** define abit denotation locally.
+
+```ts
+import { describeRawCarrier } from '../src/core/index'
+
+describeRawCarrier('01')
+// {
+//   kind: 'raw-carrier',
+//   raw: '01',
+//   nodes: [
+//     { id: 0, start: { role: 'root' }, end: { role: 'abit:0' } },
+//     { id: 1, start: { node: 0 }, end: { role: 'abit:1' } },
+//   ],
+//   root: { node: 1 }
+// }
+```
+
+Raw bracket balance is intentionally not required: `][` is a valid transport carrier. Structural denotation belongs to the separately pinned `anum-denotation`, `anum-pair-denotation` and `anum-recursive-denotation` contracts.
+
+Removed APIs such as local `ABIT_DEFINITIONS`, `parseAbitToAST()` or `quatAnumToFormal()` are not compatibility exports.
 
 ## File formats
 
@@ -138,12 +131,12 @@ The browser application accepts:
 
 ```text
 .mtl   canonical MTS formal-notation source
-.astr  application string-Anum carrier
-.anum  application quaternary-Anum carrier
+.astr  application UTF-8 adapter
+.anum  application Anum raw-carrier adapter
 ```
 
-File I/O exports source/AST data only. The removed v0.1 `ProofResult` format is not a compatibility API.
+File I/O and adapters do not create a competing theory or trusted proof semantics.
 
 ## Public entry point
 
-Use `src/core/index.ts`. It exports canonical AST/parser/runtime/replay APIs and deliberately does not export a competing prover semantics.
+Use `src/core/index.ts`. It exports canonical AST/parser/runtime/replay APIs, untrusted proof search, and application adapters bound to the pinned contracts.
