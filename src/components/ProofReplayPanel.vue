@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { presentProofArtifactJson } from '../core/proofArtifactPresentation'
+import ProofSearchPanel from './ProofSearchPanel.vue'
 
 const props = defineProps<{
   modelValue: string
@@ -12,6 +13,7 @@ const emit = defineEmits<{
 }>()
 
 const fileInput = ref<HTMLInputElement | null>(null)
+const mode = ref<'replay' | 'search'>('replay')
 const view = computed(() => presentProofArtifactJson(props.modelValue))
 
 const updateSource = (event: Event) => {
@@ -29,10 +31,21 @@ const loadFile = async (event: Event) => {
 }
 
 const clear = () => emit('update:modelValue', '')
+const openSearch = () => (mode.value = 'search')
+const openGeneratedProof = (source: string) => {
+  emit('update:modelValue', source)
+  mode.value = 'replay'
+}
 </script>
 
 <template>
-  <section class="proof-replay-panel" data-testid="proof-replay-panel">
+  <ProofSearchPanel
+    v-if="mode === 'search'"
+    @close="emit('close')"
+    @open-replay="openGeneratedProof"
+  />
+
+  <section v-else class="proof-replay-panel" data-testid="proof-replay-panel">
     <header class="proof-replay-header">
       <div>
         <strong>Trusted proof replay</strong>
@@ -46,6 +59,7 @@ const clear = () => emit('update:modelValue', '')
           accept=".json,application/json"
           @change="loadFile"
         />
+        <button type="button" class="proof-action proof-search-open" @click="openSearch">Search</button>
         <button type="button" class="proof-action" @click="openFile">Load JSON</button>
         <button type="button" class="proof-action" @click="clear">Clear</button>
         <button type="button" class="proof-action close" aria-label="Close proof replay" @click="emit('close')">
