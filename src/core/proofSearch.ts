@@ -1,3 +1,4 @@
+import type { ASTNode } from './ast'
 import type { ContextFrame, InterpretationAlias, InterpretationSubstitution, LinkRef } from './interpreter'
 import { InterpretationSession } from './interpretationSession'
 import type { DistinguishedLink } from './memoryView'
@@ -94,7 +95,7 @@ function message(cause: unknown): string {
  * independently replaying the returned artifact with checkProof().
  */
 export function searchInterpretProof(input: InterpretProofSearchInput): InterpretProofSearchResult {
-  let expression
+  let expression: ASTNode
   try {
     expression = parseExpr(input.expression)
   } catch (cause) {
