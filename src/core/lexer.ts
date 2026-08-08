@@ -42,6 +42,30 @@ export interface Token {
   loc: SourceLocation
 }
 
+export type MtsConformanceToken =
+  | 'context-start'
+  | 'context-end'
+  | 'context-up'
+  | 'lbracket'
+  | 'rbracket'
+
+export function toMtsConformanceToken(token: Token): MtsConformanceToken | null {
+  switch (token.type) {
+    case 'CONTEXT_START':
+      return 'context-start'
+    case 'CONTEXT_END':
+      return 'context-end'
+    case 'CONTEXT_UP':
+      return 'context-up'
+    case 'LBRACKET':
+      return 'lbracket'
+    case 'RBRACKET':
+      return 'rbracket'
+    default:
+      return null
+  }
+}
+
 export class LexerError extends Error {
   constructor(
     message: string,
@@ -165,6 +189,15 @@ export class Lexer {
 
     if (this.pos >= this.input.length) {
       return { type: 'EOF', value: '', loc: this.makeLoc(startLine, startColumn, startOffset) }
+    }
+
+    if (this.input.startsWith('¬=', this.pos)) {
+      this.advance()
+      this.advance()
+      throw new LexerError(
+        'Compatibility spelling ¬= is not accepted; use !=',
+        this.makeLoc(startLine, startColumn, startOffset)
+      )
     }
 
     if (this.input.startsWith('!=', this.pos)) {
