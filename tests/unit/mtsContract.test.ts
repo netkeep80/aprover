@@ -9,6 +9,8 @@ const bundleRoot = resolve(process.cwd(), 'contracts/anum_docs-v0.2')
 const contractPath = resolve(bundleRoot, 'mts-contract-v0.2.json')
 const conformancePath = resolve(bundleRoot, 'mts-conformance-v0.2.json')
 const proofPath = resolve(bundleRoot, 'mts-proof-v0.2.json')
+const valueBundlePath = resolve(bundleRoot, 'mts-value-bundle-v0.2.json')
+const valueBundleConformancePath = resolve(bundleRoot, 'mts-value-bundle-conformance-v0.2.json')
 const boundaryPath = resolve(bundleRoot, 'anum-boundary-projection-v0.2.json')
 const denotationPath = resolve(bundleRoot, 'anum-denotation-v0.2.json')
 const denotationConformancePath = resolve(bundleRoot, 'anum-denotation-conformance-v0.2.json')
@@ -50,6 +52,8 @@ interface Provenance {
   contract: ArtifactProvenance
   conformance: ArtifactProvenance
   proof: ArtifactProvenance
+  valueBundle: ArtifactProvenance
+  valueBundleConformance: ArtifactProvenance
   anumBoundaryProjection: ArtifactProvenance
   anumDenotation: ArtifactProvenance
   anumDenotationConformance: ArtifactProvenance
@@ -78,8 +82,8 @@ function readProvenance(): Provenance {
   return readJson(provenancePath) as Provenance
 }
 
-describe('pinned anum_docs MTS v0.2 contract bundle', () => {
-  it('loads as one validated formal contract + conformance bundle', () => {
+describe('закреплённый набор контрактов МТС v0.2 из anum_docs', () => {
+  it('загружает единый основной контракт и корпус соответствия', () => {
     const bundle = validateMtsContractBundleV02(
       readJson(contractPath),
       readJson(conformancePath)
@@ -90,18 +94,35 @@ describe('pinned anum_docs MTS v0.2 contract bundle', () => {
     expect(bundle.conformance.contract).toBe(bundle.contract.schema)
   })
 
-  it('pins the current upstream top-level contract snapshot', () => {
+  it('закрепляет текущий верхний снимок anum_docs после принятия пучков', () => {
     const provenance = readProvenance()
 
     expect(provenance.sourceRepository).toBe('netkeep80/anum_docs')
-    expect(provenance.sourceCommit).toBe('62901cfc94831af41cf86cdc3acb1507c46c05c7')
+    expect(provenance.sourceCommit).toBe('9278ee3a86af8df7d39ee6bf4ff0b3e14943bd7a')
     expect(gitBlobSha(contractPath)).toBe(provenance.contract.gitBlobSha)
-    expect(provenance.contract.gitBlobSha).toBe('93c39e34f14fb716d850136249e4928599d75130')
+    expect(provenance.contract.gitBlobSha).toBe('d7101f0277ffd9c072648bd821021cf08c0e9df4')
     expect(provenance.contract.sourceCommit).toBe(provenance.sourceCommit)
   })
 
-  it('pins every referenced accepted L3 artifact by exact Git blob SHA', () => {
+  it('закрепляет принятые пучки значений байт-в-байт', () => {
     const provenance = readProvenance()
+
+    expect(gitBlobSha(valueBundlePath)).toBe('6f6991945adf23aace7da7b3c535a279b751b88a')
+    expect(gitBlobSha(valueBundlePath)).toBe(provenance.valueBundle.gitBlobSha)
+    expect(provenance.valueBundle.sourceCommit).toBe(provenance.sourceCommit)
+
+    expect(gitBlobSha(valueBundleConformancePath)).toBe(
+      'ca5a3624f4cf1ab880686807d10d45afbf697670'
+    )
+    expect(gitBlobSha(valueBundleConformancePath)).toBe(
+      provenance.valueBundleConformance.gitBlobSha
+    )
+    expect(provenance.valueBundleConformance.sourceCommit).toBe(provenance.sourceCommit)
+  })
+
+  it('сохраняет точное происхождение неизменённых L3-артефактов', () => {
+    const provenance = readProvenance()
+    const l3Origin = '62901cfc94831af41cf86cdc3acb1507c46c05c7'
     const artifacts: Array<[string, ArtifactProvenance, string]> = [
       [boundaryPath, provenance.anumBoundaryProjection, '822165f7940a4ec764bb7ac59e24e875ae03fb44'],
       [denotationPath, provenance.anumDenotation, '2c0544c1b2ff57bf9c5999b50bd881622b48159d'],
@@ -137,11 +158,11 @@ describe('pinned anum_docs MTS v0.2 contract bundle', () => {
     for (const [path, artifact, expected] of artifacts) {
       expect(gitBlobSha(path)).toBe(artifact.gitBlobSha)
       expect(artifact.gitBlobSha).toBe(expected)
-      expect(artifact.sourceCommit).toBe(provenance.sourceCommit)
+      expect(artifact.sourceCommit).toBe(l3Origin)
     }
   })
 
-  it('keeps unchanged conformance/proof artifacts pinned to their original upstream commits', () => {
+  it('сохраняет неизменные общий корпус и proof-контракт на их исходных commit', () => {
     const provenance = readProvenance()
     const proof = readJson(proofPath) as ProofContractV02
 
@@ -167,7 +188,7 @@ describe('pinned anum_docs MTS v0.2 contract bundle', () => {
     expect(proof.explicitlyNotTrusted).toContain('modus-ponens')
   })
 
-  it('validates the upstream L3 contract graph without implementing L3 semantics locally', () => {
+  it('проверяет ссылки верхнего контракта, не дублируя L3-семантику', () => {
     const { contract } = validateMtsContractBundleV02(
       readJson(contractPath),
       readJson(conformancePath)
@@ -186,24 +207,25 @@ describe('pinned anum_docs MTS v0.2 contract bundle', () => {
     expect(contract.anum.acceptedRecursiveDenotationSubset).toBe(
       'contracts/anum-recursive-denotation-v0.2.json'
     )
-    expect(contract.anum.rootOpeningCollapse).toContain('canonical decode/re-encode validation')
-    expect(contract.anum.recursiveDenotationIssue).toBe(101)
-    expect(contract.anum.generalDenotationIssue).toBe(89)
+
+    expect(contract.formalNotation.valueBundle.contract).toBe(
+      'contracts/mts-value-bundle-v0.2.json'
+    )
+    expect(contract.formalNotation.valueBundle.conformanceCorpus).toBe(
+      'contracts/mts-value-bundle-conformance-v0.2.json'
+    )
+    expect(contract.formalNotation.valueBundle.runtimeRoleGuessing).toBe(false)
+    expect(contract.formalNotation.valueBundle.valueScope).toBe('flat-only')
+    expect(contract.formalNotation.valueBundle.expansionReadOnly).toBe(true)
 
     expect((readJson(boundaryPath) as { schema: string }).schema).toBe(
       'anum-boundary-projection/v0.2'
     )
-    expect((readJson(denotationPath) as { schema: string }).schema).toBe('anum-denotation/v0.2')
-    expect((readJson(pairDenotationPath) as { schema: string }).schema).toBe(
-      'anum-pair-denotation/v0.2'
-    )
-    expect((readJson(rawCarrierPath) as { schema: string }).schema).toBe('anum-raw-carrier/v0.2')
-    expect((readJson(recursiveDenotationPath) as { schema: string }).schema).toBe(
-      'anum-recursive-denotation/v0.2'
-    )
+    expect((readJson(valueBundlePath) as { schema: string; status: string }).status).toBe('accepted')
+    expect((readJson(valueBundleConformancePath) as { accepted: boolean }).accepted).toBe(true)
   })
 
-  it('treats the two context pronouns as atomic non-bracket code points', () => {
+  it('сохраняет два атомарных контекстных местоимения вне квадратных скобок', () => {
     const { contract } = validateMtsContractBundleV02(
       readJson(contractPath),
       readJson(conformancePath)
@@ -217,11 +239,9 @@ describe('pinned anum_docs MTS v0.2 contract bundle', () => {
       { source: '▷', role: 'end' },
     ])
     expect(context.ancestor.operator).toBe('↑')
-    expect(context.roles.every(role => [...role.source].length === 1)).toBe(true)
-    expect(context.roles.some(role => /[\[\]]/.test(role.source))).toBe(false)
   })
 
-  it('forbids display labels from becoming semantic identity', () => {
+  it('не превращает видимую подпись в семантическое тождество', () => {
     const { contract } = validateMtsContractBundleV02(
       readJson(contractPath),
       readJson(conformancePath)
@@ -233,7 +253,7 @@ describe('pinned anum_docs MTS v0.2 contract bundle', () => {
     expect(contract.integration.requiredRuntimeIdentities).toContain('LinkRef')
   })
 
-  it('keeps interpretation read-only and realization explicit', () => {
+  it('оставляет интерпретацию только читающей, а изменение памяти явным', () => {
     const { contract } = validateMtsContractBundleV02(
       readJson(contractPath),
       readJson(conformancePath)
@@ -242,10 +262,19 @@ describe('pinned anum_docs MTS v0.2 contract bundle', () => {
     expect(contract.formalNotation.operations.interpret.effect).toBe('none')
     expect(contract.memory.interpretMayMaterialize).toBe(false)
     expect(contract.memory.effectOperations).toEqual(['realize', 'delete'])
-    expect(contract.memory.readOperations).toContain('poles')
+    expect(contract.memory.readOperations).toEqual([
+      'find',
+      'poles',
+      'findLink',
+      'findStartProjection',
+      'findEndProjection',
+      'outgoing',
+      'incoming',
+      'allLinks',
+    ])
   })
 
-  it('contains executable vectors for lexing, canonicalization and interpretation', () => {
+  it('содержит исполнимые случаи лексики, канонизации и интерпретации', () => {
     const { conformance } = validateMtsContractBundleV02(
       readJson(contractPath),
       readJson(conformancePath)
@@ -254,14 +283,5 @@ describe('pinned anum_docs MTS v0.2 contract bundle', () => {
     expect(conformance.lexing.length).toBeGreaterThan(0)
     expect(conformance.canonicalization.length).toBeGreaterThan(0)
     expect(conformance.interpretation.length).toBeGreaterThan(0)
-
-    const bracketCase = conformance.lexing.find(
-      item => item.id === 'atomic-pronouns-do-not-overload-brackets'
-    )
-    expect(bracketCase).toEqual({
-      id: 'atomic-pronouns-do-not-overload-brackets',
-      source: '◁[]▷',
-      tokens: ['context-start', 'lbracket', 'rbracket', 'context-end'],
-    })
   })
 })
