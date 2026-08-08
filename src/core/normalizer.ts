@@ -1,23 +1,22 @@
 /**
- * Normalizer for the МТС AST consumed from anum_docs.
+ * Structural normalizer for the canonical МТС AST consumed from anum_docs.
  *
  * The parser preserves explicit L2 containers for round-trip/visual identity.
- * Semantic normalization follows the upstream interpreter boundary:
- * parentheses are transparent grouping, while square forms, literals and
- * context pronouns remain first-class structures.
+ * Normalization only follows accepted structural rules: non-empty round
+ * grouping is transparent and child nodes are normalized recursively. It does
+ * not invent inversion algebra, bundle algebra, power expansion or NotLink
+ * desugaring that are absent from the upstream MTS v0.2 contract.
  */
 
 import type { ASTNode, DefExpr, Statement, File } from './ast'
 import {
   isLinkExpr,
-  isNotLinkExpr,
   isDefExpr,
   isEqExpr,
   isNeqExpr,
   isMaleExpr,
   isFemaleExpr,
   isNotExpr,
-  isPowerExpr,
   isSetExpr,
   isInfinityExpr,
   isNumExpr,
@@ -26,11 +25,9 @@ import {
   isStringLitExpr,
   isLiteralExpr,
   isRoundExpr,
-  isBracketExpr,
   isSquareExpr,
   isContextPronounExpr,
 } from './ast'
-import { makeLink, makeNot, makeMale, makeFemale } from './astHelpers'
 
 class NormalizationCache {
   private cache: Map<string, ASTNode> = new Map()
@@ -121,34 +118,11 @@ export class NormalizationError extends Error {
 }
 
 export interface NormalizerOptions {
-  desugarNotLink?: boolean
-  expandPower?: boolean
-  canonicalize?: boolean
   checkGuardedRecursion?: boolean
 }
 
 const defaultOptions: NormalizerOptions = {
-  desugarNotLink: true,
-  expandPower: true,
-  canonicalize: true,
   checkGuardedRecursion: true,
-}
-
-function cloneNode<T extends ASTNode>(node: T): T {
-  return JSON.parse(JSON.stringify(node))
-}
-
-function expandPower(base: ASTNode, exponent: number): ASTNode {
-  if (exponent < 1) {
-    throw new NormalizationError('Power exponent must be >= 1', base)
-  }
-  if (exponent === 1) return cloneNode(base)
-
-  let result = makeLink(cloneNode(base), cloneNode(base))
-  for (let i = 3; i <= exponent; i++) {
-    result = makeLink(result, cloneNode(base))
-  }
-  return result
 }
 
 function containsIdent(node: ASTNode, name: string, guarded: boolean): boolean {
@@ -162,13 +136,9 @@ function containsIdent(node: ASTNode, name: string, guarded: boolean): boolean {
   if (isLinkExpr(node)) {
     return containsIdent(node.left, name, true) || containsIdent(node.right, name, true)
   }
-  if (isNotLinkExpr(node)) {
-    return containsIdent(node.left, name, guarded) || containsIdent(node.right, name, guarded)
-  }
   if (isMaleExpr(node) || isFemaleExpr(node) || isNotExpr(node)) {
     return containsIdent(node.operand, name, guarded)
   }
-  if (isPowerExpr(node)) return containsIdent(node.base, name, guarded)
   if (isSetExpr(node)) return node.elements.some(el => containsIdent(el, name, guarded))
   if (isDefExpr(node)) {
     return containsIdent(node.name, name, guarded) || containsIdent(node.form, name, guarded)
@@ -184,110 +154,62 @@ function checkGuardedRecursion(def: DefExpr): void {
   const name = def.name.name
   if (containsIdent(def.form, name, false)) {
     throw new NormalizationError(
-      `Unguarded recursion: '${name}' appears in its definition outside of '->' constructor`,
+      `Unguarded recursion: '${name}' appears in its definition outside of '⟼' constructor`,
       def
     )
   }
 }
 
 function normalizeNode(node: ASTNode, options: NormalizerOptions): ASTNode {
-  let normalized: ASTNode
-
   if (isRoundExpr(node)) {
-    if (node.content === null) {
-      // Empty () is a genuine formal atom, not grouping that can be erased.
-      normalized = node
-    } else {
-      // Upstream mtc_interpreter._unwrap_round(): explicit parentheses are
-      // retained by parser but transparent to semantic matching.
-      normalized = normalizeNode(node.content, options)
-    }
-  } else if (isSquareExpr(node)) {
-    normalized = {
+    // Empty () is a genuine formal atom. Non-empty round grouping is
+    // transparent to semantic matching in the upstream interpreter.
+    return node.content === null ? node : normalizeNode(node.content, options)
+  }
+  if (isSquareExpr(node)) {
+    return {
       ...node,
       content: node.content === null ? null : normalizeNode(node.content, options),
     }
-  } else if (isLinkExpr(node)) {
-    normalized = {
+  }
+  if (isLinkExpr(node)) {
+    return {
       ...node,
       left: normalizeNode(node.left, options),
       right: normalizeNode(node.right, options),
     }
-  } else if (isNotLinkExpr(node)) {
-    if (options.desugarNotLink) {
-      normalized = makeNot(
-        makeLink(normalizeNode(node.left, options), normalizeNode(node.right, options))
-      )
-    } else {
-      normalized = {
-        ...node,
-        left: normalizeNode(node.left, options),
-        right: normalizeNode(node.right, options),
-      }
-    }
-  } else if (isDefExpr(node)) {
-    normalized = {
+  }
+  if (isDefExpr(node)) {
+    const normalized: DefExpr = {
       ...node,
       name: normalizeNode(node.name, options),
       form: normalizeNode(node.form, options),
     }
-    if (options.checkGuardedRecursion) checkGuardedRecursion(normalized as DefExpr)
-  } else if (isEqExpr(node)) {
-    normalized = {
+    if (options.checkGuardedRecursion) checkGuardedRecursion(normalized)
+    return normalized
+  }
+  if (isEqExpr(node) || isNeqExpr(node)) {
+    return {
       ...node,
       left: normalizeNode(node.left, options),
       right: normalizeNode(node.right, options),
     }
-  } else if (isNeqExpr(node)) {
-    normalized = {
-      ...node,
-      left: normalizeNode(node.left, options),
-      right: normalizeNode(node.right, options),
-    }
-  } else if (isMaleExpr(node) || isFemaleExpr(node) || isNotExpr(node)) {
-    normalized = {
+  }
+  if (isMaleExpr(node) || isFemaleExpr(node) || isNotExpr(node)) {
+    return {
       ...node,
       operand: normalizeNode(node.operand, options),
     }
-  } else if (isPowerExpr(node)) {
-    if (options.expandPower) {
-      normalized = expandPower(normalizeNode(node.base, options), node.exponent)
-    } else {
-      normalized = { ...node, base: normalizeNode(node.base, options) }
-    }
-  } else if (isSetExpr(node)) {
-    normalized = { ...node, elements: node.elements.map(el => normalizeNode(el, options)) }
-  } else {
-    normalized = node
   }
-
-  return options.canonicalize ? canonicalize(normalized) : normalized
-}
-
-function canonicalize(node: ASTNode): ASTNode {
-  if (!isNotExpr(node)) return node
-  const operand = node.operand
-  if (isNotExpr(operand)) return operand.operand
-
-  // Keep the historical duality transformation only while old prover
-  // consumers are being migrated. The glyph orientation here follows the
-  // canonical AST: Female=♀ prefix/start, Male=♂ postfix/end.
-  if (isMaleExpr(operand)) return makeFemale(operand.operand)
-  if (isFemaleExpr(operand)) return makeMale(operand.operand)
+  if (isSetExpr(node)) {
+    return { ...node, elements: node.elements.map(el => normalizeNode(el, options)) }
+  }
   return node
 }
 
 function generateCacheKey(node: ASTNode, opts: NormalizerOptions): string {
-  const optsSig = [
-    opts.desugarNotLink ? '' : 'D0',
-    opts.expandPower ? '' : 'P0',
-    opts.canonicalize ? '' : 'C0',
-    opts.checkGuardedRecursion ? '' : 'G0',
-  ]
-    .filter(Boolean)
-    .join('')
-  const nodeKey = toCanonicalString(node)
-  return optsSig ? `${optsSig}:${nodeKey}` : nodeKey
+  const optsSig = opts.checkGuardedRecursion ? '' : 'G0:'
+  return `${optsSig}${toCanonicalString(node)}`
 }
 
 export function normalize(node: ASTNode, options: Partial<NormalizerOptions> = {}): ASTNode {
@@ -318,6 +240,7 @@ export function normalizeFile(file: File, options: Partial<NormalizerOptions> = 
   }
 }
 
+/** Syntax/structure key, not an additional semantic equality relation. */
 export function toCanonicalString(node: ASTNode): string {
   if (isRoundExpr(node)) {
     return node.content === null ? '()' : `(${toCanonicalString(node.content)})`
@@ -329,27 +252,19 @@ export function toCanonicalString(node: ASTNode): string {
     return `${'↑'.repeat(node.up)}${node.pole === 'start' ? '◁' : '▷'}`
   }
   if (isLiteralExpr(node)) return node.value
-  if (isLinkExpr(node)) return `(${toCanonicalString(node.left)}->${toCanonicalString(node.right)})`
-  if (isNotLinkExpr(node)) {
-    return `(${toCanonicalString(node.left)}!->${toCanonicalString(node.right)})`
-  }
+  if (isLinkExpr(node)) return `(${toCanonicalString(node.left)}⟼${toCanonicalString(node.right)})`
   if (isDefExpr(node)) return `(${toCanonicalString(node.name)}:${toCanonicalString(node.form)})`
   if (isEqExpr(node)) return `(${toCanonicalString(node.left)}=${toCanonicalString(node.right)})`
   if (isNeqExpr(node)) return `(${toCanonicalString(node.left)}!=${toCanonicalString(node.right)})`
   if (isMaleExpr(node)) return `${toCanonicalString(node.operand)}♂`
   if (isFemaleExpr(node)) return `♀${toCanonicalString(node.operand)}`
   if (isNotExpr(node)) return `¬${toCanonicalString(node.operand)}`
-  if (isPowerExpr(node)) return `${toCanonicalString(node.base)}^${node.exponent}`
-  if (isSetExpr(node)) {
-    const sorted = [...node.elements].map(toCanonicalString).sort()
-    return `{${sorted.join(',')}}`
-  }
+  if (isSetExpr(node)) return `{${node.elements.map(toCanonicalString).join(',')}}`
   if (isInfinityExpr(node)) return '∞'
   if (isNumExpr(node)) return String(node.value)
   if (isIdentExpr(node)) return node.name
   if (isAbitLitExpr(node)) return `'${node.value}'`
   if (isStringLitExpr(node)) return `"${node.value}"`
-  if (isBracketExpr(node)) return node.side === 'left' ? '[' : ']'
   return `<unknown:${node.type}>`
 }
 
