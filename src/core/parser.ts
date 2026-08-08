@@ -176,7 +176,9 @@ export class Parser {
 
     if (this.check('DEFINE')) {
       this.advance()
-      const right = this.parseTerm()
+      // `:` is the weakest canonical infix operator and is right-associative:
+      // `a : b = c` => Definition(a, Equality(b,c)); `a : b : c` => a : (b : c).
+      const right = this.parseExpr()
       return {
         type: 'Definition',
         name: left,
