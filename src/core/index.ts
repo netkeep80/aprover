@@ -107,10 +107,11 @@ export type { InterpretationSessionConfig } from './interpretationSession'
 export { InterpretationSession } from './interpretationSession'
 
 export type {
-  InterpretationStatus,
-  InterpretationViewModel,
+  InterpretationSubstitutionView,
+  InterpretationAliasView,
+  InterpretationPresentation,
 } from './interpretationPresentation'
-export { toInterpretationViewModel } from './interpretationPresentation'
+export { formatOccurrencePath, presentInterpretation } from './interpretationPresentation'
 
 // Candidate mts-proof/v0.2 trusted replay boundary. No proof search lives here.
 export type {
