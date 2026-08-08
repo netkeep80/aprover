@@ -47,16 +47,46 @@
       "definitionRhs": "existing scalar Form or ConstraintBundle only; ValueBundle deferred"
     },
     "rules": [
-      {"when": "all non-empty direct items are Judgments", "result": "ConstraintBundle"},
-      {"when": "all non-empty direct items are non-bundle Forms in a value-capable context", "result": "ValueBundle"},
-      {"when": "direct items mix Judgment and Form evidence", "result": "static-error:mixed-bundle-role-evidence"},
-      {"when": "empty {} occurs in a statically value-capable position", "result": "ValueBundle"},
-      {"when": "empty {} is the constraint interpretation entry expression", "result": "ConstraintBundle"},
-      {"when": "empty {} is a definition RHS", "result": "ConstraintBundle"},
-      {"when": "non-empty ValueBundle is a definition RHS", "result": "static-error:bundle-valued-definition-deferred"},
-      {"when": "ValueBundle appears under scalar-only ⟼/♀/♂/¬ operand position", "result": "static-error:bundle-not-supported-in-scalar-operator"},
-      {"when": "empty {} has no static role context", "result": "static-error:ambiguous-empty-bundle-role"},
-      {"when": "a ValueBundle directly contains another ValueBundle/CurlySyntax item", "result": "static-error:nested-value-bundle-not-supported"}
+      {
+        "when": "all non-empty direct items are Judgments",
+        "result": "ConstraintBundle"
+      },
+      {
+        "when": "all non-empty direct items are non-bundle Forms in a value-capable context",
+        "result": "ValueBundle"
+      },
+      {
+        "when": "direct items mix Judgment and Form evidence",
+        "result": "static-error:mixed-bundle-role-evidence"
+      },
+      {
+        "when": "empty {} occurs in a statically value-capable position",
+        "result": "ValueBundle"
+      },
+      {
+        "when": "empty {} is the constraint interpretation entry expression",
+        "result": "ConstraintBundle"
+      },
+      {
+        "when": "empty {} is a definition RHS",
+        "result": "ConstraintBundle"
+      },
+      {
+        "when": "non-empty ValueBundle is a definition RHS",
+        "result": "static-error:bundle-valued-definition-deferred"
+      },
+      {
+        "when": "ValueBundle appears under scalar-only ⟼/♀/♂/¬ operand position",
+        "result": "static-error:bundle-not-supported-in-scalar-operator"
+      },
+      {
+        "when": "empty {} has no static role context",
+        "result": "static-error:ambiguous-empty-bundle-role"
+      },
+      {
+        "when": "a ValueBundle directly contains another ValueBundle/CurlySyntax item",
+        "result": "static-error:nested-value-bundle-not-supported"
+      }
     ],
     "rootRegression": {
       "currentTenDefinitionsMustElaborateIdentically": true,
@@ -64,8 +94,15 @@
     }
   },
   "runtimeValueModel": {
-    "scalar": {"kind": "link", "identity": "resolved L1 LinkRef"},
-    "bundle": {"kind": "bundle", "identity": "extensional set of unique resolved L1 LinkRefs", "occurrenceProvenanceSeparate": true},
+    "scalar": {
+      "kind": "link",
+      "identity": "resolved L1 LinkRef"
+    },
+    "bundle": {
+      "kind": "bundle",
+      "identity": "extensional set of unique resolved L1 LinkRefs",
+      "occurrenceProvenanceSeparate": true
+    },
     "crossKindEquality": false,
     "crossKindInequality": true,
     "globalRewrite": false,
@@ -119,7 +156,11 @@
     "expansionIsCommand": false
   },
   "deferred": {
-    "nestedValueBundleSemantics": ["first-class nested collection", "flatten/union", "other construction"],
+    "nestedValueBundleSemantics": [
+      "first-class nested collection",
+      "flatten/union",
+      "other construction"
+    ],
     "bundleValuedDefinitions": "requires a tagged value environment/binding contract",
     "bundleProjectionOrInversion": "requires an explicit lifting rule or rejection in a later version",
     "bundleAsExplicitLinkFormPole": "requires a separate lifting decision; current expansion uses juxtaposition only",
