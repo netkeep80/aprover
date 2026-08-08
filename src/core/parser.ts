@@ -1,10 +1,9 @@
 /**
  * Parser for the canonical МТС formal notation consumed from anum_docs.
  *
- * This is the existing aprover parser being migrated in-place. It does not
- * create a parallel v2 grammar. During this draft migration the old projection
- * fixities are still accepted for existing consumers; canonical fixities are
- * represented in the AST and will become the only path before promotion.
+ * This is the single aprover parser. Projection fixity follows МТС v0.2:
+ * `♀F` is start projection and `F♂` is end projection. The rejected legacy
+ * `♂F / F♀` grammar is intentionally not accepted.
  */
 
 import type { Token, TokenType } from './lexer'
@@ -30,7 +29,6 @@ import type {
   StringLitExpr,
   LiteralExpr,
   RoundExpr,
-  BracketExpr,
   SquareExpr,
   ContextPronounExpr,
   SourceLocation,
@@ -64,7 +62,7 @@ const ROUND_LITERALS = new Set<TokenType>([
 
 export class Parser {
   private tokens: Token[]
-  private pos: number = 0
+  private pos = 0
 
   constructor(tokens: Token[]) {
     this.tokens = tokens
@@ -74,7 +72,7 @@ export class Parser {
     return this.tokens[this.pos]
   }
 
-  private peek(n: number = 1): Token {
+  private peek(n = 1): Token {
     return this.tokens[this.pos + n] || this.tokens[this.tokens.length - 1]
   }
 
@@ -106,9 +104,7 @@ export class Parser {
   parseFile(): File {
     const statements: Statement[] = []
     const startLoc = this.current().loc
-
     while (!this.check('EOF')) statements.push(this.parseStatement())
-
     return {
       type: 'File',
       statements,
@@ -150,9 +146,7 @@ export class Parser {
   private parseStatement(): Statement {
     const expr = this.parseExpr()
     let endLoc = expr.loc!
-
     if (this.checkAny('COMMA', 'DOT')) endLoc = this.advance().loc
-
     return {
       type: 'Statement',
       expr,
@@ -229,16 +223,13 @@ export class Parser {
     return left
   }
 
-  /**
-   * Canonical prefix operators are ¬ and ♀. Prefix ♂ is temporarily accepted
-   * only until old aprover consumers/tests are migrated in this draft PR.
-   */
+  /** Canonical prefix operators: inversion `¬`/`!` and start projection `♀`. */
   private parsePref(): ASTNode {
-    const prefixes: { type: 'NOT' | 'FEMALE' | 'MALE'; loc: SourceLocation }[] = []
+    const prefixes: { type: 'NOT' | 'FEMALE'; loc: SourceLocation }[] = []
 
-    while (this.checkAny('NOT', 'FEMALE', 'MALE')) {
+    while (this.checkAny('NOT', 'FEMALE')) {
       const token = this.current()
-      prefixes.push({ type: token.type as 'NOT' | 'FEMALE' | 'MALE', loc: token.loc })
+      prefixes.push({ type: token.type as 'NOT' | 'FEMALE', loc: token.loc })
       this.advance()
     }
 
@@ -252,29 +243,23 @@ export class Parser {
           operand: node,
           loc: this.mergeLoc(prefix.loc, node.loc!),
         } as NotExpr
-      } else if (prefix.type === 'FEMALE') {
+      } else {
         node = {
           type: 'Female',
           operand: node,
           loc: this.mergeLoc(prefix.loc, node.loc!),
         } as FemaleExpr
-      } else {
-        node = {
-          type: 'Male',
-          operand: node,
-          loc: this.mergeLoc(prefix.loc, node.loc!),
-        } as MaleExpr
       }
     }
 
     return node
   }
 
-  /** Canonical postfix projection is ♂; postfix ♀ remains draft-only legacy. */
+  /** Canonical postfix operators: end projection `♂` and legacy-neutral power. */
   private parsePost(): ASTNode {
     let node = this.parseAtom()
 
-    while (this.checkAny('MALE', 'FEMALE', 'POWER')) {
+    while (this.checkAny('MALE', 'POWER')) {
       if (this.check('MALE')) {
         const loc = this.advance().loc
         node = {
@@ -282,13 +267,6 @@ export class Parser {
           operand: node,
           loc: this.mergeLoc(node.loc!, loc),
         } as MaleExpr
-      } else if (this.check('FEMALE')) {
-        const loc = this.advance().loc
-        node = {
-          type: 'Female',
-          operand: node,
-          loc: this.mergeLoc(node.loc!, loc),
-        } as FemaleExpr
       } else {
         this.advance()
         let expToken: Token
@@ -344,10 +322,6 @@ export class Parser {
     if (this.check('LBRACE')) return this.parseSet()
     if (this.check('LPAREN')) return this.parseRound()
     if (this.check('LBRACKET')) return this.parseSquare()
-    if (this.check('RBRACKET')) {
-      this.advance()
-      return { type: 'Bracket', side: 'right', loc: token.loc } as BracketExpr
-    }
 
     throw new ParseError(`Unexpected token: ${token.type}`, token)
   }
@@ -401,19 +375,20 @@ export class Parser {
     return { type: 'Round', content, loc: this.mergeLoc(opening.loc, closing.loc) }
   }
 
-  private parseSquare(): ASTNode {
+  private parseSquare(): SquareExpr {
     const opening = this.expect('LBRACKET')
-
-    // `([)` is handled by parseRound() before entering this method. Here `[` is
-    // therefore a real L2 square container, including the anonymous `[]` form.
     if (this.check('RBRACKET')) {
       const closing = this.advance()
-      return { type: 'Square', content: null, loc: this.mergeLoc(opening.loc, closing.loc) } as SquareExpr
+      return {
+        type: 'Square',
+        content: null,
+        loc: this.mergeLoc(opening.loc, closing.loc),
+      }
     }
 
     const content = this.parseExpr()
     const closing = this.expect('RBRACKET')
-    return { type: 'Square', content, loc: this.mergeLoc(opening.loc, closing.loc) } as SquareExpr
+    return { type: 'Square', content, loc: this.mergeLoc(opening.loc, closing.loc) }
   }
 
   private parseSet(): SetExpr {
