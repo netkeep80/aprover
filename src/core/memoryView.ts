@@ -11,12 +11,11 @@ function pairKey(start: LinkRef, end: LinkRef): string {
 }
 
 /**
- * Immutable application adapter for the read-only memory surface consumed by
- * canonical MTS v0.2 interpretation.
+ * Неизменяемое представление уже различённых связей приложения.
  *
- * Construction is the explicit boundary where already-distinguished links are
- * supplied by the application/storage layer. Interpretation itself receives no
- * mutation API and therefore cannot realize missing links or projections.
+ * Это граница, на которой приложение предоставляет существующие связи ядру
+ * МТС. Интерпретация получает только операции чтения и не может создавать или
+ * удалять связи.
  */
 export class ExplicitMemoryView implements MemoryView {
   private readonly linksById: ReadonlyMap<LinkRef, readonly [LinkRef, LinkRef]>
@@ -88,6 +87,27 @@ export class ExplicitMemoryView implements MemoryView {
 
   findEndProjection(form: LinkRef): LinkRef | undefined {
     return this.endProjections.get(form)
+  }
+
+  /** Все существующие связи с данным первым полюсом. */
+  outgoing(start: LinkRef): readonly LinkRef[] {
+    return [...this.linksById.entries()]
+      .filter(([, poles]) => poles[0] === start)
+      .map(([link]) => link)
+      .sort((left, right) => left - right)
+  }
+
+  /** Все существующие связи с данным вторым полюсом. */
+  incoming(end: LinkRef): readonly LinkRef[] {
+    return [...this.linksById.entries()]
+      .filter(([, poles]) => poles[1] === end)
+      .map(([link]) => link)
+      .sort((left, right) => left - right)
+  }
+
+  /** Все существующие связи в каноническом порядке идентификаторов. */
+  allLinks(): readonly LinkRef[] {
+    return [...this.linksById.keys()].sort((left, right) => left - right)
   }
 
   /** Deterministic copy useful for diagnostics and non-mutation assertions. */
