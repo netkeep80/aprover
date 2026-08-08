@@ -48,10 +48,13 @@ export interface MtsContractV02 {
   anum: {
     operations: ['serialize', 'deserialize']
     alphabet: ['[', ']', '1', '0']
+    rawCarrierDescription: 'contracts/anum-raw-carrier-v0.2.json'
     rootBoundaryProjection: 'contracts/anum-boundary-projection-v0.2.json'
     denotationHandoff: 'contracts/anum-denotation-v0.2.json'
     acceptedPairDenotationSubset: 'contracts/anum-pair-denotation-v0.2.json'
-    recursiveDenotationIssue: 95
+    acceptedRecursiveDenotationSubset: 'contracts/anum-recursive-denotation-v0.2.json'
+    rootOpeningCollapse: string
+    recursiveDenotationIssue: 101
     generalDenotationIssue: 89
   }
   memory: {
@@ -211,6 +214,11 @@ export function validateMtsContractV02(value: unknown): MtsContractV02 {
     throw new TypeError('anum.alphabet must be exactly [ ] 1 0')
   }
   exact(
+    anum.rawCarrierDescription,
+    'contracts/anum-raw-carrier-v0.2.json',
+    'anum.rawCarrierDescription'
+  )
+  exact(
     anum.rootBoundaryProjection,
     'contracts/anum-boundary-projection-v0.2.json',
     'anum.rootBoundaryProjection'
@@ -225,7 +233,13 @@ export function validateMtsContractV02(value: unknown): MtsContractV02 {
     'contracts/anum-pair-denotation-v0.2.json',
     'anum.acceptedPairDenotationSubset'
   )
-  exact(anum.recursiveDenotationIssue, 95, 'anum.recursiveDenotationIssue')
+  exact(
+    anum.acceptedRecursiveDenotationSubset,
+    'contracts/anum-recursive-denotation-v0.2.json',
+    'anum.acceptedRecursiveDenotationSubset'
+  )
+  string(anum.rootOpeningCollapse, 'anum.rootOpeningCollapse')
+  exact(anum.recursiveDenotationIssue, 101, 'anum.recursiveDenotationIssue')
   exact(anum.generalDenotationIssue, 89, 'anum.generalDenotationIssue')
 
   const memory = record(root.memory, 'memory')
