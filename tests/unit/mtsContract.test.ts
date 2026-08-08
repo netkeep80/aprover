@@ -17,6 +17,13 @@ const pairDenotationConformancePath = resolve(
   bundleRoot,
   'anum-pair-denotation-conformance-v0.2.json'
 )
+const rawCarrierPath = resolve(bundleRoot, 'anum-raw-carrier-v0.2.json')
+const rawCarrierConformancePath = resolve(bundleRoot, 'anum-raw-carrier-conformance-v0.2.json')
+const recursiveDenotationPath = resolve(bundleRoot, 'anum-recursive-denotation-v0.2.json')
+const recursiveDenotationConformancePath = resolve(
+  bundleRoot,
+  'anum-recursive-denotation-conformance-v0.2.json'
+)
 const provenancePath = resolve(bundleRoot, 'provenance.json')
 
 function readJson(path: string): unknown {
@@ -48,6 +55,10 @@ interface Provenance {
   anumDenotationConformance: ArtifactProvenance
   anumPairDenotation: ArtifactProvenance
   anumPairDenotationConformance: ArtifactProvenance
+  anumRawCarrier: ArtifactProvenance
+  anumRawCarrierConformance: ArtifactProvenance
+  anumRecursiveDenotation: ArtifactProvenance
+  anumRecursiveDenotationConformance: ArtifactProvenance
 }
 
 interface ProofContractV02 {
@@ -79,38 +90,54 @@ describe('pinned anum_docs MTS v0.2 contract bundle', () => {
     expect(bundle.conformance.contract).toBe(bundle.contract.schema)
   })
 
-  it('pins the current upstream top-level contract instead of the stale #86 blob', () => {
+  it('pins the current upstream top-level contract snapshot', () => {
     const provenance = readProvenance()
 
     expect(provenance.sourceRepository).toBe('netkeep80/anum_docs')
-    expect(provenance.sourceCommit).toBe('9921ce2c6c5ccf5cc62ec27daca571752e116fe9')
+    expect(provenance.sourceCommit).toBe('62901cfc94831af41cf86cdc3acb1507c46c05c7')
     expect(gitBlobSha(contractPath)).toBe(provenance.contract.gitBlobSha)
-    expect(provenance.contract.gitBlobSha).toBe('a8fc7c1d565a87941dbd4c8d691ffd4887aec620')
-    expect(provenance.contract.gitBlobSha).not.toBe('fb414a1541f3430fa9292c0fdfd89ca07d5db8ea')
+    expect(provenance.contract.gitBlobSha).toBe('93c39e34f14fb716d850136249e4928599d75130')
+    expect(provenance.contract.sourceCommit).toBe(provenance.sourceCommit)
   })
 
   it('pins every referenced accepted L3 artifact by exact Git blob SHA', () => {
     const provenance = readProvenance()
     const artifacts: Array<[string, ArtifactProvenance, string]> = [
-      [boundaryPath, provenance.anumBoundaryProjection, '8229fc65d0c48a811b9f97e5512fcf6e350b512d'],
-      [denotationPath, provenance.anumDenotation, '2c9681e2651276f70d54bac91ec1166203872812'],
+      [boundaryPath, provenance.anumBoundaryProjection, '822165f7940a4ec764bb7ac59e24e875ae03fb44'],
+      [denotationPath, provenance.anumDenotation, '2c0544c1b2ff57bf9c5999b50bd881622b48159d'],
       [
         denotationConformancePath,
         provenance.anumDenotationConformance,
         'af0740a358d40e8d70a9770387a26ef8303d5eaa',
       ],
-      [pairDenotationPath, provenance.anumPairDenotation, 'b07d3989f8819185424782cce80759aa8310e465'],
+      [pairDenotationPath, provenance.anumPairDenotation, 'd09b4e4eccd9a5f439d20086bd1004cadc05b280'],
       [
         pairDenotationConformancePath,
         provenance.anumPairDenotationConformance,
-        '0d59c92ad30b82d23e598188f64feb3644bc81a8',
+        '0d5954625267299993aa66e71c55d95172a73625',
+      ],
+      [rawCarrierPath, provenance.anumRawCarrier, 'd5c0ddbb6c2d57967621c08551fbadd4f2cdd132'],
+      [
+        rawCarrierConformancePath,
+        provenance.anumRawCarrierConformance,
+        '39064ed361b4b53014f5f9fb7f026b2deba4b0f1',
+      ],
+      [
+        recursiveDenotationPath,
+        provenance.anumRecursiveDenotation,
+        'f0fc16e989c4b49c6df476393108bc7bfb41cbb4',
+      ],
+      [
+        recursiveDenotationConformancePath,
+        provenance.anumRecursiveDenotationConformance,
+        '70375b06f2031982bd42c62c8552a2edae1be4c1',
       ],
     ]
 
     for (const [path, artifact, expected] of artifacts) {
       expect(gitBlobSha(path)).toBe(artifact.gitBlobSha)
       expect(artifact.gitBlobSha).toBe(expected)
-      expect(artifact.sourceCommit).toMatch(/^[0-9a-f]{40}$/)
+      expect(artifact.sourceCommit).toBe(provenance.sourceCommit)
     }
   })
 
@@ -148,6 +175,7 @@ describe('pinned anum_docs MTS v0.2 contract bundle', () => {
 
     expect(contract.anum.operations).toEqual(['serialize', 'deserialize'])
     expect(contract.anum.alphabet).toEqual(['[', ']', '1', '0'])
+    expect(contract.anum.rawCarrierDescription).toBe('contracts/anum-raw-carrier-v0.2.json')
     expect(contract.anum.rootBoundaryProjection).toBe(
       'contracts/anum-boundary-projection-v0.2.json'
     )
@@ -155,7 +183,11 @@ describe('pinned anum_docs MTS v0.2 contract bundle', () => {
     expect(contract.anum.acceptedPairDenotationSubset).toBe(
       'contracts/anum-pair-denotation-v0.2.json'
     )
-    expect(contract.anum.recursiveDenotationIssue).toBe(95)
+    expect(contract.anum.acceptedRecursiveDenotationSubset).toBe(
+      'contracts/anum-recursive-denotation-v0.2.json'
+    )
+    expect(contract.anum.rootOpeningCollapse).toContain('canonical decode/re-encode validation')
+    expect(contract.anum.recursiveDenotationIssue).toBe(101)
     expect(contract.anum.generalDenotationIssue).toBe(89)
 
     expect((readJson(boundaryPath) as { schema: string }).schema).toBe(
@@ -164,6 +196,10 @@ describe('pinned anum_docs MTS v0.2 contract bundle', () => {
     expect((readJson(denotationPath) as { schema: string }).schema).toBe('anum-denotation/v0.2')
     expect((readJson(pairDenotationPath) as { schema: string }).schema).toBe(
       'anum-pair-denotation/v0.2'
+    )
+    expect((readJson(rawCarrierPath) as { schema: string }).schema).toBe('anum-raw-carrier/v0.2')
+    expect((readJson(recursiveDenotationPath) as { schema: string }).schema).toBe(
+      'anum-recursive-denotation/v0.2'
     )
   })
 
