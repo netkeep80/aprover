@@ -1,11 +1,9 @@
 /**
- * Structural normalizer for the canonical МТС AST consumed from anum_docs.
+ * Структурный нормализатор канонического AST МТС из anum_docs.
  *
- * The parser preserves explicit L2 containers for round-trip/visual identity.
- * Normalization only follows accepted structural rules: non-empty round
- * grouping is transparent and child nodes are normalized recursively. It does
- * not invent inversion algebra, bundle algebra, power expansion or NotLink
- * desugaring that are absent from the upstream MTS v0.2 contract.
+ * Parser сохраняет явные контейнеры. Нормализация следует только принятым
+ * структурным правилам и не добавляет самостоятельную алгебру инверсии,
+ * пучков или старые prover-era преобразования.
  */
 
 import type { ASTNode, DefExpr, Statement, File } from './ast'
@@ -18,6 +16,7 @@ import {
   isFemaleExpr,
   isNotExpr,
   isSetExpr,
+  isSequenceExpr,
   isInfinityExpr,
   isNumExpr,
   isIdentExpr,
@@ -140,6 +139,7 @@ function containsIdent(node: ASTNode, name: string, guarded: boolean): boolean {
     return containsIdent(node.operand, name, guarded)
   }
   if (isSetExpr(node)) return node.elements.some(el => containsIdent(el, name, guarded))
+  if (isSequenceExpr(node)) return node.items.some(item => containsIdent(item, name, guarded))
   if (isDefExpr(node)) {
     return containsIdent(node.name, name, guarded) || containsIdent(node.form, name, guarded)
   }
@@ -162,8 +162,6 @@ function checkGuardedRecursion(def: DefExpr): void {
 
 function normalizeNode(node: ASTNode, options: NormalizerOptions): ASTNode {
   if (isRoundExpr(node)) {
-    // Empty () is a genuine formal atom. Non-empty round grouping is
-    // transparent to semantic matching in the upstream interpreter.
     return node.content === null ? node : normalizeNode(node.content, options)
   }
   if (isSquareExpr(node)) {
@@ -204,6 +202,9 @@ function normalizeNode(node: ASTNode, options: NormalizerOptions): ASTNode {
   if (isSetExpr(node)) {
     return { ...node, elements: node.elements.map(el => normalizeNode(el, options)) }
   }
+  if (isSequenceExpr(node)) {
+    return { ...node, items: node.items.map(item => normalizeNode(item, options)) }
+  }
   return node
 }
 
@@ -240,7 +241,7 @@ export function normalizeFile(file: File, options: Partial<NormalizerOptions> = 
   }
 }
 
-/** Syntax/structure key, not an additional semantic equality relation. */
+/** Структурный ключ синтаксиса, а не дополнительное семантическое равенство. */
 export function toCanonicalString(node: ASTNode): string {
   if (isRoundExpr(node)) {
     return node.content === null ? '()' : `(${toCanonicalString(node.content)})`
@@ -260,6 +261,7 @@ export function toCanonicalString(node: ASTNode): string {
   if (isFemaleExpr(node)) return `♀${toCanonicalString(node.operand)}`
   if (isNotExpr(node)) return `¬${toCanonicalString(node.operand)}`
   if (isSetExpr(node)) return `{${node.elements.map(toCanonicalString).join(',')}}`
+  if (isSequenceExpr(node)) return node.items.map(toCanonicalString).join('')
   if (isInfinityExpr(node)) return '∞'
   if (isNumExpr(node)) return String(node.value)
   if (isIdentExpr(node)) return node.name
