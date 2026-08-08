@@ -1,124 +1,87 @@
-/**
- * Unit tests for МТС normalizer
- */
+/** Unit tests for the structural МТС v0.2 normalizer. */
 
-import { describe, it, expect, beforeEach } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 import { parseExpr } from '../../src/core/parser'
 import {
-  normalize,
-  toCanonicalString,
-  astEqual,
   NormalizationError,
+  astEqual,
   clearNormalizationCache,
   getNormalizationCacheStats,
+  normalize,
   setNormalizationCacheEnabled,
+  toCanonicalString,
 } from '../../src/core/normalizer'
 
 describe('Normalizer', () => {
   const normExpr = (input: string) => normalize(parseExpr(input))
   const canonical = (input: string) => toCanonicalString(normExpr(input))
 
-  describe('Desugaring', () => {
-    it('should desugar !-> to !(a -> b)', () => {
-      const ast = normExpr('a !-> b')
-      expect(ast.type).toBe('Not')
-      expect((ast as any).operand.type).toBe('Link')
+  describe('Accepted structural normalization', () => {
+    it('makes non-empty round grouping semantically transparent', () => {
+      expect(canonical('a ⟼ b ⟼ c')).toBe(canonical('(a ⟼ b) ⟼ c'))
     })
 
-    it('should expand power a^1', () => {
-      expect(canonical('a^1')).toBe('a')
+    it('keeps empty round form as an atom', () => {
+      expect(canonical('()')).toBe('()')
     })
 
-    it('should expand power a^2', () => {
-      expect(canonical('a^2')).toBe('(a->a)')
+    it('normalizes children without inventing inversion algebra', () => {
+      expect(canonical('¬¬x')).toBe('¬¬x')
+      expect(canonical('¬x♂')).toBe('¬x♂')
+      expect(canonical('¬♀x')).toBe('¬♀x')
     })
 
-    it('should expand power a^3', () => {
-      expect(canonical('a^3')).toBe('((a->a)->a)')
-    })
-
-    it('should expand power a^4', () => {
-      expect(canonical('a^4')).toBe('(((a->a)->a)->a)')
+    it('prints only canonical glyphs', () => {
+      expect(canonical('a ⟼ b')).toBe('(a⟼b)')
+      expect(canonical('¬a')).toBe('¬a')
+      expect(canonical('a != b')).toBe('(a!=b)')
     })
   })
 
-  describe('Canonical form', () => {
-    it('should eliminate double negation !!x -> x', () => {
-      expect(canonical('!!x')).toBe('x')
+  describe('Structural equality key', () => {
+    it('detects equal and different link structures', () => {
+      expect(astEqual(normExpr('a ⟼ b'), normExpr('a ⟼ b'))).toBe(true)
+      expect(astEqual(normExpr('a ⟼ b'), normExpr('b ⟼ a'))).toBe(false)
     })
 
-    it('should map inversion of end projection to start projection', () => {
-      expect(canonical('!x♂')).toBe('♀x')
+    it('does not claim unsupported inversion equivalence', () => {
+      expect(astEqual(normExpr('¬¬x'), normExpr('x'))).toBe(false)
     })
 
-    it('should map inversion of start projection to end projection', () => {
-      expect(canonical('!♀x')).toBe('x♂')
+    it('preserves bundle order instead of imposing unaccepted set algebra', () => {
+      expect(canonical('{x,y}')).toBe('{x,y}')
+      expect(canonical('{y,x}')).toBe('{y,x}')
+      expect(canonical('{x,y}')).not.toBe(canonical('{y,x}'))
     })
 
-    it('should print the canonical inversion glyph', () => {
-      expect(canonical('!!!x')).toBe('¬x')
-      expect(canonical('!!!!x')).toBe('x')
-    })
-  })
-
-  describe('Structural equality', () => {
-    it('should detect equal expressions', () => {
-      const a = normExpr('a -> b')
-      const b = normExpr('a -> b')
-      expect(astEqual(a, b)).toBe(true)
-    })
-
-    it('should detect different expressions', () => {
-      const a = normExpr('a -> b')
-      const b = normExpr('b -> a')
-      expect(astEqual(a, b)).toBe(false)
-    })
-
-    it('should handle normalized equivalence', () => {
-      const a = normExpr('!!x')
-      const b = normExpr('x')
-      expect(astEqual(a, b)).toBe(true)
+    it('preserves bundle multiplicity syntactically', () => {
+      expect(canonical('{x,x}')).toBe('{x,x}')
+      expect(canonical('{x,x}')).not.toBe(canonical('{x}'))
     })
   })
 
   describe('Guarded recursion check', () => {
-    it('should accept valid recursive definition', () => {
-      expect(() => normExpr('abc : (abc -> x)')).not.toThrow()
+    it('accepts recursive definition under canonical link constructor', () => {
+      expect(() => normExpr('abc : abc ⟼ x')).not.toThrow()
     })
 
-    it('should accept recursive definition under link constructor', () => {
-      expect(() => normExpr('inf : (inf -> inf)')).not.toThrow()
-    })
-
-    it('should reject unguarded recursion', () => {
+    it('rejects unguarded recursion', () => {
       expect(() => normExpr('x : x')).toThrow(NormalizationError)
     })
 
-    it('should reject unguarded recursion under projection', () => {
+    it('rejects unguarded recursion under projection', () => {
       expect(() => normExpr('myvar : myvar♂')).toThrow(NormalizationError)
     })
   })
 
-  describe('Canonical string', () => {
-    it('should make non-empty round grouping semantically transparent', () => {
-      expect(canonical('a -> b -> c')).toBe(canonical('(a -> b) -> c'))
+  describe('Canonical structures', () => {
+    it('distinguishes left and right association', () => {
+      expect(canonical('a ⟼ b ⟼ c')).not.toBe(canonical('a ⟼ (b ⟼ c)'))
     })
 
-    it('should distinguish different structures', () => {
-      expect(canonical('a -> b -> c')).not.toBe(canonical('a -> (b -> c)'))
-    })
-
-    it('should preserve empty round form as an atom', () => {
-      expect(canonical('()')).toBe('()')
-    })
-
-    it('should preserve square and context forms', () => {
+    it('preserves square and context forms', () => {
       expect(canonical('[1]')).toBe('[1]')
       expect(canonical('↑◁')).toBe('↑◁')
-    })
-
-    it('should sort set elements', () => {
-      expect(canonical('{b, a}')).toBe(canonical('{a, b}'))
     })
   })
 
@@ -128,84 +91,42 @@ describe('Normalizer', () => {
       setNormalizationCacheEnabled(true)
     })
 
-    it('should cache normalization results', () => {
-      const expr = 'a -> b -> c'
+    it('caches structural normalization results', () => {
+      const expr = 'a ⟼ b ⟼ c'
       normalize(parseExpr(expr))
-      const stats1 = getNormalizationCacheStats()
-      expect(stats1.misses).toBeGreaterThan(0)
+      expect(getNormalizationCacheStats().misses).toBeGreaterThan(0)
       normalize(parseExpr(expr))
-      const stats2 = getNormalizationCacheStats()
-      expect(stats2.hits).toBeGreaterThan(0)
+      expect(getNormalizationCacheStats().hits).toBeGreaterThan(0)
     })
 
-    it('should return consistent results with caching', () => {
-      const expr = '!!a -> b'
-      const result1 = normalize(parseExpr(expr))
-      const result2 = normalize(parseExpr(expr))
-      expect(toCanonicalString(result1)).toBe(toCanonicalString(result2))
-    })
-
-    it('should work correctly when caching is disabled', () => {
+    it('works when caching is disabled', () => {
       setNormalizationCacheEnabled(false)
-      const expr = 'a -> b'
-      const result1 = normalize(parseExpr(expr))
-      const result2 = normalize(parseExpr(expr))
-      expect(toCanonicalString(result1)).toBe(toCanonicalString(result2))
-      const stats = getNormalizationCacheStats()
-      expect(stats.hits).toBe(0)
-      expect(stats.misses).toBe(0)
+      const first = normalize(parseExpr('a ⟼ b'))
+      const second = normalize(parseExpr('a ⟼ b'))
+      expect(toCanonicalString(first)).toBe(toCanonicalString(second))
+      expect(getNormalizationCacheStats()).toMatchObject({ hits: 0, misses: 0 })
     })
 
-    it('should clear cache correctly', () => {
-      const expr = 'x -> y'
-      normalize(parseExpr(expr))
-      const stats1 = getNormalizationCacheStats()
-      expect(stats1.size).toBeGreaterThan(0)
+    it('clears cache statistics', () => {
+      normalize(parseExpr('x ⟼ y'))
+      expect(getNormalizationCacheStats().size).toBeGreaterThan(0)
       clearNormalizationCache()
-      const stats2 = getNormalizationCacheStats()
-      expect(stats2.size).toBe(0)
-      expect(stats2.hits).toBe(0)
-      expect(stats2.misses).toBe(0)
+      expect(getNormalizationCacheStats()).toMatchObject({ size: 0, hits: 0, misses: 0 })
     })
 
-    it('should track cache statistics correctly', () => {
-      const expr1 = 'a -> b'
-      const expr2 = 'c -> d'
-      normalize(parseExpr(expr1))
-      normalize(parseExpr(expr2))
-      const statsAfterMisses = getNormalizationCacheStats()
-      expect(statsAfterMisses.size).toBe(2)
-      normalize(parseExpr(expr1))
-      normalize(parseExpr(expr2))
-      const statsAfterHits = getNormalizationCacheStats()
-      expect(statsAfterHits.hits).toBe(2)
+    it('separates the remaining guarded-recursion option', () => {
+      const expr = parseExpr('x : x')
+      expect(() => normalize(expr)).toThrow(NormalizationError)
+      expect(() => normalize(expr, { checkGuardedRecursion: false })).not.toThrow()
     })
 
-    it('should cache complex expressions with power operator', () => {
-      const expr = 'a^3'
-      const result1 = normalize(parseExpr(expr))
-      const result2 = normalize(parseExpr(expr))
-      expect(toCanonicalString(result1)).toBe('((a->a)->a)')
-      expect(toCanonicalString(result2)).toBe('((a->a)->a)')
-    })
-
-    it('should handle different normalization options separately', () => {
-      const expr = parseExpr('a !-> b')
-      const result1 = normalize(expr)
-      expect(result1.type).toBe('Not')
-      const result2 = normalize(expr, { desugarNotLink: false })
-      expect(result2.type).toBe('NotLink')
-    })
-
-    it('should calculate hit rate correctly', () => {
+    it('calculates hit rate', () => {
       clearNormalizationCache()
-      const expr = 'a -> b'
-      normalize(parseExpr(expr))
-      normalize(parseExpr('c -> d'))
-      normalize(parseExpr(expr))
-      normalize(parseExpr('c -> d'))
-      const stats = getNormalizationCacheStats()
-      expect(stats.hitRate).toBe(0.5)
+      normalize(parseExpr('a ⟼ b'))
+      normalize(parseExpr('c ⟼ d'))
+      normalize(parseExpr('a ⟼ b'))
+      normalize(parseExpr('c ⟼ d'))
+      expect(getNormalizationCacheStats().hitRate).toBe(0.5)
     })
   })
 })
