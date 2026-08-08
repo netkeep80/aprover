@@ -119,6 +119,9 @@ export {
   MTS_PROOF_SCHEMA,
   MTS_CONTRACT_VERSION,
   MTS_TRUSTED_PROOF_RULE,
+  ProofObjectValidationError,
+  parseProofObject,
+  parseProofJson,
   checkInterpretProofStep,
   checkProof,
 } from './proofReplay'
