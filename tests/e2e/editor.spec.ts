@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-test.describe('aprover canonical MTS v0.2 UI', () => {
+test.describe('aprover canonical MTS UI', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/')
   })
@@ -8,8 +8,9 @@ test.describe('aprover canonical MTS v0.2 UI', () => {
   test('shows the application as a canonical notation consumer', async ({ page }) => {
     await expect(page.locator('h1')).toHaveText('aprover')
     await expect(page.locator('.subtitle')).toContainText('формальной нотации МТС v0.2')
-    await expect(page.locator('.runtime-note')).toContainText('mts-proof/v0.2')
-    await expect(page.locator('.runtime-note')).toContainText('replay-only')
+    await expect(page.locator('.runtime-note')).toContainText('mts-proof/v0.4')
+    await expect(page.locator('.runtime-note')).toContainText('mts-contract/v0.5')
+    await expect(page.locator('.runtime-note')).toContainText('independent replay')
   })
 
   test('loads the canonical v0.2 root instead of legacy A0-A11 examples', async ({ page }) => {
@@ -42,17 +43,18 @@ test.describe('aprover canonical MTS v0.2 UI', () => {
     await expect(page.locator('text=statements verified')).toHaveCount(0)
   })
 
-  test('loads and independently replays an mts-proof/v0.2 artifact', async ({ page }) => {
+  test('loads and independently replays a current mts-proof/v0.4 artifact', async ({ page }) => {
     const artifact = JSON.stringify({
-      schema: 'mts-proof/v0.2',
-      contractVersion: 'mts-contract/v0.2',
-      steps: [
+      proofVersion: 'mts-proof/v0.4',
+      contractVersion: 'mts-contract/v0.4',
+      judgments: [
         {
-          rule: 'interpret',
+          relation: 'ContextuallySatisfies',
           expression: '[] = ◁',
-          context: { start: 10, end: 12 },
+          context: { start: 10, end: 12, parent: null },
+          symbols: [],
+          memory: [],
           expected: {
-            success: true,
             substitutions: [{ path: [0], link: 10 }],
             aliases: [],
           },
@@ -65,26 +67,27 @@ test.describe('aprover canonical MTS v0.2 UI', () => {
     await page.locator('#proof-artifact-source').fill(artifact)
 
     await expect(page.locator('.proof-verdict')).toContainText('REPLAY ACCEPTED')
-    await expect(page.locator('.proof-summary')).toContainText('mts-proof/v0.2')
+    await expect(page.locator('.proof-summary')).toContainText('mts-proof/v0.4')
     await expect(page.locator('.proof-expression')).toContainText('[] = ◁')
     await expect(page.locator('.proof-step')).toContainText('[] @ 0 → LinkRef 10')
   })
 
-  test('separates proof validation errors from replay rejection', async ({ page }) => {
+  test('separates current proof validation errors from replay rejection', async ({ page }) => {
     await page.locator('.proof-replay-toggle').click()
     const source = page.locator('#proof-artifact-source')
 
     await source.fill(
       JSON.stringify({
-        schema: 'mts-proof/v0.2',
-        contractVersion: 'mts-contract/v0.2',
-        steps: [
+        proofVersion: 'mts-proof/v0.4',
+        contractVersion: 'mts-contract/v0.4',
+        judgments: [
           {
-            rule: 'interpret',
+            relation: 'ContextuallySatisfies',
             expression: '[] = ◁',
-            context: { start: 10, end: 12 },
+            context: { start: 10, end: 12, parent: null },
+            symbols: [],
+            memory: [],
             expected: {
-              success: true,
               substitutions: [{ path: [0], link: 12 }],
               aliases: [],
             },
@@ -95,9 +98,12 @@ test.describe('aprover canonical MTS v0.2 UI', () => {
     await expect(page.locator('.proof-verdict')).toContainText('REPLAY REJECTED')
     await expect(page.locator('.proof-invalid')).toHaveCount(0)
 
-    await source.fill('{"schema":"wrong","contractVersion":"mts-contract/v0.2","steps":[]}')
+    await source.fill(
+      '{"proofVersion":"mts-proof/v0.2","contractVersion":"mts-contract/v0.2","steps":[]}'
+    )
     await expect(page.locator('.proof-invalid')).toContainText('Validation error')
-    await expect(page.locator('.proof-invalid')).toContainText('$.schema')
+    await expect(page.locator('.proof-invalid')).toContainText('$.proofVersion')
+    await expect(page.locator('.proof-invalid')).toContainText('mts-proof/v0.4')
     await expect(page.locator('.proof-verdict')).toHaveCount(0)
   })
 
