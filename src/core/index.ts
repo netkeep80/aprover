@@ -2,8 +2,8 @@
  * Публичное ядро aprover.
  *
  * `anum_docs` остаётся нормативным источником теории и контрактов МТС. Здесь
- * публикуются только единый parser/runtime, принятые consumers и replay-checker;
- * старые совместимые грамматики и отдельная теория приложения отсутствуют.
+ * публикуются только единый parser/runtime, текущие consumers и replay-checker;
+ * старые совместимые proof API отсутствуют.
  */
 
 export type {
@@ -130,17 +130,23 @@ export type {
 } from './interpretationPresentation'
 export { formatOccurrencePath, presentInterpretation } from './interpretationPresentation'
 
-export type { ProofExpectedResult, InterpretProofStep, MtsProofObjectV02 } from './proofReplay'
+export type {
+  DefinitionOpeningPathJudgmentV04,
+  MtsProofJudgmentV04,
+  MtsProofObjectV04,
+} from './proofReplayV04'
 export {
-  MTS_PROOF_SCHEMA,
-  MTS_CONTRACT_VERSION,
-  MTS_TRUSTED_PROOF_RULE,
-  ProofObjectValidationError,
-  parseProofObject,
-  parseProofJson,
-  checkInterpretProofStep,
-  checkProof,
-} from './proofReplay'
+  MTS_PROOF_SCHEMA_V04,
+  MTS_PROOF_CONTRACT_VERSION_V04,
+  ProofObjectV04ValidationError,
+  parseProofObjectV04,
+  parseProofJsonV04,
+  checkJudgmentV04,
+  checkProofV04,
+  checkProofV04Data,
+  proofObjectV04ToData,
+  canonicalProofV04Json,
+} from './proofReplayV04'
 
 export type {
   InterpretProofSearchInput,
@@ -152,16 +158,16 @@ export type {
 export { searchInterpretProof } from './proofSearch'
 
 export type {
+  VersionedEmptyProofArtifactView,
+  VersionedInvalidProofArtifactView,
   ProofContextView,
   ProofSubstitutionView,
   ProofAliasView,
-  ProofStepReplayView,
-  EmptyProofArtifactView,
-  InvalidProofArtifactView,
-  ReplayedProofArtifactView,
-  ProofArtifactView,
-} from './proofArtifactPresentation'
-export { presentProofArtifactJson } from './proofArtifactPresentation'
+  ProofJudgmentReplayView,
+  ReplayedVersionedProofArtifactView,
+  VersionedProofArtifactView,
+} from './proofArtifactPresentationVersioned'
+export { presentVersionedProofArtifactJson } from './proofArtifactPresentationVersioned'
 
 export type { StringAnumOptions, ConversionStep, StringAnumStats } from './stringAnum'
 export {
