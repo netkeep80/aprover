@@ -4,11 +4,39 @@
   "accepted": true,
   "contract": "mts-direct-deixis/v0.5",
   "vectors": [
-    {"id": "none", "source": "[] = []", "expected": []},
-    {"id": "current-start", "source": "◁ = a", "expected": [{"path": [0], "up": 0, "pole": "◁"}]},
-    {"id": "current-end", "source": "a = ▷", "expected": [{"path": [1], "up": 0, "pole": "▷"}]},
-    {"id": "parent-end", "source": "a = ↑▷", "expected": [{"path": [1], "up": 1, "pole": "▷"}]},
-    {"id": "grandparent-grouped-start", "source": "((↑↑◁)) = a", "expected": [{"path": [0, 0, 0], "up": 2, "pole": "◁"}]},
+    {
+      "id": "none",
+      "source": "[] = []",
+      "expected": []
+    },
+    {
+      "id": "current-start",
+      "source": "◁ = a",
+      "expected": [
+        {"path": [0], "up": 0, "pole": "◁"}
+      ]
+    },
+    {
+      "id": "current-end",
+      "source": "a = ▷",
+      "expected": [
+        {"path": [1], "up": 0, "pole": "▷"}
+      ]
+    },
+    {
+      "id": "parent-end",
+      "source": "a = ↑▷",
+      "expected": [
+        {"path": [1], "up": 1, "pole": "▷"}
+      ]
+    },
+    {
+      "id": "grandparent-grouped-start",
+      "source": "((↑↑◁)) = a",
+      "expected": [
+        {"path": [0, 0, 0], "up": 2, "pole": "◁"}
+      ]
+    },
     {
       "id": "bundle-order",
       "source": "{◁ = a, ↑▷ = b, ▷ = c}",
@@ -56,17 +84,29 @@
     {
       "id": "whitespace-current-start",
       "sources": ["◁=a", "  ◁   =   a  "],
-      "expected": [{"path": [0], "up": 0, "pole": "◁"}]
+      "expected": [
+        {"path": [0], "up": 0, "pole": "◁"}
+      ]
     },
     {
       "id": "whitespace-parent",
       "sources": ["a=↑▷", "a = ↑ ▷"],
-      "expected": [{"path": [1], "up": 1, "pole": "▷"}]
+      "expected": [
+        {"path": [1], "up": 1, "pole": "▷"}
+      ]
     }
   ],
   "negativeClaims": [
-    {"id": "empty-does-not-mean-invariant", "source": "[] = []", "forbiddenConclusion": "ContextInvariant"},
-    {"id": "present-does-not-mean-sensitive", "source": "◁ = ◁", "forbiddenConclusion": "ContextSensitive"}
+    {
+      "id": "empty-does-not-mean-invariant",
+      "source": "[] = []",
+      "forbiddenConclusion": "ContextInvariant"
+    },
+    {
+      "id": "present-does-not-mean-sensitive",
+      "source": "◁ = ◁",
+      "forbiddenConclusion": "ContextSensitive"
+    }
   ],
   "releaseAssertions": {
     "allPortableVectorsReplayInProductionCore": true,
