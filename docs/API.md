@@ -1,6 +1,6 @@
 # aprover API
 
-`aprover` is an application/library consumer of the canonical MTS v0.2 contracts published by [`netkeep80/anum_docs`](https://github.com/netkeep80/anum_docs). This document describes application APIs only; it does not define MTS theory.
+`aprover` — application/library consumer нормативной МТС из [`netkeep80/anum_docs`](https://github.com/netkeep80/anum_docs). Текущий release pin приложения — `mts-contract/v0.5`; этот документ описывает только application API и не определяет теорию МТС.
 
 ## Canonical source
 
@@ -12,10 +12,10 @@ const expression = parseExpr('[] = ◁')
 console.log(toCanonicalString(expression))
 
 const recovered = parseWithRecovery('[] = ◁')
-console.log(recovered.file, recovered.error)
+console.log(recovered.ast, recovered.errors)
 ```
 
-The parser consumes the v0.2 surface, including atomic `◁`/`▷`, separate `↑`, occurrence-local `[]`, `♀F` and `F♂`. Canonical link/inversion/inequality spellings are `⟼`, `¬F`, `!=`; legacy aliases are not a compatibility language.
+Canonical link/inversion/inequality spellings are `⟼`, `¬F`, `!=`; legacy aliases are not a compatibility language.
 
 ## Contextual interpretation
 
@@ -31,30 +31,31 @@ const session = new InterpretationSession({
 const result = session.interpret(parseExpr('[] = ◁'))
 ```
 
-`InterpretationSession` owns an immutable `ExplicitMemoryView`. Interpretation cannot `realize` or delete links. Anonymous forms are identified by occurrence paths, not display labels.
+`InterpretationSession` owns an immutable `ExplicitMemoryView`. Interpretation cannot materialize or delete links.
 
-## Trusted proof replay and untrusted search
+## Trusted proof replay
 
-The trusted boundary is `mts-proof/v0.2` replay.
+Единственный публичный proof format — `mts-proof/v0.4`.
 
 ```ts
 import {
-  MTS_CONTRACT_VERSION,
-  MTS_PROOF_SCHEMA,
-  checkProof,
-  type MtsProofObjectV02,
+  MTS_PROOF_CONTRACT_VERSION_V04,
+  MTS_PROOF_SCHEMA_V04,
+  checkProofV04,
+  type MtsProofObjectV04,
 } from '../src/core/index'
 
-const proof: MtsProofObjectV02 = {
-  schema: MTS_PROOF_SCHEMA,
-  contractVersion: MTS_CONTRACT_VERSION,
-  steps: [
+const proof: MtsProofObjectV04 = {
+  proofVersion: MTS_PROOF_SCHEMA_V04,
+  contractVersion: MTS_PROOF_CONTRACT_VERSION_V04,
+  judgments: [
     {
-      rule: 'interpret',
+      relation: 'ContextuallySatisfies',
       expression: '[] = ◁',
-      context: { start: 10, end: 12 },
+      context: { start: 10, end: 12, parent: null },
+      symbols: [],
+      memory: [],
       expected: {
-        success: true,
         substitutions: [{ path: [0], link: 10 }],
         aliases: [],
       },
@@ -62,12 +63,38 @@ const proof: MtsProofObjectV02 = {
   ],
 }
 
-console.log(checkProof(proof))
+console.log(checkProofV04(proof))
 ```
 
-`searchInterpretProof()` is an **untrusted constructor/search API**. Its output becomes trusted only after independent `checkProof()` replay. Search never extends the trusted rule set.
+Public replay accepts only:
 
-Historical A0–A11 tables, lowercase metavariables, global substitution/rewrite, implicit symmetry/transitivity/congruence, Modus Ponens and legacy proof caches are not MTS v0.2 APIs.
+```text
+proofVersion    = mts-proof/v0.4
+contractVersion = mts-contract/v0.4
+```
+
+The application-level release pin is `mts-contract/v0.5`; its upstream contract explicitly requires this v0.4 proof schema/version pair.
+
+`mts-proof/v0.2` and `mts-proof/v0.3` are not compatibility APIs. Legacy artifacts fail closed at the current replay boundary.
+
+## Untrusted proof search
+
+`searchInterpretProof()` constructs a current `mts-proof/v0.4` candidate containing a `ContextuallySatisfies` judgment. Search does not extend the trusted relation set and its result becomes accepted only after independent `checkProofV04()` replay.
+
+```ts
+import { checkProofV04, searchInterpretProof } from '../src/core/index'
+
+const found = searchInterpretProof({
+  expression: '[] = ◁',
+  context: { start: 10, end: 12 },
+})
+
+if (found.status === 'proven') {
+  console.log(checkProofV04(found.proof))
+}
+```
+
+No generic transitivity, symmetry, congruence, Modus Ponens, global substitution or implicit realization is added by the consumer.
 
 ## Memory view
 
@@ -79,7 +106,7 @@ memory.poles(30)
 memory.findLink(2, 3)
 ```
 
-Duplicate IDs and ambiguous `(start,end) -> LinkRef` identities are rejected.
+Application memory handles are technical references; display labels are not semantic identity.
 
 ## Visual graph
 
@@ -90,53 +117,38 @@ const file = parse('[] = []')
 const graph = projectStatementsToGraph(file.statements)
 ```
 
-Graph node identity is occurrence-safe. Equal display labels are not automatically merged.
+The graph is a presentation of source structure, not a second semantic identity model.
 
-## `.astr` application adapter
+## `.astr` adapter
 
-`.astr` is not a second MTS grammar. A UTF-8 line is represented through the shared AST as `Link(Infinity, StringLit)` and presentation source uses canonical `⟼`:
+`.astr` is not a second MTS grammar. UTF-8 input is represented through the shared AST and canonical `⟼` syntax.
 
 ```ts
 import { stringAnumToFormal } from '../src/core/index'
 
-stringAnumToFormal('hello') // (∞ ⟼ "hello")
+stringAnumToFormal('hello')
 ```
 
-## `.anum` raw-carrier adapter
+## `.anum` adapter
 
-The `.anum` application path consumes `anum-raw-carrier/v0.2`. It does **not** define abit denotation locally.
+ANUM has its own versioned L3 contracts in `anum_docs`. Their schema versions are independent from the public proof version of `aprover`.
 
 ```ts
 import { describeRawCarrier } from '../src/core/index'
 
 describeRawCarrier('01')
-// {
-//   kind: 'raw-carrier',
-//   raw: '01',
-//   nodes: [
-//     { id: 0, start: { role: 'root' }, end: { role: 'abit:0' } },
-//     { id: 1, start: { node: 0 }, end: { role: 'abit:1' } },
-//   ],
-//   root: { node: 1 }
-// }
 ```
 
-Raw bracket balance is intentionally not required: `][` is a valid transport carrier. Structural denotation belongs to the separately pinned `anum-denotation`, `anum-pair-denotation` and `anum-recursive-denotation` contracts.
-
-Removed APIs such as local `ABIT_DEFINITIONS`, `parseAbitToAST()` or `quatAnumToFormal()` are not compatibility exports.
+The application must not invent local abit denotation or silently reinterpret current ANUM contracts merely to make their version number match `mts-contract/v0.5`.
 
 ## File formats
 
-The browser application accepts:
-
 ```text
-.mtl   canonical MTS formal-notation source
+.mtl   MTS formal-notation source
 .astr  application UTF-8 adapter
-.anum  application Anum raw-carrier adapter
+.anum  application Anum transport adapter
 ```
-
-File I/O and adapters do not create a competing theory or trusted proof semantics.
 
 ## Public entry point
 
-Use `src/core/index.ts`. It exports canonical AST/parser/runtime/replay APIs, untrusted proof search, and application adapters bound to the pinned contracts.
+Use `src/core/index.ts`. It exports canonical AST/parser/runtime, the single current `mts-proof/v0.4` replay API, untrusted current-format proof search, and application adapters. Historical proof APIs are intentionally absent.
