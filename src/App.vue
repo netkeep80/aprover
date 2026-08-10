@@ -1,242 +1,230 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref, watch } from 'vue'
-import { parseWithRecovery, ParseError } from './core/parser'
-import type { File as MtsFile, SourceLocation } from './core/ast'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import Editor from './components/Editor.vue'
 import ASTViewer from './components/ASTViewer.vue'
-import ErrorPanel from './components/ErrorPanel.vue'
-import LinkGraphViewer from './components/LinkGraphViewer.vue'
-import ProofReplayPanel from './components/ProofReplayPanel.vue'
+import GraphView from './components/GraphView.vue'
 import AnumDenotationPanel from './components/AnumDenotationPanel.vue'
-import SplitPane from './components/SplitPane.vue'
+import ProofReplayPanel from './components/ProofReplayPanel.vue'
+import type { ASTNode, File, SourceLocation } from './core/ast'
+import { parseWithRecovery } from './core/parser'
+import type { ParseError } from './core/parser'
 import {
-  readFileContent,
-  getFilePreview,
-  isSupportedFile,
-  getFileExtension,
   getRecentFiles,
   addRecentFile,
   removeRecentFile,
   clearRecentFiles,
   saveAutosave,
+  loadAutosave,
+  clearAutosave,
   downloadFile,
   openFileDialog,
+  getFileExtension,
+  isSupportedFile,
+  readFileContent,
   type FileMetadata,
 } from './core/fileIO'
-import { stringAnumFileToMtl, visualizeConversion, type ConversionStep } from './core/stringAnum'
 import {
+  parseStringAnum,
+  stringAnumToFormal,
+  stringAnumFileToMtl,
+  visualizeConversion,
+  type ConversionStep,
+} from './core/stringAnum'
+import {
+  validateQuatAnum,
+  quatAnumToStringAnum,
   quatAnumFileToMtl,
   visualizeQuatConversion,
   type QuatConversionStep,
 } from './core/quatAnum'
+import { projectStatementsToGraph, type LinkGraph } from './core/linkGraph'
+import packageJson from '../package.json'
 
-const CANONICAL_ROOT = `// МТС v0.2 — каноническая формальная нотация
-// Теория и machine-readable contracts: netkeep80/anum_docs
-// Этот экран разбирает и визуализирует формулы. Trusted proof replay — mts-proof/v0.2.
+const appVersion = packageJson.version
 
+const defaultSource = `# Каноническая корневая библиотека МТС v0.2
 ∞ : {◁ = ∞, ▷ = ∞}
-() : ♀() ⟼ ()♂
-([) : (♀∞)
-(]) : (∞♂)
-(⟼) : (♀∞ ⟼ ∞♂)
-(↛) : (∞♂ ⟼ ♀∞)
-[1] : (⟼)
-[0] : (↛)
+♀∞ : {◁ = ∞, ▷ = ♀∞}
+∞♂ : {◁ = ∞♂, ▷ = ∞}
+(⟼) : {◁ = ♀∞, ▷ = ∞♂}
+(↛) : ¬(⟼)
+1 : [(⟼)]
+0 : [(↛)]
 (=) : {♀◁ = ♀▷, ◁♂ = ▷♂}
 (!=) : ¬(=)
+(:) : {(⟼) = ◁, (=) = ▷}
 `
 
-const input = ref(CANONICAL_ROOT)
-const error = ref<string | null>(null)
-const errorLocation = ref<SourceLocation | null>(null)
-const ast = ref<MtsFile | null>(null)
-
+const input = ref(defaultSource)
+const ast = ref<File | null>(null)
+const error = ref<ParseError | null>(null)
+const highlightedNodeLoc = ref<SourceLocation | null>(null)
 const showAST = ref(true)
 const showGraph = ref(false)
+const showConversion = ref(false)
 const showProofReplay = ref(false)
 const proofSource = ref('')
-const highlightedLoc = ref<SourceLocation | null>(null)
-const highlightedNodeLoc = ref<SourceLocation | null>(null)
-
-const currentFileName = ref<string | null>(null)
+const graph = ref<LinkGraph | null>(null)
+const currentFileName = ref('untitled.mtl')
 const currentFileType = ref<'mtl' | 'astr' | 'anum'>('mtl')
-const showRecentFiles = ref(false)
-const recentFiles = ref<FileMetadata[]>([])
-
-const showConversion = ref(false)
 const conversionSteps = ref<ConversionStep[]>([])
 const quatConversionSteps = ref<QuatConversionStep[]>([])
 const anumRawLines = ref<string[]>([])
-
-const appVersion = __APP_VERSION__
-const splitPaneRef = ref<InstanceType<typeof SplitPane> | null>(null)
+const recentFiles = ref<FileMetadata[]>([])
+const showRecentFiles = ref(false)
 const autosaveInterval = ref<ReturnType<typeof setInterval> | null>(null)
 
-const handleSplitResize = () => window.dispatchEvent(new Event('resize'))
-const toggleAST = () => (showAST.value = !showAST.value)
-const toggleGraph = () => (showGraph.value = !showGraph.value)
-const toggleProofReplay = () => (showProofReplay.value = !showProofReplay.value)
-
-const handleNodeHover = (loc: SourceLocation | null) => {
-  highlightedLoc.value = loc
-}
-
-const handleCursorPosition = (loc: SourceLocation | null) => {
-  highlightedNodeLoc.value = loc
-}
+const statementCount = computed(() => ast.value?.statements.length ?? 0)
 
 const parseInput = () => {
-  error.value = null
-  errorLocation.value = null
-  ast.value = null
-
-  try {
-    const result = parseWithRecovery(input.value)
-    if (result.error) {
-      error.value = result.error.message
-      errorLocation.value = result.errorLocation ?? null
-    }
-    ast.value = result.file
-  } catch (cause) {
-    if (cause instanceof ParseError) {
-      error.value = cause.message
-      errorLocation.value = cause.token.loc
-    } else if (cause instanceof Error) {
-      error.value = cause.message
-    } else {
-      error.value = 'Unknown error'
-    }
-  }
+  const result = parseWithRecovery(input.value)
+  ast.value = result.ast
+  error.value = result.errors[0] ?? null
+  graph.value = result.ast ? projectStatementsToGraph(result.ast.statements) : null
 }
 
-watch(input, parseInput, { immediate: true })
+watch(input, () => {
+  parseInput()
+  saveAutosave(input.value)
+})
 
-const loadRecentFiles = () => {
-  recentFiles.value = getRecentFiles()
+const handleNodeHover = (node: ASTNode | null) => {
+  highlightedNodeLoc.value = node?.loc ?? null
 }
 
-const handleFileOpen = async () => {
-  const files = await openFileDialog('.mtl,.astr,.anum', false)
-  if (files?.length) await loadFile(files[0])
+const toggleAST = () => {
+  showAST.value = !showAST.value
 }
 
-const loadFile = async (file: globalThis.File) => {
-  if (!isSupportedFile(file.name)) {
-    error.value = `Неподдерживаемый формат файла: ${file.name}. Поддерживаются: .mtl, .astr, .anum`
-    return
-  }
-
-  try {
-    const content = await readFileContent(file)
-    const extension = getFileExtension(file.name)
-    currentFileName.value = file.name
-    conversionSteps.value = []
-    quatConversionSteps.value = []
-    anumRawLines.value = []
-    showConversion.value = false
-
-    if (extension === '.astr') {
-      currentFileType.value = 'astr'
-      const lines = content.split('\n').filter(line => line.trim() && !line.trim().startsWith('//'))
-      if (lines.length) {
-        conversionSteps.value = visualizeConversion(lines[0].trim())
-        showConversion.value = true
-      }
-      input.value = stringAnumFileToMtl(content)
-    } else if (extension === '.anum') {
-      currentFileType.value = 'anum'
-      const lines = content.split('\n').filter(line => line.trim() && !line.trim().startsWith('//'))
-      anumRawLines.value = lines.map(line => line.trim())
-      if (lines.length) {
-        quatConversionSteps.value = visualizeQuatConversion(lines[0].trim())
-        showConversion.value = true
-      }
-      input.value = quatAnumFileToMtl(content)
-    } else {
-      currentFileType.value = 'mtl'
-      input.value = content
-    }
-
-    addRecentFile(file.name, file.size, getFilePreview(content))
-    loadRecentFiles()
-    showRecentFiles.value = false
-  } catch (cause) {
-    error.value = cause instanceof Error ? cause.message : 'Ошибка чтения файла'
-  }
-}
-
-const handleFileDrop = (file: globalThis.File) => {
-  void loadFile(file)
-}
-
-const handleSaveCode = () => {
-  downloadFile(input.value, currentFileName.value || 'code.mtl', 'text/plain')
-}
-
-const handleNewFile = () => {
-  currentFileName.value = null
-  currentFileType.value = 'mtl'
-  showConversion.value = false
-  conversionSteps.value = []
-  quatConversionSteps.value = []
-  anumRawLines.value = []
-  input.value = CANONICAL_ROOT
+const toggleGraph = () => {
+  showGraph.value = !showGraph.value
 }
 
 const toggleConversion = () => {
   showConversion.value = !showConversion.value
 }
 
-const toggleRecentFiles = () => {
+const toggleProofReplay = () => {
+  showProofReplay.value = !showProofReplay.value
+}
+
+const handleNewFile = () => {
+  input.value = defaultSource
+  currentFileName.value = 'untitled.mtl'
+  currentFileType.value = 'mtl'
+  conversionSteps.value = []
+  quatConversionSteps.value = []
+  anumRawLines.value = []
+  clearAutosave()
+}
+
+const handleFileOpen = async () => {
+  const file = await openFileDialog()
+  if (!file || !isSupportedFile(file.name)) return
+
+  const content = await readFileContent(file)
+  const extension = getFileExtension(file.name)
+  currentFileName.value = file.name
+  currentFileType.value = extension
+  addRecentFile(file.name, content)
+  recentFiles.value = getRecentFiles()
+
+  if (extension === 'astr') {
+    const parsed = parseStringAnum(content)
+    input.value = stringAnumFileToMtl(parsed)
+    conversionSteps.value = parsed.flatMap((node, index) =>
+      visualizeConversion(node, index + 1).map(step => ({ ...step, formal: stringAnumToFormal(node) }))
+    )
+    quatConversionSteps.value = []
+    anumRawLines.value = []
+    showConversion.value = true
+    return
+  }
+
+  if (extension === 'anum') {
+    const rawLines = content
+      .split('\n')
+      .map(line => line.trim())
+      .filter(line => line && !line.startsWith('#'))
+    anumRawLines.value = rawLines
+    const formalLines: string[] = []
+    const stringLines: string[] = []
+    const steps: QuatConversionStep[] = []
+    for (const [index, raw] of rawLines.entries()) {
+      const validation = validateQuatAnum(raw)
+      if (!validation.valid) continue
+      const stringAnum = quatAnumToStringAnum(raw)
+      stringLines.push(stringAnum)
+      formalLines.push(quatAnumFileToMtl(raw))
+      steps.push(...visualizeQuatConversion(raw, index + 1))
+    }
+    input.value = formalLines.join('\n')
+    quatConversionSteps.value = steps
+    conversionSteps.value = stringLines.flatMap((line, index) => {
+      const parsed = parseStringAnum(line)
+      return parsed.flatMap(node => visualizeConversion(node, index + 1))
+    })
+    showConversion.value = true
+    return
+  }
+
+  input.value = content
+  conversionSteps.value = []
+  quatConversionSteps.value = []
+  anumRawLines.value = []
+}
+
+const handleSaveCode = () => {
+  downloadFile(currentFileName.value, input.value)
+}
+
+const toggleRecentFiles = (event: Event) => {
+  event.stopPropagation()
   showRecentFiles.value = !showRecentFiles.value
-  if (showRecentFiles.value) loadRecentFiles()
 }
 
 const handleRecentFileClick = (file: FileMetadata) => {
+  input.value = file.content
+  currentFileName.value = file.name
+  currentFileType.value = getFileExtension(file.name)
   showRecentFiles.value = false
-  alert(`Для открытия файла "${file.name}" используйте кнопку "Открыть"`)
 }
 
 const handleRemoveRecentFile = (event: Event, name: string) => {
   event.stopPropagation()
   removeRecentFile(name)
-  loadRecentFiles()
+  recentFiles.value = getRecentFiles()
 }
 
 const handleClearRecentFiles = () => {
   clearRecentFiles()
-  loadRecentFiles()
+  recentFiles.value = []
+}
+
+const handleClickOutside = () => {
+  showRecentFiles.value = false
 }
 
 const handleKeyDown = (event: KeyboardEvent) => {
-  if ((event.ctrlKey || event.metaKey) && event.key === 'o') {
-    event.preventDefault()
-    void handleFileOpen()
-  } else if ((event.ctrlKey || event.metaKey) && event.key === 's') {
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
     event.preventDefault()
     handleSaveCode()
-  } else if ((event.ctrlKey || event.metaKey) && event.key === 'n') {
+  }
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'n') {
     event.preventDefault()
     handleNewFile()
-  } else if (event.key === 'Escape') {
-    showRecentFiles.value = false
-    showProofReplay.value = false
   }
-}
-
-const handleClickOutside = (event: Event) => {
-  const target = event.target as HTMLElement
-  if (
-    showRecentFiles.value &&
-    !target.closest('.recent-files-dropdown') &&
-    !target.closest('.recent-btn')
-  ) {
-    showRecentFiles.value = false
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'o') {
+    event.preventDefault()
+    void handleFileOpen()
   }
 }
 
 onMounted(() => {
-  loadRecentFiles()
+  recentFiles.value = getRecentFiles()
+  const autosave = loadAutosave()
+  if (autosave) input.value = autosave
+  parseInput()
   autosaveInterval.value = setInterval(() => saveAutosave(input.value), 30000)
   window.addEventListener('keydown', handleKeyDown)
   document.addEventListener('click', handleClickOutside)
@@ -311,7 +299,7 @@ onUnmounted(() => {
     </header>
 
     <div class="runtime-note">
-      Trusted proof path: <code>mts-proof/v0.2</code> replay-only. Legacy A0–A11/MP semantics удалены; proof search будет строиться только поверх independent checker.
+      Current trusted proof path: <code>mts-proof/v0.4</code> under <code>mts-contract/v0.5</code>. Search строит только current artifact; acceptance всегда определяется independent replay.
     </div>
 
     <ProofReplayPanel
@@ -339,111 +327,30 @@ onUnmounted(() => {
       :raw-lines="anumRawLines"
     />
 
-    <ErrorPanel :error="error" />
+    <main class="main-content">
+      <section class="editor-panel">
+        <Editor v-model="input" :highlighted-loc="highlightedNodeLoc" />
+      </section>
 
-    <main class="app-main">
-      <SplitPane
-        v-if="showAST && showGraph"
-        key="ast-graph"
-        ref="splitPaneRef"
-        direction="horizontal"
-        :min-size="150"
-        :initial-sizes="[40, 30, 30]"
-        @resize="handleSplitResize"
-      >
-        <template #pane-0>
-          <div class="panel editor-panel">
-            <Editor
-              v-model="input"
-              :highlighted-loc="highlightedLoc"
-              :error-loc="errorLocation"
-              :file-name="currentFileName || undefined"
-              @file-drop="handleFileDrop"
-              @cursor-position="handleCursorPosition"
-            />
-          </div>
-        </template>
-        <template #pane-1>
-          <div class="panel ast-panel">
-            <ASTViewer :ast="ast" :error="error" :highlighted-node-loc="highlightedNodeLoc" @node-hover="handleNodeHover" />
-          </div>
-        </template>
-        <template #pane-2>
-          <div class="panel graph-panel"><LinkGraphViewer :ast="ast" /></div>
-        </template>
-      </SplitPane>
-
-      <SplitPane
-        v-else-if="showAST"
-        key="ast-only"
-        ref="splitPaneRef"
-        direction="horizontal"
-        :min-size="150"
-        :initial-sizes="[55, 45]"
-        @resize="handleSplitResize"
-      >
-        <template #pane-0>
-          <div class="panel editor-panel">
-            <Editor
-              v-model="input"
-              :highlighted-loc="highlightedLoc"
-              :error-loc="errorLocation"
-              :file-name="currentFileName || undefined"
-              @file-drop="handleFileDrop"
-              @cursor-position="handleCursorPosition"
-            />
-          </div>
-        </template>
-        <template #pane-1>
-          <div class="panel ast-panel">
-            <ASTViewer :ast="ast" :error="error" :highlighted-node-loc="highlightedNodeLoc" @node-hover="handleNodeHover" />
-          </div>
-        </template>
-      </SplitPane>
-
-      <SplitPane
-        v-else-if="showGraph"
-        key="graph-only"
-        ref="splitPaneRef"
-        direction="horizontal"
-        :min-size="150"
-        :initial-sizes="[55, 45]"
-        @resize="handleSplitResize"
-      >
-        <template #pane-0>
-          <div class="panel editor-panel">
-            <Editor
-              v-model="input"
-              :highlighted-loc="highlightedLoc"
-              :error-loc="errorLocation"
-              :file-name="currentFileName || undefined"
-              @file-drop="handleFileDrop"
-              @cursor-position="handleCursorPosition"
-            />
-          </div>
-        </template>
-        <template #pane-1>
-          <div class="panel graph-panel"><LinkGraphViewer :ast="ast" /></div>
-        </template>
-      </SplitPane>
-
-      <div v-else class="panel editor-panel single-editor">
-        <Editor
-          v-model="input"
-          :highlighted-loc="highlightedLoc"
-          :error-loc="errorLocation"
-          :file-name="currentFileName || undefined"
-          @file-drop="handleFileDrop"
-          @cursor-position="handleCursorPosition"
+      <section v-if="showAST" class="ast-panel">
+        <ASTViewer
+          :ast="ast"
+          :error="error"
+          :highlighted-node-loc="highlightedNodeLoc"
+          @node-hover="handleNodeHover"
         />
-      </div>
+      </section>
+
+      <section v-if="showGraph" class="graph-panel">
+        <GraphView :graph="graph" />
+      </section>
     </main>
 
     <footer class="app-footer">
-      <span>{{ ast?.statements.length ?? 0 }} statements parsed</span>
-      <span class="footer-separator">|</span>
-      <span>МТС theory: anum_docs</span>
-      <span class="footer-separator">|</span>
+      <span>{{ statementCount }} statements parsed</span>
+      <span class="separator">·</span>
+      <a href="https://github.com/netkeep80/anum_docs" target="_blank" rel="noopener">anum_docs</a>
+      <span class="separator">·</span>
       <a href="https://github.com/netkeep80/aprover" target="_blank" rel="noopener">GitHub</a>
     </footer>
   </div>
@@ -451,29 +358,29 @@ onUnmounted(() => {
 
 <style>
 :root {
-  --bg-color: #1a1a2e;
-  --panel-bg: #16213e;
-  --text-color: #eee;
-  --accent-color: #0f3460;
+  --bg-color: #020617;
+  --panel-bg: #0f172a;
+  --accent-color: #1e293b;
+  --border-color: #334155;
+  --text-color: #e2e8f0;
   --success-color: #4ade80;
   --error-color: #f87171;
-  --border-color: #334155;
 }
-
 * { box-sizing: border-box; margin: 0; padding: 0; }
+html, body, #app { height: 100%; width: 100%; }
 body { font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace; background: var(--bg-color); color: var(--text-color); line-height: 1.5; }
-button { font-family: inherit; }
+button, textarea { font-family: inherit; }
 .app-container { display: flex; flex-direction: column; height: 100vh; width: 100%; padding: .5rem; overflow: hidden; gap: .5rem; }
 .app-header { display: flex; align-items: center; gap: 1rem; padding: .65rem 1rem; background: var(--panel-bg); border: 1px solid var(--border-color); border-radius: 8px; }
 .header-left { display: flex; align-items: baseline; gap: .5rem; }
-.app-header h1 { font-size: 1.5rem; }
+.header-left h1 { font-size: 1.5rem; }
 .version, .subtitle { color: #94a3b8; font-size: .78rem; }
 .subtitle { flex: 1; }
 .header-right, .toolbar, .view-controls { display: flex; align-items: center; gap: .35rem; }
 .toolbar-btn, .toggle-btn, .recent-clear-btn { background: var(--accent-color); color: #cbd5e1; border: 1px solid var(--border-color); padding: .35rem .55rem; border-radius: 4px; cursor: pointer; }
 .toolbar-btn:hover, .toggle-btn:hover, .recent-clear-btn:hover { color: white; }
 .toolbar-btn.active, .toggle-btn.active { border-color: #667eea; color: white; }
-.toggle-btn:disabled { opacity: .45; cursor: not-allowed; }
+.graph-btn-toggle:disabled { opacity: .45; cursor: not-allowed; }
 .dropdown-container { position: relative; }
 .recent-files-dropdown { position: absolute; right: 0; top: calc(100% + .25rem); z-index: 20; min-width: 290px; background: var(--panel-bg); border: 1px solid var(--border-color); border-radius: 4px; padding: .35rem; }
 .recent-empty { color: #94a3b8; padding: .6rem; }
@@ -489,15 +396,16 @@ button { font-family: inherit; }
 .conversion-panel { display: flex; flex-direction: column; gap: .25rem; max-height: 160px; overflow: auto; padding: .5rem; background: var(--panel-bg); border: 1px solid var(--border-color); border-radius: 4px; }
 .conversion-step { display: grid; grid-template-columns: 2rem 1fr 1fr; gap: .5rem; font-size: .75rem; }
 .conversion-step code { color: #c4b5fd; }
-.app-main { flex: 1; min-height: 0; overflow: hidden; }
-.panel { height: 100%; min-width: 0; overflow: hidden; }
-.single-editor { border: 1px solid var(--border-color); border-radius: 4px; }
+.main-content { flex: 1; min-height: 0; overflow: hidden; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .5rem; }
+.editor-panel, .ast-panel, .graph-panel { height: 100%; min-width: 0; overflow: hidden; }
+.ast-panel, .graph-panel { border: 1px solid var(--border-color); border-radius: 4px; }
 .app-footer { display: flex; align-items: center; justify-content: center; gap: .6rem; color: #64748b; font-size: .72rem; }
 .app-footer a { color: #94a3b8; text-decoration: none; }
-.footer-separator { color: #334155; }
-@media (max-width: 1000px) {
+.separator { color: #334155; }
+@media (max-width: 1100px) {
   .subtitle { display: none; }
-  .toolbar-btn span { display: none; }
-  .app-header { gap: .5rem; }
+  .main-content { grid-template-columns: 1fr; overflow: auto; }
+  .ast-panel, .graph-panel { min-height: 320px; }
+  .toolbar span { display: none; }
 }
 </style>
