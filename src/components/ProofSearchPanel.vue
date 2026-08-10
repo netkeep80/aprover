@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import type { ContextFrame, LinkRef } from '../core/interpreter'
 import type { DistinguishedLink } from '../core/memoryView'
 import { searchInterpretProof } from '../core/proofSearch'
-import { checkProof } from '../core/proofReplay'
+import { canonicalProofV04Json, checkProofV04 } from '../core/proofReplayV04'
 
 const emit = defineEmits<{
   close: []
@@ -116,8 +116,8 @@ const runSearch = () => {
   }
 
   searchStatus.value = 'proven'
-  proofSource.value = JSON.stringify(result.proof, null, 2)
-  replayAccepted.value = checkProof(result.proof)
+  proofSource.value = JSON.stringify(JSON.parse(canonicalProofV04Json(result.proof)), null, 2)
+  replayAccepted.value = checkProofV04(result.proof)
 }
 
 const openReplay = () => {
@@ -130,7 +130,7 @@ const openReplay = () => {
     <header class="proof-search-header">
       <div>
         <strong>Untrusted proof search</strong>
-        <span class="proof-search-subtitle">mts-proof/v0.2 · interpret only</span>
+        <span class="proof-search-subtitle">mts-proof/v0.4 · ContextuallySatisfies</span>
       </div>
       <button type="button" class="proof-search-action close" aria-label="Close proof search" @click="emit('close')">
         ×
@@ -178,7 +178,7 @@ const openReplay = () => {
 
       <div class="proof-search-result">
         <div v-if="searchStatus === 'idle'" class="proof-search-empty">
-          Search is untrusted. Any generated artifact is independently replayed before it is shown as accepted.
+          Search is untrusted. Any generated current-format artifact is independently replayed before it is shown as accepted.
         </div>
 
         <div v-else class="proof-search-summary">
@@ -220,8 +220,8 @@ const openReplay = () => {
 .proof-search-panel {
   display: flex;
   flex-direction: column;
-  min-height: 280px;
-  max-height: 58vh;
+  min-height: 240px;
+  max-height: 48vh;
   background: var(--panel-bg);
   border: 1px solid var(--border-color);
   border-radius: 6px;
@@ -238,146 +238,126 @@ const openReplay = () => {
   border-bottom: 1px solid var(--border-color);
 }
 
-.proof-search-header > div {
+.proof-search-header > div:first-child {
   display: flex;
   align-items: baseline;
   gap: 0.65rem;
 }
 
 .proof-search-subtitle,
-.proof-search-inputs label,
 .proof-search-empty,
 .proof-search-message,
-.proof-search-replay > span {
+.proof-search-replay {
   color: #94a3b8;
   font-size: 0.72rem;
 }
 
+.proof-search-action {
+  padding: 0.25rem 0.5rem;
+  color: #cbd5e1;
+  background: rgba(15, 23, 42, 0.5);
+  border: 1px solid #475569;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.proof-search-action:hover {
+  color: #f8fafc;
+  border-color: #94a3b8;
+}
+
+.proof-search-action.primary {
+  font-weight: 600;
+}
+
+.proof-search-action.close {
+  min-width: 2rem;
+  font-size: 1rem;
+}
+
 .proof-search-body {
   display: grid;
-  grid-template-columns: minmax(320px, 0.9fr) minmax(360px, 1.1fr);
-  gap: 0.7rem;
+  grid-template-columns: minmax(260px, 0.9fr) minmax(320px, 1.1fr);
+  gap: 0.75rem;
   min-height: 0;
-  padding: 0.65rem;
-  overflow: hidden;
+  padding: 0.75rem;
+  overflow: auto;
 }
 
 .proof-search-inputs,
 .proof-search-result {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
-  min-height: 0;
+  gap: 0.45rem;
+  min-width: 0;
 }
 
-.proof-search-result {
-  overflow: auto;
-  padding: 0.55rem;
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
+.proof-search-inputs label {
+  color: #cbd5e1;
+  font-size: 0.72rem;
+  font-weight: 600;
 }
 
 .proof-search-source,
 .proof-search-json,
 .proof-search-artifact {
   width: 100%;
-  resize: vertical;
-  padding: 0.5rem;
+  min-height: 4.5rem;
+  padding: 0.55rem;
   color: #e2e8f0;
-  background: #0f172a;
-  border: 1px solid var(--border-color);
+  background: #020617;
+  border: 1px solid #334155;
   border-radius: 4px;
-  font-family: inherit;
-  font-size: 0.75rem;
-}
-
-.proof-search-source {
-  min-height: 54px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.72rem;
+  resize: vertical;
 }
 
 .proof-search-json {
-  min-height: 76px;
+  min-height: 5.5rem;
 }
 
 .proof-search-json.compact {
-  min-height: 48px;
+  min-height: 3.5rem;
 }
 
 .proof-search-artifact {
-  min-height: 150px;
-}
-
-.proof-search-action {
-  align-self: flex-start;
-  padding: 0.28rem 0.55rem;
-  color: #cbd5e1;
-  background: rgba(15, 23, 42, 0.5);
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.proof-search-action:hover {
-  color: white;
-}
-
-.proof-search-action.primary {
-  margin-top: 0.25rem;
-  font-weight: 700;
-}
-
-.proof-search-action.close {
-  align-self: auto;
-  font-size: 1rem;
-  line-height: 1;
+  min-height: 10rem;
+  flex: 1;
 }
 
 .proof-search-summary,
 .proof-search-replay {
   display: flex;
   align-items: center;
-  gap: 0.55rem;
-  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.75rem;
 }
 
 .proof-search-status,
 .proof-search-replay-verdict {
-  padding: 0.12rem 0.35rem;
-  border-radius: 3px;
-  font-size: 0.7rem;
+  font-size: 0.72rem;
   font-weight: 700;
+  letter-spacing: 0.04em;
 }
 
-.status-proven,
-.accepted {
-  color: var(--success-color);
-  background: rgba(74, 222, 128, 0.1);
+.proof-search-status.status-proven,
+.proof-search-replay-verdict.accepted {
+  color: #4ade80;
 }
 
-.status-not-proven {
+.proof-search-status.status-not-proven {
   color: #facc15;
-  background: rgba(250, 204, 21, 0.1);
 }
 
-.status-error,
-.rejected {
-  color: var(--error-color);
-  background: rgba(248, 113, 113, 0.1);
-}
-
-.proof-search-replay {
-  margin-top: 0.45rem;
+.proof-search-status.status-error,
+.proof-search-replay-verdict.rejected {
+  color: #f87171;
 }
 
 @media (max-width: 900px) {
-  .proof-search-panel {
-    max-height: 70vh;
-  }
-
   .proof-search-body {
-    display: flex;
-    flex-direction: column;
-    overflow: auto;
+    grid-template-columns: 1fr;
   }
 }
 </style>
