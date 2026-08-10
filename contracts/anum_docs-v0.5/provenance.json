@@ -1,0 +1,14 @@
+{
+  "sourceRepository": "netkeep80/anum_docs",
+  "sourceCommit": "5f985b2abc273efaa6c369781c5ad1e08c282d34",
+  "artifacts": {
+    "contract": {"path": "contracts/mts-contract-v0.5.json", "gitBlobSha": "637a717e8ed988cac58571ab5f3ac76c065d445c"},
+    "conformance": {"path": "contracts/mts-conformance-v0.5.json", "gitBlobSha": "f54296a23b649223d79fccd5664cd97556312a59"},
+    "proof": {"path": "contracts/mts-proof-v0.4.json", "gitBlobSha": "5402be3294d17cd386300ea1984d70337d2b3a4f"},
+    "proofConformance": {"path": "contracts/mts-proof-conformance-v0.4.json", "gitBlobSha": "306dd536ec817ff29371dd4e322a2eaa789af5ba"},
+    "openingPath": {"path": "contracts/mts-opening-path-v0.4.json", "gitBlobSha": "3a51955f6dd97d6af7a97aa96b864c4918735c87"},
+    "openingPathConformance": {"path": "contracts/mts-opening-path-conformance-v0.4.json", "gitBlobSha": "ca1dcc23d208e8f318ac6fb259d56d025ca2a34f"},
+    "directDeixis": {"path": "contracts/mts-direct-deixis-v0.5.json", "gitBlobSha": "64198b6a8a9261a2e0fe42b1a9fc6d1eba557a66"},
+    "directDeixisConformance": {"path": "contracts/mts-direct-deixis-conformance-v0.5.json", "gitBlobSha": "981e31ee6a0c090a02e04464c1a5df69a492c25a"}
+  }
+}
