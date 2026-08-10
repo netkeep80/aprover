@@ -10,10 +10,19 @@ import {
   parseProofObjectV03,
   type MtsProofObjectV03,
 } from './proofReplayV03'
+import {
+  MTS_PROOF_SCHEMA_V04,
+  checkProofV04,
+  parseProofObjectV04,
+  type MtsProofObjectV04,
+} from './proofReplayV04'
 
-export type VersionedProofObject = MtsProofObjectV02 | MtsProofObjectV03
+export type VersionedProofObject = MtsProofObjectV02 | MtsProofObjectV03 | MtsProofObjectV04
 
-export type ProofReplayVersion = typeof MTS_PROOF_SCHEMA | typeof MTS_PROOF_SCHEMA_V03
+export type ProofReplayVersion =
+  | typeof MTS_PROOF_SCHEMA
+  | typeof MTS_PROOF_SCHEMA_V03
+  | typeof MTS_PROOF_SCHEMA_V04
 
 function objectRecord(value: unknown): Record<string, unknown> | null {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -26,6 +35,7 @@ export function detectProofVersion(value: unknown): ProofReplayVersion | null {
   if (source === null) return null
   if (source.schema === MTS_PROOF_SCHEMA) return MTS_PROOF_SCHEMA
   if (source.proofVersion === MTS_PROOF_SCHEMA_V03) return MTS_PROOF_SCHEMA_V03
+  if (source.proofVersion === MTS_PROOF_SCHEMA_V04) return MTS_PROOF_SCHEMA_V04
   return null
 }
 
@@ -33,13 +43,16 @@ export function parseVersionedProofObject(value: unknown): VersionedProofObject 
   const version = detectProofVersion(value)
   if (version === MTS_PROOF_SCHEMA) return parseProofObject(value)
   if (version === MTS_PROOF_SCHEMA_V03) return parseProofObjectV03(value)
+  if (version === MTS_PROOF_SCHEMA_V04) return parseProofObjectV04(value)
   throw new Error('unsupported MTS proof artifact version')
 }
 
 export function checkVersionedProof(value: unknown): boolean {
   try {
     const proof = parseVersionedProofObject(value)
-    return 'schema' in proof ? checkProof(proof) : proof.judgments.every(checkJudgmentV03)
+    if ('schema' in proof) return checkProof(proof)
+    if (proof.proofVersion === MTS_PROOF_SCHEMA_V04) return checkProofV04(proof)
+    return proof.judgments.every(checkJudgmentV03)
   } catch {
     return false
   }
