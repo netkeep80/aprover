@@ -4,8 +4,8 @@ import { presentVersionedProofArtifactJson } from '../../src/core/proofArtifactP
 
 function openingArtifact(body = 'b') {
   return JSON.stringify({
-    proofVersion: 'mts-proof/v0.3',
-    contractVersion: 'mts-contract/v0.3',
+    proofVersion: 'mts-proof/v0.4',
+    contractVersion: 'mts-contract/v0.4',
     judgments: [
       {
         relation: 'Opens',
@@ -21,34 +21,15 @@ function openingArtifact(body = 'b') {
   })
 }
 
-function v02Artifact() {
-  return JSON.stringify({
-    schema: 'mts-proof/v0.2',
-    contractVersion: 'mts-contract/v0.2',
-    steps: [],
-  })
-}
-
-describe('versioned proof artifact presentation', () => {
-  it('keeps existing v0.2 presentation available through version dispatch', () => {
-    const view = presentVersionedProofArtifactJson(v02Artifact())
-    expect(view.status).toBe('accepted')
-    if (view.status !== 'accepted') throw new Error('expected accepted v0.2 proof')
-    expect(view.version).toBe('v0.2')
-    expect(view.schema).toBe('mts-proof/v0.2')
-    expect(view.steps).toEqual([])
-    expect(view.judgments).toEqual([])
-  })
-
-  it('presents an independently accepted v0.3 base judgment', () => {
+describe('current proof artifact presentation', () => {
+  it('presents an independently accepted v0.4 base judgment', () => {
     const view = presentVersionedProofArtifactJson(openingArtifact())
     expect(view.status).toBe('accepted')
-    if (view.status !== 'accepted') throw new Error('expected accepted v0.3 proof')
+    if (view.status !== 'accepted') throw new Error('expected accepted v0.4 proof')
 
-    expect(view.version).toBe('v0.3')
-    expect(view.schema).toBe('mts-proof/v0.3')
-    expect(view.contractVersion).toBe('mts-contract/v0.3')
-    expect(view.steps).toEqual([])
+    expect(view.version).toBe('v0.4')
+    expect(view.schema).toBe('mts-proof/v0.4')
+    expect(view.contractVersion).toBe('mts-contract/v0.4')
     expect(view.judgments).toHaveLength(1)
     expect(view.judgments[0]).toMatchObject({
       index: 1,
@@ -60,7 +41,7 @@ describe('versioned proof artifact presentation', () => {
     })
   })
 
-  it('distinguishes a forged but structurally valid v0.3 claim from invalid JSON', () => {
+  it('distinguishes a forged current claim from invalid transport', () => {
     const forged = presentVersionedProofArtifactJson(openingArtifact('c'))
     expect(forged.status).toBe('rejected')
     if (forged.status !== 'rejected') throw new Error('expected replay rejection')
@@ -68,8 +49,8 @@ describe('versioned proof artifact presentation', () => {
 
     const invalid = presentVersionedProofArtifactJson(
       JSON.stringify({
-        proofVersion: 'mts-proof/v0.3',
-        contractVersion: 'mts-contract/v0.3',
+        proofVersion: 'mts-proof/v0.4',
+        contractVersion: 'mts-contract/v0.4',
         judgments: [{ relation: 'Opens', target: 'a' }],
       })
     )
@@ -78,13 +59,25 @@ describe('versioned proof artifact presentation', () => {
     expect(invalid.errorPath).toContain('judgments[0]')
   })
 
+  it('rejects legacy v0.2 and v0.3 artifacts instead of dispatching compatibility replay', () => {
+    for (const artifact of [
+      { schema: 'mts-proof/v0.2', contractVersion: 'mts-contract/v0.2', steps: [] },
+      { proofVersion: 'mts-proof/v0.3', contractVersion: 'mts-contract/v0.3', judgments: [] },
+    ]) {
+      const view = presentVersionedProofArtifactJson(JSON.stringify(artifact))
+      expect(view.status).toBe('invalid')
+      if (view.status !== 'invalid') throw new Error('expected legacy artifact rejection')
+      expect(view.error).toContain('mts-proof/v0.4')
+      expect(view.errorPath).toBe('$.proofVersion')
+    }
+  })
+
   it('rejects unknown proof versions before replay', () => {
     const view = presentVersionedProofArtifactJson(
       JSON.stringify({ proofVersion: 'mts-proof/v9', contractVersion: 'mts-contract/v9', judgments: [] })
     )
     expect(view.status).toBe('invalid')
     if (view.status !== 'invalid') throw new Error('expected invalid version')
-    expect(view.error).toContain('mts-proof/v0.2')
-    expect(view.error).toContain('mts-proof/v0.3')
+    expect(view.error).toContain('mts-proof/v0.4')
   })
 })
