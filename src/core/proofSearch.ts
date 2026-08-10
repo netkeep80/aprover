@@ -4,12 +4,10 @@ import { InterpretationSession } from './interpretationSession'
 import type { DistinguishedLink } from './memoryView'
 import { parseExpr } from './parser'
 import {
-  MTS_CONTRACT_VERSION,
-  MTS_PROOF_SCHEMA,
-  MTS_TRUSTED_PROOF_RULE,
-  type InterpretProofStep,
-  type MtsProofObjectV02,
-} from './proofReplay'
+  MTS_PROOF_CONTRACT_VERSION_V04,
+  MTS_PROOF_SCHEMA_V04,
+  type MtsProofObjectV04,
+} from './proofReplayV04'
 import { toMtsSource } from './mtsSource'
 
 export interface InterpretProofSearchInput {
@@ -21,7 +19,7 @@ export interface InterpretProofSearchInput {
 
 export interface ProvenSearchResult {
   readonly status: 'proven'
-  readonly proof: MtsProofObjectV02
+  readonly proof: MtsProofObjectV04
 }
 
 export interface NotProvenSearchResult {
@@ -50,35 +48,51 @@ function cloneContext(frame: ContextFrame): ContextFrame {
 
 function cloneSymbols(
   source: Readonly<Record<string, LinkRef>> | undefined
-): Readonly<Record<string, LinkRef>> | undefined {
-  return source === undefined ? undefined : Object.freeze({ ...source })
+): readonly (readonly [string, LinkRef])[] {
+  return Object.freeze(
+    Object.entries(source ?? {})
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([name, link]) => Object.freeze([name, link] as const))
+  )
 }
 
-function cloneMemory(
-  source: readonly DistinguishedLink[] | undefined
-): readonly DistinguishedLink[] | undefined {
-  if (source === undefined) return undefined
+function cloneMemory(source: readonly DistinguishedLink[] | undefined): readonly DistinguishedLink[] {
   return Object.freeze(
-    source.map(link => Object.freeze({ id: link.id, start: link.start, end: link.end }))
+    (source ?? []).map(link => Object.freeze({ id: link.id, start: link.start, end: link.end }))
   )
+}
+
+function comparePath(left: readonly number[], right: readonly number[]): number {
+  const length = Math.min(left.length, right.length)
+  for (let index = 0; index < length; index += 1) {
+    if (left[index] !== right[index]) return left[index] - right[index]
+  }
+  return left.length - right.length
 }
 
 function cloneSubstitutions(
   source: readonly InterpretationSubstitution[]
 ): readonly InterpretationSubstitution[] {
   return Object.freeze(
-    source.map(item => Object.freeze({ path: Object.freeze([...item.path]), link: item.link }))
+    source
+      .map(item => Object.freeze({ path: Object.freeze([...item.path]), link: item.link }))
+      .sort((left, right) => comparePath(left.path, right.path) || left.link - right.link)
   )
 }
 
 function cloneAliases(source: readonly InterpretationAlias[]): readonly InterpretationAlias[] {
   return Object.freeze(
-    source.map(item =>
-      Object.freeze({
-        path: Object.freeze([...item.path]),
-        targetPath: Object.freeze([...item.targetPath]),
-      })
-    )
+    source
+      .map(item =>
+        Object.freeze({
+          path: Object.freeze([...item.path]),
+          targetPath: Object.freeze([...item.targetPath]),
+        })
+      )
+      .sort(
+        (left, right) =>
+          comparePath(left.path, right.path) || comparePath(left.targetPath, right.targetPath)
+      )
   )
 }
 
@@ -87,12 +101,11 @@ function message(cause: unknown): string {
 }
 
 /**
- * Untrusted single-step proof search for the current mts-proof/v0.2 contract.
+ * Untrusted single-judgment proof search for the current mts-proof/v0.4 surface.
  *
- * This function does not check its own output and does not define trusted
- * semantics. It only asks the canonical interpreter for a successful match and
- * packages that witness as an mts-proof/v0.2 artifact. Trust is established by
- * independently replaying the returned artifact with checkProof().
+ * The search asks the canonical interpreter for one successful contextual
+ * satisfaction witness and packages it as a ContextuallySatisfies judgment.
+ * Trust is established only by a fresh independent mts-proof/v0.4 replay.
  */
 export function searchInterpretProof(input: InterpretProofSearchInput): InterpretProofSearchResult {
   let expression: ASTNode
@@ -104,13 +117,13 @@ export function searchInterpretProof(input: InterpretProofSearchInput): Interpre
 
   const context = cloneContext(input.context)
   const symbols = cloneSymbols(input.symbols)
-  const distinguishedMemory = cloneMemory(input.distinguishedMemory)
+  const memory = cloneMemory(input.distinguishedMemory)
 
   try {
     const session = new InterpretationSession({
       context,
-      symbols,
-      links: distinguishedMemory ?? [],
+      symbols: input.symbols,
+      links: memory,
     })
     const result = session.interpret(expression)
 
@@ -118,23 +131,22 @@ export function searchInterpretProof(input: InterpretProofSearchInput): Interpre
       return { status: 'not-proven', reason: 'not-matched' }
     }
 
-    const step: InterpretProofStep = Object.freeze({
-      rule: MTS_TRUSTED_PROOF_RULE,
-      expression: toMtsSource(expression),
-      context,
-      ...(symbols === undefined ? {} : { symbols }),
-      ...(distinguishedMemory === undefined ? {} : { distinguishedMemory }),
-      expected: Object.freeze({
-        success: true,
-        substitutions: cloneSubstitutions(result.substitutions),
-        aliases: cloneAliases(result.aliases),
-      }),
-    })
-
-    const proof: MtsProofObjectV02 = Object.freeze({
-      schema: MTS_PROOF_SCHEMA,
-      contractVersion: MTS_CONTRACT_VERSION,
-      steps: Object.freeze([step]),
+    const proof: MtsProofObjectV04 = Object.freeze({
+      proofVersion: MTS_PROOF_SCHEMA_V04,
+      contractVersion: MTS_PROOF_CONTRACT_VERSION_V04,
+      judgments: Object.freeze([
+        Object.freeze({
+          relation: 'ContextuallySatisfies' as const,
+          expression: toMtsSource(expression),
+          context,
+          symbols,
+          memory,
+          expected: Object.freeze({
+            substitutions: cloneSubstitutions(result.substitutions),
+            aliases: cloneAliases(result.aliases),
+          }),
+        }),
+      ]),
     })
 
     return { status: 'proven', proof }
