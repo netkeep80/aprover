@@ -1,4 +1,4 @@
-/** Unit tests for the single canonical МТС v0.2 parser. */
+/** Unit tests for the single canonical МТС parser. */
 
 import { describe, expect, it } from 'vitest'
 import { LexerError } from '../../src/core/lexer'
@@ -31,6 +31,18 @@ describe('Parser', () => {
     expect(toMtsSource(parseExpr('a = b'))).toBe('a = b')
     expect(toMtsSource(parseExpr('a != b'))).toBe('a != b')
     expect(toMtsSource(parseExpr('a : b'))).toBe('a : b')
+  })
+
+  it('keeps definition weaker than judgments and right-associative', () => {
+    const judgmentBody = parseExpr('a : b = c')
+    expect(judgmentBody.type).toBe('Definition')
+    expect((judgmentBody as { form: { type: string } }).form.type).toBe('Equality')
+    expect(toMtsSource(judgmentBody)).toBe('a : b = c')
+
+    const nested = parseExpr('a : b : c')
+    expect(nested.type).toBe('Definition')
+    expect((nested as { form: { type: string } }).form.type).toBe('Definition')
+    expect(toMtsSource(nested)).toBe('a : b : c')
   })
 
   it('parses context pronouns and ancestor ascent', () => {
