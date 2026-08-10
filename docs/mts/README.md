@@ -1,52 +1,47 @@
 # МТС в aprover
 
-`aprover` не является нормативным источником теории МТС.
+`aprover` не является нормативным источником теории МТС. Каноническое изложение, root definitions и machine-readable contracts находятся в [`netkeep80/anum_docs`](https://github.com/netkeep80/anum_docs).
 
-Каноническое изложение теории, формальная нотация, root definitions и machine-readable contracts находятся в [`netkeep80/anum_docs`](https://github.com/netkeep80/anum_docs).
-
-Приложение потребляет pinned MTS v0.2 artifacts из `anum_docs` и не вводит собственные аксиомы, грамматику, Anum denotation или proof semantics как конкурирующий канон.
+Приложение потребляет текущий accepted release `mts-contract/v0.5`; единственный публичный proof format — `mts-proof/v0.4`. Собственные аксиомы или compatibility proof semantics здесь не вводятся.
 
 ## Что документируется здесь
 
 Этот каталог описывает только application integration и границы:
 
 - `03-notations/03-string-anum.md` — `.astr` как UTF-8 application adapter;
-- `03-notations/04-quaternary.md` — `.anum` как consumer `anum-raw-carrier/v0.2`.
+- `03-notations/04-quaternary.md` — `.anum` как ANUM transport consumer.
 
-Историю удалённых v0.1 theory/prover pages хранит Git; они не сохраняются как активная compatibility documentation.
+Историю удалённых prover/version pages хранит Git; они не сохраняются как активная compatibility documentation.
 
 ## Runtime boundary
 
 ```text
-anum_docs
-  theory + formal notation
-  mts-contract/v0.2 + conformance
-  Anum L3 contracts + conformance
-  mts-proof/v0.2
-        │
+anum_docs current accepted release
+  mts-contract/v0.5
+  mts-proof/v0.4
+  opening-path + direct-deixis contracts
+  ANUM L3 contracts
+        │ exact pin
         ▼
 aprover
-  lexer/parser consumer
-  canonical AST
+  lexer/parser + canonical AST
   ContextFrame + read-only MemoryView
   InterpretationSession
-  presentation / occurrence-safe graph
   untrusted proof search
-  independent trusted proof replay
+  independent mts-proof/v0.4 replay
 ```
 
-Ключевые правила application boundary:
+Ключевые application invariants:
 
-- `[]` имеет occurrence-local structural identity;
-- `◁` и `▷` — роли текущего контекста, `↑` — подъём к внешнему контексту;
-- canonical projection syntax: `♀F` и `F♂`;
+- `◁` и `▷` задают роли текущего контекста, `↑` — подъём к внешнему контексту;
 - canonical link/inversion/inequality spellings: `⟼`, `¬F`, `!=`;
-- `interpret` read-only и не выполняет implicit `realize`;
-- display label не является semantic identity;
-- `.anum` raw carrier не является denotation;
-- proof search не является trusted semantics: его output обязан проходить independent `checkProof()`;
-- legacy implementation после миграции не сохраняется как compatibility path.
+- interpretation read-only и не выполняет implicit materialization;
+- display label и технический `LinkRef` не создают отдельную semantic identity;
+- `.anum` transport не получает локальную придуманную denotation;
+- proof search не является trusted semantics: его current `mts-proof/v0.4` output обязан проходить independent replay;
+- `mts-proof/v0.2` и `mts-proof/v0.3` не поддерживаются как compatibility formats;
+- legacy implementation после миграции удаляется из рабочего дерева.
 
 ## Нормативное определение
 
-См. `netkeep80/anum_docs`. Pinned contracts в `aprover` являются dependency/provenance boundary, а не отдельным определением МТС.
+См. `netkeep80/anum_docs`. Pinned contracts в `aprover` — dependency/provenance boundary, а не отдельное определение МТС.
