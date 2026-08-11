@@ -1,10 +1,8 @@
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 import { parseExpr } from '../../src/core/parser'
+import { deserializeAnumStream } from '../../src/core/anumDenotation'
 import {
-  ANUM_RAW_CARRIER_SCHEMA,
   cleanQuatAnum,
   describeRawCarrier,
   getQuatAnumStats,
@@ -14,74 +12,50 @@ import {
   visualizeQuatConversion,
 } from '../../src/core/quatAnum'
 
-interface RawCarrierCase {
-  name: string
-  raw: string
-  expected: unknown
-}
-
-interface RawCarrierCorpus {
-  schema: string
-  contract: string
-  status: string
-  cases: RawCarrierCase[]
-}
-
-function loadCorpus(): RawCarrierCorpus {
-  const path = resolve(
-    process.cwd(),
-    'contracts/anum_docs-v0.2/anum-raw-carrier-conformance-v0.2.json'
-  )
-  return JSON.parse(readFileSync(path, 'utf8')) as RawCarrierCorpus
-}
-
-describe('Anum raw-carrier adapter', () => {
-  const corpus = loadCorpus()
-
-  it('is pinned to the accepted upstream raw-carrier contract', () => {
-    expect(ANUM_RAW_CARRIER_SCHEMA).toBe('anum-raw-carrier/v0.2')
-    expect(corpus.contract).toBe(ANUM_RAW_CARRIER_SCHEMA)
-    expect(corpus.status).toBe('accepted')
+describe('Anum quaternary channel presentation adapter', () => {
+  it('uses exactly the four transport abits without a fifth root symbol', () => {
+    expect(isQuatAnumContent('01[]')).toBe(true)
+    expect(isQuatAnumContent('R')).toBe(false)
+    expect(isQuatAnumContent('01x')).toBe(false)
   })
 
-  for (const testCase of corpus.cases) {
-    it(`matches upstream raw carrier: ${testCase.name}`, () => {
-      expect(describeRawCarrier(testCase.raw)).toEqual(testCase.expected)
-    })
-  }
-
-  it('does not impose bracket-denotation rules on the raw carrier', () => {
+  it('keeps lexical channel validation separate from semantic stack validation', () => {
     expect(validateQuatAnum('][')).toEqual({ valid: true })
     expect(describeRawCarrier('][').raw).toBe('][')
-  })
-
-  it('rejects characters outside the four raw abits', () => {
-    expect(isQuatAnumContent('01[]')).toBe(true)
-    expect(isQuatAnumContent('01x')).toBe(false)
+    expect(() => deserializeAnumStream('][')).toThrow(/unexpected-close/)
   })
 
   it('removes only transport whitespace/comments', () => {
     expect(cleanQuatAnum('0 1 // pair\n[ ]')).toBe('01[]')
   })
 
-  it('presents .anum losslessly without inventing L2 denotation', () => {
-    const source = quatAnumFileToMtl('01\n][')
-    expect(source).toContain("'01'.")
-    expect(source).toContain("']['.")
-    expect(source).not.toContain('⟼')
-    expect(source).not.toContain('♂')
-    expect(source).not.toContain('♀')
-    expect(() => parseExpr("'01'")).not.toThrow()
+  it('presents transport positions losslessly without making them Link identities', () => {
+    const carrier = describeRawCarrier('1110')
+    expect(carrier.nodes).toHaveLength(4)
+    expect(carrier.raw).toBe('1110')
+
+    const semantic = deserializeAnumStream(carrier.raw)
+    expect(semantic.resolvedValues).toEqual(['L', 'L', 'L', 'U'])
+    expect(new Set(semantic.resolvedValues)).toEqual(new Set(['L', 'U']))
   })
 
-  it('visualizes carrier construction in protocol roles, not old abit formulas', () => {
-    const steps = visualizeQuatConversion('01')
-    expect(steps.map(step => step.definition)).toEqual(['abit:0', 'abit:1'])
-    expect(steps.map(step => step.formal)).toEqual(["'0'", "'01'"])
-    expect(steps.every(step => !step.description.includes('denotation'))).toBe(true)
+  it('presents .anum losslessly and names current semantic contract separately', () => {
+    const source = quatAnumFileToMtl('10\n[]')
+    expect(source).toContain('anum-stream-deserialization/v0.3')
+    expect(source).toContain("'10'.")
+    expect(source).toContain("'[]'.")
+    expect(source).not.toContain('R⟼')
+    expect(() => parseExpr("'10'")).not.toThrow()
   })
 
-  it('reports raw-carrier counts only', () => {
+  it('visualizes source positions as transport presentation only', () => {
+    const steps = visualizeQuatConversion('10')
+    expect(steps.map(step => step.definition)).toEqual(['abit:1', 'abit:0'])
+    expect(steps.map(step => step.formal)).toEqual(["'1'", "'10'"])
+    expect(steps.every(step => step.description.includes('not semantic identity'))).toBe(true)
+  })
+
+  it('reports channel counts only', () => {
     expect(getQuatAnumStats('001[]')).toEqual({
       abitCount: 5,
       zeroCount: 2,
