@@ -4,22 +4,82 @@
   "contract": "mts-value-bundle/v0.2",
   "accepted": true,
   "elaboration": [
-    {"id": "constraint-nonempty", "source": "{x = y, y != z}", "expectedRole": "ConstraintBundle"},
-    {"id": "value-nonempty", "source": "{x, y}", "expectedRole": "ValueBundle"},
-    {"id": "empty-constraint-entry", "source": "{}", "context": "constraint-entry", "expectedRole": "ConstraintBundle"},
-    {"id": "empty-value-form-position", "source": "{} = x", "bundlePath": [0], "expectedRole": "ValueBundle"},
-    {"id": "empty-definition-default", "source": "x : {}", "bundlePath": [1], "expectedRole": "ConstraintBundle"}
+    {
+      "id": "constraint-nonempty",
+      "source": "{x = y, y != z}",
+      "expectedRole": "ConstraintBundle"
+    },
+    {
+      "id": "value-nonempty",
+      "source": "{x, y}",
+      "expectedRole": "ValueBundle"
+    },
+    {
+      "id": "empty-constraint-entry",
+      "source": "{}",
+      "context": "constraint-entry",
+      "expectedRole": "ConstraintBundle"
+    },
+    {
+      "id": "empty-value-form-position",
+      "source": "{} = x",
+      "bundlePath": [0],
+      "expectedRole": "ValueBundle"
+    },
+    {
+      "id": "empty-definition-default",
+      "source": "x : {}",
+      "bundlePath": [1],
+      "expectedRole": "ConstraintBundle"
+    }
   ],
   "staticRejections": [
-    {"id": "mixed-role", "source": "{x, y = z}", "error": "mixed-bundle-role-evidence"},
-    {"id": "ambiguous-empty", "source": "{{}}", "error": "ambiguous-empty-bundle-role"},
-    {"id": "nested-value", "source": "{{x, y}} = z", "error": "nested-value-bundle-not-supported"},
-    {"id": "value-at-constraint-entry", "source": "{x, y}", "context": "constraint-entry", "error": "bundle-role-mismatch"},
-    {"id": "bundle-valued-definition-deferred", "source": "b : {x, y}", "error": "bundle-valued-definition-deferred"},
-    {"id": "bundle-explicit-link-pole-deferred", "source": "{x, y} ⟼ z", "error": "bundle-not-supported-in-scalar-operator"},
-    {"id": "bundle-projection-deferred", "source": "♀{x, y}", "error": "bundle-not-supported-in-scalar-operator"},
-    {"id": "bundle-inversion-deferred", "source": "¬{x, y}", "error": "bundle-not-supported-in-scalar-operator"},
-    {"id": "bundle-expansion-as-explicit-link-pole-deferred", "source": "a{b, c} ⟼ z", "error": "bundle-not-supported-in-scalar-operator"}
+    {
+      "id": "mixed-role",
+      "source": "{x, y = z}",
+      "error": "mixed-bundle-role-evidence"
+    },
+    {
+      "id": "ambiguous-empty",
+      "source": "{{}}",
+      "error": "ambiguous-empty-bundle-role"
+    },
+    {
+      "id": "nested-value",
+      "source": "{{x, y}} = z",
+      "error": "nested-value-bundle-not-supported"
+    },
+    {
+      "id": "value-at-constraint-entry",
+      "source": "{x, y}",
+      "context": "constraint-entry",
+      "error": "bundle-role-mismatch"
+    },
+    {
+      "id": "bundle-valued-definition-deferred",
+      "source": "b : {x, y}",
+      "error": "bundle-valued-definition-deferred"
+    },
+    {
+      "id": "bundle-explicit-link-pole-deferred",
+      "source": "{x, y} ⟼ z",
+      "error": "bundle-not-supported-in-scalar-operator"
+    },
+    {
+      "id": "bundle-projection-deferred",
+      "source": "♀{x, y}",
+      "error": "bundle-not-supported-in-scalar-operator"
+    },
+    {
+      "id": "bundle-inversion-deferred",
+      "source": "¬{x, y}",
+      "error": "bundle-not-supported-in-scalar-operator"
+    },
+    {
+      "id": "bundle-expansion-as-explicit-link-pole-deferred",
+      "source": "a{b, c} ⟼ z",
+      "error": "bundle-not-supported-in-scalar-operator"
+    }
   ],
   "valueEquality": [
     {
@@ -79,21 +139,73 @@
     }
   ],
   "crossKindComparison": [
-    {"id": "singleton-bundle-vs-scalar", "bundle": "{a}", "scalar": "a", "symbols": {"a": 10}, "bundleSet": [10], "scalarIdentity": 10, "equal": false, "notEqual": true},
-    {"id": "empty-bundle-vs-scalar", "bundle": "{}", "scalar": "a", "symbols": {"a": 10}, "bundleSet": [], "scalarIdentity": 10, "equal": false, "notEqual": true, "context": "form-required"}
+    {
+      "id": "singleton-bundle-vs-scalar",
+      "bundle": "{a}",
+      "scalar": "a",
+      "symbols": {"a": 10},
+      "bundleSet": [10],
+      "scalarIdentity": 10,
+      "equal": false,
+      "notEqual": true
+    },
+    {
+      "id": "empty-bundle-vs-scalar",
+      "bundle": "{}",
+      "scalar": "a",
+      "symbols": {"a": 10},
+      "bundleSet": [],
+      "scalarIdentity": 10,
+      "equal": false,
+      "notEqual": true,
+      "context": "form-required"
+    }
   ],
   "expansionMemory": {
-    "links": {"0": [0, 0], "1": [0, 1], "2": [1, 0], "3": [1, 1]},
+    "links": {
+      "0": [0, 0],
+      "1": [0, 1],
+      "2": [1, 0],
+      "3": [1, 1]
+    },
     "symbols": {"a": 0, "b": 1, "c": 0, "d": 1, "e": 2}
   },
   "expansion": [
-    {"id": "single-to-bundle", "source": "a{c, d}", "expectedLinks": [0, 1]},
-    {"id": "bundle-to-single", "source": "{a, b}d", "expectedLinks": [1, 3]},
-    {"id": "cartesian-existing", "source": "{a, b}{c, d}", "expectedLinks": [0, 1, 2, 3]},
-    {"id": "outgoing-wildcard", "source": "a{}", "expectedLinks": [0, 1]},
-    {"id": "incoming-wildcard", "source": "{}d", "expectedLinks": [1, 3]},
-    {"id": "all-links-wildcard", "source": "{}{}", "expectedLinks": [0, 1, 2, 3]},
-    {"id": "missing-pair-no-realize", "source": "a{e}", "expectedLinks": []}
+    {
+      "id": "single-to-bundle",
+      "source": "a{c, d}",
+      "expectedLinks": [0, 1]
+    },
+    {
+      "id": "bundle-to-single",
+      "source": "{a, b}d",
+      "expectedLinks": [1, 3]
+    },
+    {
+      "id": "cartesian-existing",
+      "source": "{a, b}{c, d}",
+      "expectedLinks": [0, 1, 2, 3]
+    },
+    {
+      "id": "outgoing-wildcard",
+      "source": "a{}",
+      "expectedLinks": [0, 1]
+    },
+    {
+      "id": "incoming-wildcard",
+      "source": "{}d",
+      "expectedLinks": [1, 3]
+    },
+    {
+      "id": "all-links-wildcard",
+      "source": "{}{}",
+      "expectedLinks": [0, 1, 2, 3]
+    },
+    {
+      "id": "missing-pair-no-realize",
+      "source": "a{e}",
+      "expectedLinks": []
+    }
   ],
   "veto": {
     "rootDefinitionsChanged": false,
