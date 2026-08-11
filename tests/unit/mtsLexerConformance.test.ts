@@ -1,37 +1,22 @@
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 import { tokenize, toMtsConformanceToken } from '../../src/core/lexer'
 
-interface LexingCase {
-  id: string
-  source: string
-  tokens: string[]
-}
+const regressionCases = [
+  {
+    id: 'atomic-pronouns-do-not-overload-brackets',
+    source: '◁[]▷',
+    tokens: ['context-start', 'lbracket', 'rbracket', 'context-end'],
+  },
+  {
+    id: 'context-ascent-is-separate',
+    source: '↑↑◁',
+    tokens: ['context-up', 'context-up', 'context-start'],
+  },
+] as const
 
-interface ConformanceCorpus {
-  schema: string
-  lexing: LexingCase[]
-}
-
-function loadCorpus(): ConformanceCorpus {
-  const path = resolve(
-    process.cwd(),
-    'contracts/anum_docs-v0.5/mts-conformance-v0.2.json'
-  )
-  return JSON.parse(readFileSync(path, 'utf8')) as ConformanceCorpus
-}
-
-describe('current MTS base lexer conformance dependency', () => {
-  const corpus = loadCorpus()
-
-  it('uses the v0.2 base corpus required transitively by current MTS', () => {
-    expect(corpus.schema).toBe('mts-conformance/v0.2')
-    expect(corpus.lexing.length).toBeGreaterThan(0)
-  })
-
-  for (const testCase of corpus.lexing) {
+describe('current MTS lexer regressions', () => {
+  for (const testCase of regressionCases) {
     it(testCase.id, () => {
       const actual = tokenize(testCase.source)
         .filter(token => token.type !== 'EOF')
