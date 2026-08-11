@@ -16,13 +16,12 @@ import {
 const bundleRoot = resolve(process.cwd(), 'contracts/anum_docs-v0.5')
 const provenancePath = resolve(bundleRoot, 'provenance.json')
 const contractPath = resolve(bundleRoot, 'mts-contract-v0.5.json')
-const conformancePath = resolve(bundleRoot, 'mts-conformance-v0.5.json')
 const proofPath = resolve(bundleRoot, 'mts-proof-v0.4.json')
 const proofConformancePath = resolve(bundleRoot, 'mts-proof-conformance-v0.4.json')
+const derivationPath = resolve(bundleRoot, 'mts-derivation-base-v0.3.json')
+const derivationConformancePath = resolve(bundleRoot, 'mts-derivation-base-conformance-v0.3.json')
 const openingPath = resolve(bundleRoot, 'mts-opening-path-v0.4.json')
 const openingConformancePath = resolve(bundleRoot, 'mts-opening-path-conformance-v0.4.json')
-const directDeixisPath = resolve(bundleRoot, 'mts-direct-deixis-v0.5.json')
-const directDeixisConformancePath = resolve(bundleRoot, 'mts-direct-deixis-conformance-v0.5.json')
 
 function readJson(path: string): unknown {
   return JSON.parse(readFileSync(path, 'utf8')) as unknown
@@ -56,8 +55,10 @@ interface OpeningCorpus {
 }
 
 interface ProofV04Corpus {
+  baseJudgments: Array<{ id: string; judgment: Record<string, unknown> }>
   invalidArtifacts: Array<{ id: string; artifact: unknown }>
   mixedArtifact: {
+    baseJudgmentId: string
     openingPathId: string
     requiredBothOrdersAccepted: boolean
     orderImpliesDependency: boolean
@@ -91,71 +92,43 @@ function proofArtifact(judgments: readonly unknown[]) {
   }
 }
 
-const currentBaseJudgments: readonly Record<string, unknown>[] = [
-  {
-    relation: 'ContextuallySatisfies',
-    expression: '{◁ = ∞, ▷ = ∞}',
-    context: { start: 1, end: 1, parent: null },
-    symbols: [['∞', 1]],
-    memory: [],
-    expected: { substitutions: [], aliases: [] },
-  },
-  {
-    relation: 'Opens',
-    scopes: [{ path: [], parent: null, definitions: ['a : b'] }],
-    lookupScope: [],
-    target: 'a',
-    expected: { definitionId: { scopePath: [], ordinal: 0 }, body: 'b' },
-  },
-  {
-    relation: 'NoVisibleDefinition',
-    scopes: [{ path: [], parent: null, definitions: [] }],
-    lookupScope: [],
-    target: 'a',
-  },
-  {
-    relation: 'DefinitionConflict',
-    scopes: [{ path: [], parent: null, definitions: ['a : b', 'a : c'] }],
-    lookupScope: [],
-    target: 'a',
-  },
-  { relation: 'NonAddressableDefinitionTarget', target: '[]' },
-]
-
 describe('current anum_docs v0.5 exact pin', () => {
-  it('pins the current upstream release byte-exactly', () => {
+  it('pins the compressed upstream release byte-exactly', () => {
     const provenance = readJson(provenancePath) as {
       sourceRepository: string
       sourceCommit: string
-      artifacts: Record<string, { path: string; gitBlobSha: string }>
+      artifacts: Record<string, { gitBlobSha: string }>
     }
     expect(provenance.sourceRepository).toBe('netkeep80/anum_docs')
-    expect(provenance.sourceCommit).toBe('d131ded6318385b122ed5f2c05691c467023c32d')
+    expect(provenance.sourceCommit).toBe('a0db1738a1943b8e753875d14a4220f250246a21')
 
     const pinned: Array<[string, string]> = [
       [contractPath, provenance.artifacts.contract.gitBlobSha],
-      [conformancePath, provenance.artifacts.conformance.gitBlobSha],
       [proofPath, provenance.artifacts.proof.gitBlobSha],
       [proofConformancePath, provenance.artifacts.proofConformance.gitBlobSha],
+      [derivationPath, provenance.artifacts.derivationBase.gitBlobSha],
+      [derivationConformancePath, provenance.artifacts.derivationBaseConformance.gitBlobSha],
       [openingPath, provenance.artifacts.openingPath.gitBlobSha],
       [openingConformancePath, provenance.artifacts.openingPathConformance.gitBlobSha],
-      [directDeixisPath, provenance.artifacts.directDeixis.gitBlobSha],
-      [directDeixisConformancePath, provenance.artifacts.directDeixisConformance.gitBlobSha],
     ]
     for (const [path, expected] of pinned) expect(gitBlobSha(path)).toBe(expected)
   })
 
-  it('pins exactly six trusted proof relations and no generic composition', () => {
+  it('pins exactly six relations without restoring a historical umbrella dependency', () => {
     const contract = readJson(contractPath) as {
       schema: string
-      l5: { proofSchema: string; trustedRelations: string[]; genericCompositionAccepted: boolean }
-      downstream: {
-        aproverProofRepinAllowed: boolean
-        consumerMayInventAdditionalCompositionRules: boolean
+      l5: {
+        proofSchema: string
+        proofContractVersionTransportTag: string
+        transportTagIsSemanticUmbrellaDependency: boolean
+        trustedRelations: string[]
+        genericCompositionAccepted: boolean
       }
     }
     expect(contract.schema).toBe('mts-contract/v0.5')
     expect(contract.l5.proofSchema).toBe(MTS_PROOF_SCHEMA_V04)
+    expect(contract.l5.proofContractVersionTransportTag).toBe(MTS_PROOF_CONTRACT_VERSION_V04)
+    expect(contract.l5.transportTagIsSemanticUmbrellaDependency).toBe(false)
     expect(contract.l5.trustedRelations).toEqual([
       'ContextuallySatisfies',
       'Opens',
@@ -165,24 +138,26 @@ describe('current anum_docs v0.5 exact pin', () => {
       'DefinitionOpeningPath',
     ])
     expect(contract.l5.genericCompositionAccepted).toBe(false)
-    expect(contract.downstream.aproverProofRepinAllowed).toBe(true)
-    expect(contract.downstream.consumerMayInventAdditionalCompositionRules).toBe(false)
   })
 })
 
 describe('trusted current mts-proof/v0.4 replay', () => {
-  it('replays all five base relation kinds through the v0.4 public API', () => {
-    for (const judgment of currentBaseJudgments) {
-      expect(checkProofV04Data(proofArtifact([judgment])), String(judgment.relation)).toBe(true)
+  it('replays every portable base judgment from the current proof corpus', () => {
+    for (const vector of proofCorpus().baseJudgments) {
+      expect(checkProofV04Data(proofArtifact([vector.judgment])), vector.id).toBe(true)
     }
   })
 
-  it('rejects forged base claims through the v0.4 public API', () => {
-    const forgedOpen = clone(currentBaseJudgments[1])
+  it('rejects forged base claims through the same v0.4 API', () => {
+    const open = proofCorpus().baseJudgments.find(item => item.id === 'opens-direct')
+    const context = proofCorpus().baseJudgments.find(item => item.id === 'contextually-satisfies-aroot')
+    if (open === undefined || context === undefined) throw new Error('missing current base vector')
+
+    const forgedOpen = clone(open.judgment)
     ;((forgedOpen.expected as Record<string, unknown>).body as unknown) = 'c'
     expect(checkProofV04Data(proofArtifact([forgedOpen]))).toBe(false)
 
-    const forgedContext = clone(currentBaseJudgments[0])
+    const forgedContext = clone(context.judgment)
     ;((forgedContext.context as Record<string, unknown>).end as unknown) = 2
     expect(checkProofV04Data(proofArtifact([forgedContext]))).toBe(false)
   })
@@ -208,10 +183,11 @@ describe('trusted current mts-proof/v0.4 replay', () => {
   it('does not give judgment order dependency semantics', () => {
     const mixed = proofCorpus().mixedArtifact
     const opening = openingCorpus().validPaths.find(item => item.id === mixed.openingPathId)
-    if (opening === undefined) throw new Error('missing mixed corpus vector')
-    const base = currentBaseJudgments[1]
-    expect(checkProofV04Data(proofArtifact([base, openingJudgment(opening)]))).toBe(true)
-    expect(checkProofV04Data(proofArtifact([openingJudgment(opening), base]))).toBe(true)
+    const base = proofCorpus().baseJudgments.find(item => item.id === mixed.baseJudgmentId)
+    if (opening === undefined || base === undefined) throw new Error('missing mixed corpus vector')
+
+    expect(checkProofV04Data(proofArtifact([base.judgment, openingJudgment(opening)]))).toBe(true)
+    expect(checkProofV04Data(proofArtifact([openingJudgment(opening), base.judgment]))).toBe(true)
     expect(mixed.requiredBothOrdersAccepted).toBe(true)
     expect(mixed.orderImpliesDependency).toBe(false)
   })
