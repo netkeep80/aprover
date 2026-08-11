@@ -14,6 +14,10 @@ const contractPath = resolve(bundleRoot, 'mts-contract-v0.5.json')
 const conformancePath = resolve(bundleRoot, 'mts-conformance-v0.5.json')
 const proofPath = resolve(bundleRoot, 'mts-proof-v0.4.json')
 const proofConformancePath = resolve(bundleRoot, 'mts-proof-conformance-v0.4.json')
+const baseConformancePath = resolve(bundleRoot, 'mts-conformance-v0.2.json')
+const valueBundlePath = resolve(bundleRoot, 'mts-value-bundle-v0.2.json')
+const valueBundleConformancePath = resolve(bundleRoot, 'mts-value-bundle-conformance-v0.2.json')
+const anumStreamPath = resolve(bundleRoot, 'anum-stream-deserialization-v0.3.json')
 const provenancePath = resolve(bundleRoot, 'provenance.json')
 
 function readJson(path: string): unknown {
@@ -25,7 +29,19 @@ function gitBlobSha(path: string): string {
   return createHash('sha1').update(`blob ${content.byteLength}\0`).update(content).digest('hex')
 }
 
-describe('current pinned MTS release from anum_docs', () => {
+interface ArtifactProvenance {
+  path: string
+  gitBlobSha: string
+  reason?: string
+}
+
+interface Provenance {
+  sourceRepository: string
+  sourceCommit: string
+  artifacts: Record<string, ArtifactProvenance>
+}
+
+describe('current pinned MTS/ANUM release snapshot from anum_docs', () => {
   it('validates only the current v0.5 umbrella and its conformance surface', () => {
     const bundle = validateCurrentMtsRelease(readJson(contractPath), readJson(conformancePath))
 
@@ -63,19 +79,40 @@ describe('current pinned MTS release from anum_docs', () => {
     expect(conformance.downstreamAssertions.aproverMustNotInventAdditionalComposition).toBe(true)
   })
 
-  it('keeps current proof contract and corpus pinned byte-exactly', () => {
-    const provenance = readJson(provenancePath) as {
-      sourceRepository: string
-      sourceCommit: string
-      artifacts: Record<string, { gitBlobSha: string }>
-    }
+  it('pins the one current vendor snapshot byte-exactly', () => {
+    const provenance = readJson(provenancePath) as Provenance
 
     expect(provenance.sourceRepository).toBe('netkeep80/anum_docs')
-    expect(provenance.sourceCommit).toBe('5f985b2abc273efaa6c369781c5ad1e08c282d34')
-    expect(gitBlobSha(contractPath)).toBe(provenance.artifacts.contract.gitBlobSha)
-    expect(gitBlobSha(conformancePath)).toBe(provenance.artifacts.conformance.gitBlobSha)
-    expect(gitBlobSha(proofPath)).toBe(provenance.artifacts.proof.gitBlobSha)
-    expect(gitBlobSha(proofConformancePath)).toBe(provenance.artifacts.proofConformance.gitBlobSha)
+    expect(provenance.sourceCommit).toBe('d131ded6318385b122ed5f2c05691c467023c32d')
+
+    const paths: Record<string, string> = {
+      contract: contractPath,
+      conformance: conformancePath,
+      proof: proofPath,
+      proofConformance: proofConformancePath,
+      baseConformance: baseConformancePath,
+      valueBundle: valueBundlePath,
+      valueBundleConformance: valueBundleConformancePath,
+      anumStreamDeserialization: anumStreamPath,
+    }
+
+    for (const [key, path] of Object.entries(paths)) {
+      expect(gitBlobSha(path), key).toBe(provenance.artifacts[key].gitBlobSha)
+    }
+  })
+
+  it('keeps v0.2 schema ids only where current upstream still requires them', () => {
+    const provenance = readJson(provenancePath) as Provenance
+
+    expect(provenance.artifacts.baseConformance.reason).toContain('transitive current dependency')
+    expect(provenance.artifacts.valueBundle.reason).toContain('current mts-contract/v0.5')
+    expect((readJson(baseConformancePath) as { schema: string }).schema).toBe(
+      'mts-conformance/v0.2'
+    )
+    expect((readJson(valueBundlePath) as { schema: string }).schema).toBe('mts-value-bundle/v0.2')
+    expect((readJson(anumStreamPath) as { schema: string }).schema).toBe(
+      'anum-stream-deserialization/v0.3'
+    )
   })
 
   it('rejects a legacy umbrella instead of treating it as a compatibility release', () => {
