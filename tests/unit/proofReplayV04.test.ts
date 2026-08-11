@@ -130,7 +130,7 @@ describe('current anum_docs v0.5 exact pin', () => {
       artifacts: Record<string, { path: string; gitBlobSha: string }>
     }
     expect(provenance.sourceRepository).toBe('netkeep80/anum_docs')
-    expect(provenance.sourceCommit).toBe('5f985b2abc273efaa6c369781c5ad1e08c282d34')
+    expect(provenance.sourceCommit).toBe('d131ded6318385b122ed5f2c05691c467023c32d')
 
     const pinned: Array<[string, string]> = [
       [contractPath, provenance.artifacts.contract.gitBlobSha],
