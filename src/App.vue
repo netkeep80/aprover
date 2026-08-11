@@ -328,7 +328,7 @@ onUnmounted(() => {
       </div>
     </div>
     <div v-if="showConversion && quatConversionSteps.length" class="conversion-panel">
-      <div v-for="(step, index) in conversionSteps" :key="index" class="conversion-step">
+      <div v-for="(step, index) in quatConversionSteps" :key="index" class="conversion-step">
         <strong>{{ index }}</strong>
         <span>{{ step.description }}</span>
         <code>{{ step.formal }}</code>
