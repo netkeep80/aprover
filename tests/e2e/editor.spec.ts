@@ -147,26 +147,26 @@ test.describe('aprover canonical MTS UI', () => {
     await expect(page.locator('.toolbar-btn[title*="Результаты"]')).toHaveCount(0)
   })
 
-  test('shows read-only Anum denotation for an opened .anum file', async ({ page }) => {
+  test('shows current read-only Anum stream deserialization for an opened .anum file', async ({
+    page,
+  }) => {
     const chooserPromise = page.waitForEvent('filechooser')
     await page.locator('.toolbar-btn[title*="Открыть"]').click()
     const chooser = await chooserPromise
     await chooser.setFiles({
       name: 'sample.anum',
       mimeType: 'text/plain',
-      buffer: Buffer.from('01\n[01]1\n'),
+      buffer: Buffer.from('10\n[]\n'),
     })
 
-    const panel = page.getByLabel('Anum denotation v0.2')
+    const panel = page.getByLabel('Anum stream deserialization v0.3')
     await expect(panel).toBeVisible()
     await expect(panel.locator('.entry')).toHaveCount(2)
-    await expect(panel).toContainText('structural')
-    await expect(panel).toContainText('canonicalRaw')
-    await expect(panel).toContainText('[01]1')
-
-    await panel.getByLabel('Anum denotation context').selectOption('quote')
-    await expect(panel.locator('.kind')).toHaveCount(2)
-    await expect(panel.locator('.kind').first()).toHaveText('quoted-raw')
+    await expect(panel.locator('.result').nth(0)).toHaveText('(L⟼U)')
+    await expect(panel.locator('.result').nth(1)).toHaveText('R')
+    await expect(panel).toContainText('VALUE → VALUE')
+    await expect(panel).toContainText('OPEN → CLOSE')
+    await expect(panel.locator('select')).toHaveCount(0)
     await expect(panel.locator('button')).toHaveCount(0)
   })
 
