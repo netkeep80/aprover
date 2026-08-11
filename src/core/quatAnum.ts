@@ -1,15 +1,15 @@
 /**
- * `.anum` raw-carrier adapter for aprover.
+ * `.anum` lossless channel adapter for aprover.
  *
- * Normative semantics live in the vendored anum_docs contracts. This module
- * implements only the accepted `anum-raw-carrier/v0.2` transport description.
- * It deliberately does NOT assign L2 denotation to individual abits and does
- * not implement recursive denotation locally.
+ * This module only cleans, validates and visualizes the four-character
+ * transport stream. Semantic execution belongs to
+ * `anum-stream-deserialization/v0.3` in `anumDenotation.ts`.
+ * Transport node ids below are presentation positions, never semantic Link
+ * identities.
  */
 
 import { fileToMtl } from './utils'
 
-export const ANUM_RAW_CARRIER_SCHEMA = 'anum-raw-carrier/v0.2' as const
 export const VALID_ABITS = ['0', '1', '[', ']'] as const
 export type AbitChar = (typeof VALID_ABITS)[number]
 
@@ -26,7 +26,7 @@ export class QuatAnumError extends Error {
     public offset: number,
     public char?: string
   ) {
-    super(`Anum raw-carrier error at position ${offset}: ${message}`)
+    super(`Anum channel error at position ${offset}: ${message}`)
     this.name = 'QuatAnumError'
   }
 }
@@ -52,12 +52,14 @@ export interface ValidationResult {
 export type RawCarrierRole = 'root' | `abit:${AbitChar}`
 export type RawCarrierRef = { role: RawCarrierRole } | { node: number }
 
+/** Presentation-only transport node. */
 export interface RawCarrierNode {
   id: number
   start: RawCarrierRef
   end: RawCarrierRef
 }
 
+/** Presentation-only lossless chain; not an MTS semantic network. */
 export interface RawCarrierDescription {
   kind: 'raw-carrier'
   raw: string
@@ -91,9 +93,9 @@ function stripLineComment(line: string): string {
 }
 
 /**
- * Raw carrier validation is intentionally syntax-light: bracket balance is
- * NOT a carrier invariant. Inputs such as `][` are valid raw carriers and are
- * interpreted only by a later, separately contracted denotation layer.
+ * Lexical channel validation only. It deliberately does not validate stack
+ * balance: `][` is representable as raw input but is rejected later by
+ * `deserializeAnumStream()` as an invalid semantic execution.
  */
 export function validateQuatAnum(content: string): ValidationResult {
   for (let index = 0; index < content.length; index++) {
@@ -107,7 +109,7 @@ export function validateQuatAnum(content: string): ValidationResult {
     if (!isValidAbit(char)) {
       return {
         valid: false,
-        error: `Invalid raw abit '${char}'. Only 0, 1, [, ] are allowed.`,
+        error: `Invalid abit '${char}'. Only 0, 1, [, ] are allowed.`,
         errorOffset: index,
       }
     }
@@ -127,7 +129,7 @@ export function cleanQuatAnum(content: string): string {
 export function describeRawCarrier(content: string): RawCarrierDescription {
   const validation = validateQuatAnum(content)
   if (!validation.valid) {
-    throw new QuatAnumError(validation.error ?? 'Invalid raw carrier', validation.errorOffset ?? 0)
+    throw new QuatAnumError(validation.error ?? 'Invalid channel', validation.errorOffset ?? 0)
   }
 
   const raw = cleanQuatAnum(content)
@@ -136,7 +138,7 @@ export function describeRawCarrier(content: string): RawCarrierDescription {
 
   for (let id = 0; id < raw.length; id++) {
     const char = raw[id]
-    if (!isValidAbit(char)) throw new QuatAnumError(`Invalid raw abit '${char}'`, id, char)
+    if (!isValidAbit(char)) throw new QuatAnumError(`Invalid abit '${char}'`, id, char)
     const node: RawCarrierNode = {
       id,
       start: current,
@@ -157,19 +159,12 @@ export function describeRawCarrier(content: string): RawCarrierDescription {
 export function quatAnumToStringAnum(content: string): string {
   const validation = validateQuatAnum(content)
   if (!validation.valid) {
-    throw new QuatAnumError(validation.error ?? 'Invalid raw carrier', validation.errorOffset ?? 0)
+    throw new QuatAnumError(validation.error ?? 'Invalid channel', validation.errorOffset ?? 0)
   }
   return cleanQuatAnum(content)
 }
 
-/**
- * Lossless presentation bridge for the existing editor.
- *
- * The single-quoted value is an AbitLit transport literal. It is not the
- * denotation of the raw carrier and does not expand protocol roles into MTS
- * formulas. Recursive denotation remains solely defined by the pinned L3
- * contracts.
- */
+/** Lossless AbitLit bridge for the editor; no semantic denotation is implied. */
 export function quatAnumFileToMtl(content: string, options: QuatAnumOptions = {}): string {
   const opts = { ...defaultOptions, ...options }
 
@@ -178,9 +173,9 @@ export function quatAnumFileToMtl(content: string, options: QuatAnumOptions = {}
     {
       skipEmptyLines: opts.skipEmptyLines,
       headerLines: [
-        '// Generated from .anum raw carrier',
-        `// Contract: ${ANUM_RAW_CARRIER_SCHEMA}`,
-        '// AbitLit below is lossless transport presentation; no L2 denotation is implied.',
+        '// Generated from .anum quaternary channel',
+        '// Semantic contract: anum-stream-deserialization/v0.3 (executed separately)',
+        '// AbitLit below is lossless transport presentation; no Link identity is implied.',
       ],
     },
     line => cleanQuatAnum(line).length === 0,
@@ -188,7 +183,7 @@ export function quatAnumFileToMtl(content: string, options: QuatAnumOptions = {}
       const raw = cleanQuatAnum(opts.lineAsStatement ? line.trim() : line)
       const validation = validateQuatAnum(raw)
       if (!validation.valid) {
-        throw new QuatAnumError(validation.error ?? 'Invalid raw carrier', validation.errorOffset ?? 0)
+        throw new QuatAnumError(validation.error ?? 'Invalid channel', validation.errorOffset ?? 0)
       }
       return `'${raw}'`
     }
@@ -202,9 +197,9 @@ export function visualizeQuatConversion(content: string): QuatConversionStep[] {
       {
         abit: '',
         index: -1,
-        definition: 'role:root',
+        definition: 'transport:empty',
         formal: "''",
-        description: 'Empty anum raw carrier; no denotation performed',
+        description: 'Empty channel presentation; semantic deserialization is shown separately',
       },
     ]
   }
@@ -216,7 +211,7 @@ export function visualizeQuatConversion(content: string): QuatConversionStep[] {
       index: node.id,
       definition: ABIT_ROLES[abit],
       formal: `'${carrier.raw.slice(0, node.id + 1)}'`,
-      description: `raw-carrier node ${node.id}: append protocol role ${ABIT_ROLES[abit]}`,
+      description: `transport position ${node.id}: ${ABIT_ROLES[abit]} (not semantic identity)`,
     }
   })
 }
