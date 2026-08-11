@@ -18,15 +18,15 @@ interface ConformanceCorpus {
 function loadCorpus(): ConformanceCorpus {
   const path = resolve(
     process.cwd(),
-    'contracts/anum_docs-v0.2/mts-conformance-v0.2.json'
+    'contracts/anum_docs-v0.5/mts-conformance-v0.2.json'
   )
   return JSON.parse(readFileSync(path, 'utf8')) as ConformanceCorpus
 }
 
-describe('MTS v0.2 upstream lexer conformance', () => {
+describe('current MTS base lexer conformance dependency', () => {
   const corpus = loadCorpus()
 
-  it('uses the pinned v0.2 corpus', () => {
+  it('uses the v0.2 base corpus required transitively by current MTS', () => {
     expect(corpus.schema).toBe('mts-conformance/v0.2')
     expect(corpus.lexing.length).toBeGreaterThan(0)
   })
