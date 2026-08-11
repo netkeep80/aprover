@@ -19,15 +19,15 @@ interface ConformanceCorpus {
 function loadCorpus(): ConformanceCorpus {
   const path = resolve(
     process.cwd(),
-    'contracts/anum_docs-v0.2/mts-conformance-v0.2.json'
+    'contracts/anum_docs-v0.5/mts-conformance-v0.2.json'
   )
   return JSON.parse(readFileSync(path, 'utf8')) as ConformanceCorpus
 }
 
-describe('MTS v0.2 upstream canonicalization conformance', () => {
+describe('current MTS base canonicalization dependency', () => {
   const corpus = loadCorpus()
 
-  it('uses canonicalization vectors from the pinned upstream corpus', () => {
+  it('uses the v0.2 base corpus required transitively by current MTS', () => {
     expect(corpus.schema).toBe('mts-conformance/v0.2')
     expect(corpus.canonicalization.length).toBeGreaterThan(0)
   })

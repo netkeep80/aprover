@@ -49,7 +49,7 @@ const openGeneratedProof = (source: string) => {
     <header class="proof-replay-header">
       <div>
         <strong>Trusted proof replay</strong>
-        <span class="proof-replay-subtitle">mts-proof/v0.2 + v0.3 · replay-only</span>
+        <span class="proof-replay-subtitle">mts-proof/v0.4 · current-only replay</span>
       </div>
       <div class="proof-replay-actions">
         <input
@@ -75,13 +75,13 @@ const openGeneratedProof = (source: string) => {
         class="proof-source"
         :value="modelValue"
         spellcheck="false"
-        placeholder="Paste an mts-proof/v0.2 or mts-proof/v0.3 JSON artifact here"
+        placeholder="Paste an mts-proof/v0.4 JSON artifact here"
         @input="updateSource"
       />
 
       <div class="proof-result" :class="`status-${view.status}`">
         <div v-if="view.status === 'empty'" class="proof-empty">
-          Load or paste a proof artifact. The artifact is validated before independent replay.
+          Load or paste a current proof artifact. The artifact is validated before independent replay.
         </div>
 
         <div v-else-if="view.status === 'invalid'" class="proof-invalid">
@@ -99,56 +99,7 @@ const openGeneratedProof = (source: string) => {
             <code>{{ view.contractVersion }}</code>
           </div>
 
-          <div v-if="view.version === 'v0.2'" class="proof-steps">
-            <article v-for="step in view.steps" :key="step.index" class="proof-step">
-              <div class="proof-step-header">
-                <span class="proof-step-number">#{{ step.index }}</span>
-                <code>{{ step.rule }}</code>
-                <span class="step-verdict" :class="{ accepted: step.accepted, rejected: !step.accepted }">
-                  {{ step.accepted ? 'accepted' : 'rejected' }}
-                </span>
-              </div>
-
-              <code class="proof-expression">{{ step.expression }}</code>
-
-              <div class="proof-section">
-                <span class="proof-section-title">Context</span>
-                <div class="context-rows">
-                  <code v-for="frame in step.context" :key="frame.depth">
-                    {{ frame.depth === 0 ? 'current' : `parent↑${frame.depth}` }}:
-                    ◁={{ frame.start }} · ▷={{ frame.end }}
-                  </code>
-                </div>
-              </div>
-
-              <div class="proof-meta">
-                <span>symbols: {{ step.symbolCount }}</span>
-                <span>distinguished links: {{ step.distinguishedLinkCount }}</span>
-              </div>
-
-              <div class="proof-section">
-                <span class="proof-section-title">Expected substitutions</span>
-                <div v-if="step.substitutions.length" class="proof-values">
-                  <code v-for="item in step.substitutions" :key="`${item.occurrence}:${item.link}`">
-                    [] @ {{ item.occurrence }} → LinkRef {{ item.link }}
-                  </code>
-                </div>
-                <span v-else class="proof-none">none</span>
-              </div>
-
-              <div class="proof-section">
-                <span class="proof-section-title">Expected aliases</span>
-                <div v-if="step.aliases.length" class="proof-values">
-                  <code v-for="item in step.aliases" :key="`${item.occurrence}:${item.target}`">
-                    [] @ {{ item.occurrence }} → [] @ {{ item.target }}
-                  </code>
-                </div>
-                <span v-else class="proof-none">none</span>
-              </div>
-            </article>
-          </div>
-
-          <div v-else class="proof-steps proof-judgments" data-testid="proof-v03-judgments">
+          <div class="proof-steps proof-judgments" data-testid="proof-v04-judgments">
             <article v-for="judgment in view.judgments" :key="judgment.index" class="proof-step">
               <div class="proof-step-header">
                 <span class="proof-step-number">#{{ judgment.index }}</span>

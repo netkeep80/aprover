@@ -1,52 +1,53 @@
 # МТС в aprover
 
-`aprover` не является нормативным источником теории МТС.
+`aprover` не является нормативным источником теории МТС. Каноническое изложение, root definitions и machine-readable contracts находятся в [`netkeep80/anum_docs`](https://github.com/netkeep80/anum_docs).
 
-Каноническое изложение теории, формальная нотация, root definitions и machine-readable contracts находятся в [`netkeep80/anum_docs`](https://github.com/netkeep80/anum_docs).
-
-Приложение потребляет pinned MTS v0.2 artifacts из `anum_docs` и не вводит собственные аксиомы, грамматику, Anum denotation или proof semantics как конкурирующий канон.
+Приложение потребляет текущий accepted release `mts-contract/v0.5`; единственный публичный proof format — `mts-proof/v0.4`; current raw/channel ANUM surface — `anum-stream-deserialization/v0.3`. Собственные аксиомы или compatibility semantics здесь не вводятся.
 
 ## Что документируется здесь
 
 Этот каталог описывает только application integration и границы:
 
 - `03-notations/03-string-anum.md` — `.astr` как UTF-8 application adapter;
-- `03-notations/04-quaternary.md` — `.anum` как consumer `anum-raw-carrier/v0.2`.
+- `03-notations/04-quaternary.md` — `.anum` transport presentation + consumer accepted stream v0.3.
 
-Историю удалённых v0.1 theory/prover pages хранит Git; они не сохраняются как активная compatibility documentation.
+Историю удалённых prover/version/ANUM surfaces хранит Git; они не сохраняются как активная compatibility documentation.
 
 ## Runtime boundary
 
 ```text
-anum_docs
-  theory + formal notation
-  mts-contract/v0.2 + conformance
-  Anum L3 contracts + conformance
-  mts-proof/v0.2
-        │
+anum_docs current accepted release
+  mts-contract/v0.5
+  mts-proof/v0.4
+  opening-path + direct-deixis contracts
+  anum-stream-deserialization/v0.3
+        │ exact pin
         ▼
 aprover
-  lexer/parser consumer
-  canonical AST
+  lexer/parser + canonical AST
   ContextFrame + read-only MemoryView
   InterpretationSession
-  presentation / occurrence-safe graph
+  pure ANUM stream deserializer
   untrusted proof search
-  independent trusted proof replay
+  independent mts-proof/v0.4 replay
 ```
 
-Ключевые правила application boundary:
+Ключевые application invariants:
 
-- `[]` имеет occurrence-local structural identity;
-- `◁` и `▷` — роли текущего контекста, `↑` — подъём к внешнему контексту;
-- canonical projection syntax: `♀F` и `F♂`;
+- `◁` и `▷` задают роли текущего контекста, `↑` — подъём к внешнему контексту;
 - canonical link/inversion/inequality spellings: `⟼`, `¬F`, `!=`;
-- `interpret` read-only и не выполняет implicit `realize`;
-- display label не является semantic identity;
-- `.anum` raw carrier не является denotation;
-- proof search не является trusted semantics: его output обязан проходить independent `checkProof()`;
-- legacy implementation после миграции не сохраняется как compatibility path.
+- interpretation read-only и не выполняет implicit materialization;
+- display label и технический `LinkRef` не создают отдельную semantic identity;
+- ANUM имеет ровно четыре абита `[ ] 1 0`, root не является пятым состоянием;
+- `des(ε)=R`, `des([])=R`, semantic Link identity задаётся ordered poles;
+- `.anum` transport-position ids отделены от semantic denotation;
+- proof search не является trusted semantics: его current `mts-proof/v0.4` output обязан проходить independent replay;
+- legacy proof/ANUM implementations после миграции удаляются из рабочего дерева.
+
+## Versioned transitive dependencies
+
+Единый current vendor snapshot может содержать schema с собственным старшим номером `v0.2`, если current upstream release явно продолжает её требовать. Сейчас это base `mts-conformance/v0.2` и accepted flat `mts-value-bundle/v0.2`. Это provenance dependency, а не отдельный runtime/version mode.
 
 ## Нормативное определение
 
-См. `netkeep80/anum_docs`. Pinned contracts в `aprover` являются dependency/provenance boundary, а не отдельным определением МТС.
+См. `netkeep80/anum_docs`. Pinned contracts в `aprover` — dependency/provenance boundary, а не отдельное определение МТС.

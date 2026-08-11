@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-test.describe('aprover canonical MTS v0.2 UI', () => {
+test.describe('aprover canonical MTS UI', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/')
   })
@@ -8,8 +8,9 @@ test.describe('aprover canonical MTS v0.2 UI', () => {
   test('shows the application as a canonical notation consumer', async ({ page }) => {
     await expect(page.locator('h1')).toHaveText('aprover')
     await expect(page.locator('.subtitle')).toContainText('формальной нотации МТС v0.2')
-    await expect(page.locator('.runtime-note')).toContainText('mts-proof/v0.2')
-    await expect(page.locator('.runtime-note')).toContainText('replay-only')
+    await expect(page.locator('.runtime-note')).toContainText('mts-proof/v0.4')
+    await expect(page.locator('.runtime-note')).toContainText('mts-contract/v0.5')
+    await expect(page.locator('.runtime-note')).toContainText('independent replay')
   })
 
   test('loads the canonical v0.2 root instead of legacy A0-A11 examples', async ({ page }) => {
@@ -42,17 +43,18 @@ test.describe('aprover canonical MTS v0.2 UI', () => {
     await expect(page.locator('text=statements verified')).toHaveCount(0)
   })
 
-  test('loads and independently replays an mts-proof/v0.2 artifact', async ({ page }) => {
+  test('loads and independently replays a current mts-proof/v0.4 artifact', async ({ page }) => {
     const artifact = JSON.stringify({
-      schema: 'mts-proof/v0.2',
-      contractVersion: 'mts-contract/v0.2',
-      steps: [
+      proofVersion: 'mts-proof/v0.4',
+      contractVersion: 'mts-contract/v0.4',
+      judgments: [
         {
-          rule: 'interpret',
+          relation: 'ContextuallySatisfies',
           expression: '[] = ◁',
-          context: { start: 10, end: 12 },
+          context: { start: 10, end: 12, parent: null },
+          symbols: [],
+          memory: [],
           expected: {
-            success: true,
             substitutions: [{ path: [0], link: 10 }],
             aliases: [],
           },
@@ -65,26 +67,27 @@ test.describe('aprover canonical MTS v0.2 UI', () => {
     await page.locator('#proof-artifact-source').fill(artifact)
 
     await expect(page.locator('.proof-verdict')).toContainText('REPLAY ACCEPTED')
-    await expect(page.locator('.proof-summary')).toContainText('mts-proof/v0.2')
+    await expect(page.locator('.proof-summary')).toContainText('mts-proof/v0.4')
     await expect(page.locator('.proof-expression')).toContainText('[] = ◁')
     await expect(page.locator('.proof-step')).toContainText('[] @ 0 → LinkRef 10')
   })
 
-  test('separates proof validation errors from replay rejection', async ({ page }) => {
+  test('separates current proof validation errors from replay rejection', async ({ page }) => {
     await page.locator('.proof-replay-toggle').click()
     const source = page.locator('#proof-artifact-source')
 
     await source.fill(
       JSON.stringify({
-        schema: 'mts-proof/v0.2',
-        contractVersion: 'mts-contract/v0.2',
-        steps: [
+        proofVersion: 'mts-proof/v0.4',
+        contractVersion: 'mts-contract/v0.4',
+        judgments: [
           {
-            rule: 'interpret',
+            relation: 'ContextuallySatisfies',
             expression: '[] = ◁',
-            context: { start: 10, end: 12 },
+            context: { start: 10, end: 12, parent: null },
+            symbols: [],
+            memory: [],
             expected: {
-              success: true,
               substitutions: [{ path: [0], link: 12 }],
               aliases: [],
             },
@@ -95,9 +98,12 @@ test.describe('aprover canonical MTS v0.2 UI', () => {
     await expect(page.locator('.proof-verdict')).toContainText('REPLAY REJECTED')
     await expect(page.locator('.proof-invalid')).toHaveCount(0)
 
-    await source.fill('{"schema":"wrong","contractVersion":"mts-contract/v0.2","steps":[]}')
+    await source.fill(
+      '{"proofVersion":"mts-proof/v0.2","contractVersion":"mts-contract/v0.2","steps":[]}'
+    )
     await expect(page.locator('.proof-invalid')).toContainText('Validation error')
-    await expect(page.locator('.proof-invalid')).toContainText('$.schema')
+    await expect(page.locator('.proof-invalid')).toContainText('$.proofVersion')
+    await expect(page.locator('.proof-invalid')).toContainText('mts-proof/v0.4')
     await expect(page.locator('.proof-verdict')).toHaveCount(0)
   })
 
@@ -141,26 +147,26 @@ test.describe('aprover canonical MTS v0.2 UI', () => {
     await expect(page.locator('.toolbar-btn[title*="Результаты"]')).toHaveCount(0)
   })
 
-  test('shows read-only Anum denotation for an opened .anum file', async ({ page }) => {
+  test('shows current read-only Anum stream deserialization for an opened .anum file', async ({
+    page,
+  }) => {
     const chooserPromise = page.waitForEvent('filechooser')
     await page.locator('.toolbar-btn[title*="Открыть"]').click()
     const chooser = await chooserPromise
     await chooser.setFiles({
       name: 'sample.anum',
       mimeType: 'text/plain',
-      buffer: Buffer.from('01\n[01]1\n'),
+      buffer: Buffer.from('10\n[]\n'),
     })
 
-    const panel = page.getByLabel('Anum denotation v0.2')
+    const panel = page.getByLabel('Anum stream deserialization v0.3')
     await expect(panel).toBeVisible()
     await expect(panel.locator('.entry')).toHaveCount(2)
-    await expect(panel).toContainText('structural')
-    await expect(panel).toContainText('canonicalRaw')
-    await expect(panel).toContainText('[01]1')
-
-    await panel.getByLabel('Anum denotation context').selectOption('quote')
-    await expect(panel.locator('.kind')).toHaveCount(2)
-    await expect(panel.locator('.kind').first()).toHaveText('quoted-raw')
+    await expect(panel.locator('.result').nth(0)).toHaveText('(L⟼U)')
+    await expect(panel.locator('.result').nth(1)).toHaveText('R')
+    await expect(panel).toContainText('VALUE → VALUE')
+    await expect(panel).toContainText('OPEN → CLOSE')
+    await expect(panel.locator('select')).toHaveCount(0)
     await expect(panel.locator('button')).toHaveCount(0)
   })
 

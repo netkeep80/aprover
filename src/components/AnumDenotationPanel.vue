@@ -1,45 +1,26 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import {
-  canonicalAnum,
-  denotateAnum,
-  type AnumDenotationContext,
-  type DenotationRef,
-} from '../core/anumDenotation'
+import { computed } from 'vue'
+import { deserializeAnumStream } from '../core/anumDenotation'
 
 const props = defineProps<{
   rawLines: string[]
 }>()
 
-const context = ref<AnumDenotationContext>('root')
-
-const formatRef = (ref: DenotationRef): string =>
-  'anchor' in ref ? `anchor:${ref.anchor}` : `node:${ref.node}`
-
 const entries = computed(() =>
   props.rawLines.map((raw, index) => {
     try {
-      const value = denotateAnum(raw, context.value)
-      let canonicalRaw: string | null = null
-      let inverseError: string | null = null
-
-      if (value.kind === 'structural') {
-        try {
-          canonicalRaw = canonicalAnum(value)
-        } catch (cause) {
-          inverseError = cause instanceof Error ? cause.message : 'Canonical inverse unavailable'
-        }
+      return {
+        index,
+        raw,
+        value: deserializeAnumStream(raw),
+        error: null as string | null,
       }
-
-      return { index, raw, value, canonicalRaw, inverseError, error: null as string | null }
     } catch (cause) {
       return {
         index,
         raw,
         value: null,
-        canonicalRaw: null,
-        inverseError: null,
-        error: cause instanceof Error ? cause.message : 'Denotation failed',
+        error: cause instanceof Error ? cause.message : 'Deserialization failed',
       }
     }
   })
@@ -47,20 +28,12 @@ const entries = computed(() =>
 </script>
 
 <template>
-  <section class="anum-denotation-panel" aria-label="Anum denotation v0.2">
+  <section class="anum-denotation-panel" aria-label="Anum stream deserialization v0.3">
     <header class="denotation-header">
       <div>
-        <strong>Anum denotation v0.2</strong>
-        <span class="boundary">read-only L3 consumer</span>
+        <strong>Anum stream deserialization v0.3</strong>
+        <span class="boundary">pure read-only consumer</span>
       </div>
-      <label class="context-control">
-        Context
-        <select v-model="context" aria-label="Anum denotation context">
-          <option value="root">root</option>
-          <option value="quote">quote</option>
-          <option value="relative">relative</option>
-        </select>
-      </label>
     </header>
 
     <div class="denotation-content">
@@ -69,52 +42,27 @@ const entries = computed(() =>
       <article v-for="entry in entries" :key="`${entry.index}:${entry.raw}`" class="entry">
         <div class="entry-heading">
           <span>line {{ entry.index + 1 }}</span>
-          <code class="source">{{ entry.raw }}</code>
-          <span v-if="entry.value" class="kind">{{ entry.value.kind }}</span>
+          <code class="source">{{ entry.raw || 'ε' }}</code>
+          <span v-if="entry.value" class="kind">semantic-link</span>
         </div>
 
         <div v-if="entry.error" class="error" role="alert">{{ entry.error }}</div>
 
-        <template v-else-if="entry.value?.kind === 'structural'">
-          <dl class="summary">
-            <dt>anchors</dt>
-            <dd><code>{{ entry.value.anchors.join(', ') || 'none' }}</code></dd>
-            <dt>root</dt>
-            <dd><code>{{ formatRef(entry.value.root) }}</code></dd>
-            <dt>canonicalRaw</dt>
-            <dd>
-              <code v-if="entry.canonicalRaw !== null">{{ entry.canonicalRaw }}</code>
-              <span v-else class="muted">not defined for this general IR value</span>
-            </dd>
-          </dl>
-
-          <div v-if="entry.inverseError" class="inverse-note">
-            {{ entry.inverseError }}
-          </div>
-
-          <table v-if="entry.value.nodes.length" class="nodes">
-            <thead>
-              <tr><th>id</th><th>start</th><th>end</th></tr>
-            </thead>
-            <tbody>
-              <tr v-for="node in entry.value.nodes" :key="node.id">
-                <td><code>{{ node.id }}</code></td>
-                <td><code>{{ formatRef(node.start) }}</code></td>
-                <td><code>{{ formatRef(node.end) }}</code></td>
-              </tr>
-            </tbody>
-          </table>
-          <div v-else class="muted">No structural nodes; root is an anchor.</div>
-        </template>
-
         <dl v-else-if="entry.value" class="summary">
-          <dt>payload</dt>
-          <dd><code>{{ entry.value.raw }}</code></dd>
+          <dt>result</dt>
+          <dd><code class="result">{{ entry.value.result }}</code></dd>
+          <dt>resolved</dt>
+          <dd><code>{{ entry.value.resolvedValues.join(', ') || 'none' }}</code></dd>
+          <dt>operations</dt>
+          <dd><code>{{ entry.value.operations.join(' → ') || 'none' }}</code></dd>
+          <dt>maxDepth</dt>
+          <dd><code>{{ entry.value.maxDepth }}</code></dd>
         </dl>
       </article>
 
       <footer class="veto-note">
-        Presentation only — no MemoryView, realize, delete or materialization action.
+        Semantic Link identity is by ordered poles. Source positions and stack frames are not identities;
+        no MemoryView, realize, delete or materialization action is available here.
       </footer>
     </div>
   </section>
@@ -146,26 +94,9 @@ const entries = computed(() =>
 }
 
 .boundary,
-.muted,
-.inverse-note,
 .veto-note {
   color: #64748b;
   font-size: 0.75rem;
-}
-
-.context-control {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  color: #94a3b8;
-}
-
-.context-control select {
-  background: var(--bg-color);
-  color: var(--text-color);
-  border: 1px solid var(--border-color);
-  border-radius: 3px;
-  padding: 0.2rem 0.35rem;
 }
 
 .denotation-content {
@@ -191,7 +122,8 @@ const entries = computed(() =>
   font-size: 0.76rem;
 }
 
-.source {
+.source,
+.result {
   color: #c4b5fd;
 }
 
@@ -217,28 +149,10 @@ const entries = computed(() =>
   min-width: 0;
 }
 
-.nodes {
-  width: 100%;
-  margin-top: 0.55rem;
-  border-collapse: collapse;
-  font-size: 0.73rem;
-}
-
-.nodes th,
-.nodes td {
-  padding: 0.25rem 0.4rem;
-  text-align: left;
-  border-bottom: 1px solid var(--border-color);
-}
-
 .error {
   margin-top: 0.5rem;
   color: var(--error-color);
   font-size: 0.75rem;
-}
-
-.inverse-note {
-  margin-top: 0.4rem;
 }
 
 .empty {

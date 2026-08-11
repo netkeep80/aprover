@@ -6,102 +6,99 @@
 
 ## Архитектурная граница
 
-`aprover` — **consumer**, а не второй нормативный источник МТС.
+`aprover` — **consumer**, а не второй нормативный источник МТС. Каноническая теория, root definitions и machine-readable contracts находятся в [`netkeep80/anum_docs`](https://github.com/netkeep80/anum_docs).
 
-Каноническая теория, root definitions и machine-readable contracts находятся в [`netkeep80/anum_docs`](https://github.com/netkeep80/anum_docs).
+Текущий MTS release pin — `mts-contract/v0.5`. Единственный публичный proof format приложения — `mts-proof/v0.4` с `contractVersion = mts-contract/v0.4`, как требует upstream v0.5 umbrella. Текущий raw/channel ANUM surface — `anum-stream-deserialization/v0.3`.
 
 ```text
-anum_docs
-├── каноническая теория МТС
-├── mts-contract/v0.2 + conformance
-├── Anum L3 contracts + conformance
-├── mts-proof/v0.2
-└── minimal reference core/checker
-        │
+anum_docs current accepted surface
+├── mts-contract/v0.5
+├── mts-proof/v0.4
+├── mts-opening-path/v0.4
+├── mts-direct-deixis/v0.5
+├── anum-stream-deserialization/v0.3
+└── current transitive conformance/value-bundle dependencies
+        │ exact pinned dependency
         ▼
 aprover
-├── pinned upstream artifacts + provenance
 ├── canonical lexer / parser / AST
 ├── read-only contextual interpreter
 ├── immutable ExplicitMemoryView
-├── occurrence-safe visual graph
-├── untrusted proof construction/search
-└── independent proof replay checker
+├── pure ANUM stream deserializer
+├── untrusted proof search
+└── independent mts-proof/v0.4 replay
 ```
 
-Локальные copies в `contracts/anum_docs-v0.2/` закреплены Git blob SHA. Они являются pinned dependencies, а не fork теории.
+Исторические proof/ANUM surfaces не являются compatibility API. История форматов хранится Git/PR/issues, а не параллельными runtime-paths.
 
-## Канонический язык МТС v0.2
+## Формальная нотация
+
+Текущий application parser сохраняет принятую форму контекстной нотации:
 
 ```text
 ◁  — начало текущего контекста
 ▷  — конец текущего контекста
 ↑  — подъём к внешнему контексту
-[] — occurrence-local anonymous form
-
-♀F — форма начала F
-F♂ — форма конца F
+[] — anonymous form
 ```
 
 Canonical binary LinkForm использует `⟼`; inversion — `¬F`; inequality — `!=`. Compatibility spellings `->`, `!->`, bare `!`, `¬=`, `≠`, binary `↛` и `^` не входят в application grammar.
 
-Display label не является semantic identity. `interpret` выполняется read-only и не материализует отсутствующие связи.
+Display label не является semantic identity. Интерпретация read-only: поиск/проверка не материализуют отсутствующие связи.
 
 ## Trusted proof boundary
 
-Старый независимый prover удалён. В production path нет hard-coded A0–A11, lowercase metavariables, global equality rewrite, symmetry/transitivity/congruence или Modus Ponens как неявно trusted правил.
+`src/core/proofReplayV04.ts` — единственная публичная proof boundary. Она принимает только:
 
-`src/core/proofReplay.ts` независимо проверяет `mts-proof/v0.2` proof objects через canonical parser + `InterpretationSession` + immutable `ExplicitMemoryView`. Unknown rules, forged substitutions/aliases, неверная provenance/version и implicit realization отвергаются.
+```text
+proofVersion    = mts-proof/v0.4
+contractVersion = mts-contract/v0.4
+```
 
-`src/core/proofSearch.ts` находится **над** trusted checker: он может строить candidate proof object, но результат считается доказательством только после независимого `checkProof()`.
+Trusted relations задаются upstream contract: `ContextuallySatisfies`, `Opens`, `NoVisibleDefinition`, `DefinitionConflict`, `NonAddressableDefinitionTarget`, `DefinitionOpeningPath`.
+
+Порядок judgments сам по себе не создаёт dependency/composition semantics. Generic transitivity, symmetry, congruence, Modus Ponens, global substitution и implicit realization не добавляются приложением.
+
+`src/core/proofSearch.ts` находится **над** trusted checker. Search может построить candidate `mts-proof/v0.4`, но acceptance определяется только независимым replay.
+
+## ANUM
+
+`src/core/anumDenotation.ts` потребляет accepted `anum-stream-deserialization/v0.3` из `anum_docs`.
+
+Ключевая граница:
+
+```text
+des(ε)  = R
+des([]) = R
+R = R ⟼ R
+```
+
+Алфавит ровно `[ ] 1 0`; `R=∞` не является пятым абитом. Каждый новый stack context начинается с `R`. Непустой вложенный context возвращает `R ⟼ inner` как одно значение внешнему context. Повтор `1110` использует один и тот же semantic `L` в трёх позициях, а не три экземпляра связи.
+
+`semanticLink(A,B)` — чистый semantic constructor по ordered poles. Source positions, stack frames и transport node ids не являются semantic Link identity. `deserializeAnumStream()` не имеет доступа к `MemoryView`, `realize` или `delete`.
+
+`src/core/quatAnum.ts` остаётся только lossless transport-presentation adapter для `.anum`; его позиционные node ids служат UI/transport-представлению и не задают семантику.
+
+## Current pinned snapshot
+
+Все необходимые upstream artifacts лежат в одном каталоге `contracts/anum_docs-v0.5/`. Некоторые **транзитивные текущие dependencies** сохраняют собственный schema id `v0.2`, потому что именно так их публикует текущий upstream release:
+
+- `mts-conformance/v0.2` — base corpus, требуемый current conformance umbrella;
+- `mts-value-bundle/v0.2` и его corpus — accepted flat ValueBundle, явно сохраняемый `mts-contract/v0.5`.
+
+Это не legacy runtime mode и не compatibility implementation. Отдельного `contracts/anum_docs-v0.2/` после cutover нет.
 
 ## Реализованный runtime
 
 - canonical lexer/parser/AST без legacy compatibility grammar;
-- `Round`, `Square`, `Literal`, `ContextPronoun` и occurrence identity по structural AST path;
 - `ContextFrame(start, end, parent)`;
 - immutable `ExplicitMemoryView` и `InterpretationSession`;
-- upstream lexing/canonicalization/interpretation conformance;
-- substitutions / aliases / trace presentation;
-- occurrence-safe link graph;
-- `mts-proof/v0.2` replay checker + untrusted proof search;
+- substitutions / aliases presentation;
+- occurrence-safe визуальная проекция синтаксиса;
+- current `mts-proof/v0.4` replay checker и untrusted proof search;
+- current ANUM stream v0.3 deserializer;
+- current v0.5 upstream snapshot с exact provenance;
 - editor и `.mtl/.astr/.anum` workflow.
-
-## Форматы приложения
-
-- `.mtl` — canonical MTS formal notation;
-- `.astr` — application UTF-8 adapter, который проецирует значение в shared AST и canonical `⟼` syntax; это не вторая грамматика МТС;
-- `.anum` — raw Anum transport consumer `anum-raw-carrier/v0.2`; raw carrier **не является denotation**. Приложение не содержит локальной таблицы значений абит или отдельной recursive semantics.
-
-Полная Anum denotation принадлежит pinned L3 contracts из `anum_docs` (`anum-denotation`, `anum-pair-denotation`, `anum-recursive-denotation` и их conformance corpora).
-
-## Структура
-
-```text
-src/core/
-  ast.ts
-  lexer.ts
-  parser.ts
-  normalizer.ts
-  mtsContract.ts
-  interpreter.ts
-  memoryView.ts
-  interpretationSession.ts
-  proofReplay.ts
-  proofSearch.ts
-  linkGraph.ts
-  stringAnum.ts
-  quatAnum.ts
-
-contracts/anum_docs-v0.2/
-  mts-contract-v0.2.json
-  mts-conformance-v0.2.json
-  mts-proof-v0.2.json
-  anum-*-v0.2.json
-  provenance.json
-```
-
-Историю удалённого v0.1 prover/grammar machinery хранит Git; compatibility implementation в текущем дереве не сохраняется.
 
 ## Разработка
 
@@ -119,16 +116,5 @@ npm test
 npm run build
 npm run test:e2e
 ```
-
-## Roadmap
-
-Программа миграции: [`aprover#107`](https://github.com/netkeep80/aprover/issues/107).
-
-- Phase A — pinned canonical contract: завершена;
-- Phase B — occurrence-safe identity: завершена;
-- Phase C — canonical lexer/AST/parser: завершена;
-- Phase D — contextual interpreter/runtime/presentation: завершена;
-- Phase E — trusted replay + удаление independent prover semantics: завершена;
-- Phase F — proof-object/search UI и дальнейшая application integration поверх independent checker.
 
 Нормативную МТС следует читать в `anum_docs`, а не выводить из implementation `aprover`.

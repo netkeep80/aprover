@@ -32,7 +32,7 @@ import {
 
 const CANONICAL_ROOT = `// МТС v0.2 — каноническая формальная нотация
 // Теория и machine-readable contracts: netkeep80/anum_docs
-// Этот экран разбирает и визуализирует формулы. Trusted proof replay — mts-proof/v0.2.
+// Этот экран разбирает и визуализирует формулы. Trusted proof replay — mts-proof/v0.4.
 
 ∞ : {◁ = ∞, ▷ = ∞}
 () : ♀() ⟼ ()♂
@@ -311,7 +311,7 @@ onUnmounted(() => {
     </header>
 
     <div class="runtime-note">
-      Trusted proof path: <code>mts-proof/v0.2</code> replay-only. Legacy A0–A11/MP semantics удалены; proof search будет строиться только поверх independent checker.
+      Current trusted proof path: <code>mts-proof/v0.4</code> under <code>mts-contract/v0.5</code>. Search строит только current artifact; acceptance всегда определяется independent replay.
     </div>
 
     <ProofReplayPanel

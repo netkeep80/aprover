@@ -40,7 +40,7 @@ interface ConformanceCorpus {
 }
 
 function loadCorpus(): ConformanceCorpus {
-  const path = resolve(process.cwd(), 'contracts/anum_docs-v0.2/mts-conformance-v0.2.json')
+  const path = resolve(process.cwd(), 'contracts/anum_docs-v0.5/mts-conformance-v0.2.json')
   return JSON.parse(readFileSync(path, 'utf8')) as ConformanceCorpus
 }
 
@@ -52,10 +52,10 @@ function contextFrame(spec: ContextSpec): ContextFrame {
   }
 }
 
-describe('MTS v0.2 upstream interpretation conformance', () => {
+describe('current MTS base interpretation dependency', () => {
   const corpus = loadCorpus()
 
-  it('identifies the exact accepted upstream contract', () => {
+  it('identifies the v0.2 base corpus required transitively by current MTS', () => {
     expect(corpus.schema).toBe('mts-conformance/v0.2')
     expect(corpus.contract).toBe('mts-contract/v0.2')
     expect(corpus.status).toBe('accepted')

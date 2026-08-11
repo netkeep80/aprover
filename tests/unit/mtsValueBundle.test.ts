@@ -81,7 +81,7 @@ interface Corpus {
 
 const corpus = JSON.parse(
   readFileSync(
-    resolve(process.cwd(), 'contracts/anum_docs-v0.2/mts-value-bundle-conformance-v0.2.json'),
+    resolve(process.cwd(), 'contracts/anum_docs-v0.5/mts-value-bundle-conformance-v0.2.json'),
     'utf8'
   )
 ) as Corpus
@@ -110,8 +110,8 @@ function setValue(
   )
 }
 
-describe('принятый корпус плоских пучков МТС v0.2', () => {
-  it('потребляет именно принятый upstream-корпус', () => {
+describe('current accepted flat ValueBundle dependency', () => {
+  it('consumes the exact v0.2 schema still required by current MTS v0.5', () => {
     expect(corpus.schema).toBe('mts-value-bundle-conformance/v0.2')
     expect(corpus.contract).toBe('mts-value-bundle/v0.2')
     expect(corpus.status).toBe('accepted')
