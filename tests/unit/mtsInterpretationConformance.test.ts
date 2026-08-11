@@ -1,5 +1,3 @@
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 import { interpretConstraints, type ContextFrame } from '../../src/core/interpreter'
@@ -32,17 +30,101 @@ interface InterpretationCase {
   }
 }
 
-interface ConformanceCorpus {
-  schema: string
-  contract: string
-  status: string
-  interpretation: InterpretationCase[]
-}
-
-function loadCorpus(): ConformanceCorpus {
-  const path = resolve(process.cwd(), 'contracts/anum_docs-v0.5/mts-conformance-v0.2.json')
-  return JSON.parse(readFileSync(path, 'utf8')) as ConformanceCorpus
-}
+const regressionCases: InterpretationCase[] = [
+  {
+    id: 'bind-anonymous-occurrences-to-context-roles',
+    source: '{[] = ◁, [] = ▷}',
+    context: { start: 10, end: 12 },
+    symbols: {},
+    memory: { links: [] },
+    expected: {
+      success: true,
+      substitutions: [
+        { path: [0, 0], link: 10 },
+        { path: [1, 0], link: 12 },
+      ],
+      aliases: [],
+      traceKinds: ['bundle', 'equality', 'context', 'bind', 'equality', 'context', 'bind'],
+    },
+  },
+  {
+    id: 'aroot-full-self-cycle',
+    source: '{◁ = ∞, ▷ = ∞}',
+    context: { start: 1, end: 1 },
+    symbols: { '∞': 1 },
+    memory: { links: [] },
+    expected: {
+      success: true,
+      substitutions: [],
+      aliases: [],
+      traceKinds: ['bundle', 'equality', 'context', 'equality', 'context'],
+    },
+  },
+  {
+    id: 'aroot-rejects-non-self-end',
+    source: '{◁ = ∞, ▷ = ∞}',
+    context: { start: 1, end: 2 },
+    symbols: { '∞': 1 },
+    memory: { links: [] },
+    expected: {
+      success: false,
+      substitutions: [],
+      aliases: [],
+      traceKinds: ['bundle', 'equality', 'context', 'equality', 'context'],
+    },
+  },
+  {
+    id: 'decompose-existing-link-into-two-holes',
+    source: '10 = [] ⟼ []',
+    context: { start: 2, end: 3 },
+    symbols: { '10': 10 },
+    memory: { links: [{ id: 10, start: 2, end: 3 }] },
+    expected: {
+      success: true,
+      substitutions: [
+        { path: [1, 0], link: 2 },
+        { path: [1, 1], link: 3 },
+      ],
+      aliases: [],
+      traceKinds: ['equality', 'decompose', 'bind', 'bind'],
+    },
+  },
+  {
+    id: 'recursive-link-pattern-decomposition',
+    source: '20 = ([] ⟼ []) ⟼ []',
+    context: { start: 2, end: 3 },
+    symbols: { '20': 20 },
+    memory: {
+      links: [
+        { id: 10, start: 2, end: 3 },
+        { id: 20, start: 10, end: 1 },
+      ],
+    },
+    expected: {
+      success: true,
+      substitutions: [
+        { path: [1, 0, 0, 0], link: 2 },
+        { path: [1, 0, 0, 1], link: 3 },
+        { path: [1, 1], link: 1 },
+      ],
+      aliases: [],
+      traceKinds: ['equality', 'decompose', 'decompose', 'bind', 'bind', 'bind'],
+    },
+  },
+  {
+    id: 'two-anonymous-occurrences-alias-locally',
+    source: '[] = []',
+    context: { start: 1, end: 1 },
+    symbols: {},
+    memory: { links: [] },
+    expected: {
+      success: true,
+      substitutions: [],
+      aliases: [{ path: [1], targetPath: [0] }],
+      traceKinds: ['equality', 'alias'],
+    },
+  },
+]
 
 function contextFrame(spec: ContextSpec): ContextFrame {
   return {
@@ -52,17 +134,8 @@ function contextFrame(spec: ContextSpec): ContextFrame {
   }
 }
 
-describe('current MTS base interpretation dependency', () => {
-  const corpus = loadCorpus()
-
-  it('identifies the v0.2 base corpus required transitively by current MTS', () => {
-    expect(corpus.schema).toBe('mts-conformance/v0.2')
-    expect(corpus.contract).toBe('mts-contract/v0.2')
-    expect(corpus.status).toBe('accepted')
-    expect(corpus.interpretation.length).toBeGreaterThan(0)
-  })
-
-  for (const testCase of corpus.interpretation) {
+describe('current MTS interpretation regressions', () => {
+  for (const testCase of regressionCases) {
     it(testCase.id, () => {
       const memory = new ExplicitMemoryView(testCase.memory.links)
       const before = memory.entries()

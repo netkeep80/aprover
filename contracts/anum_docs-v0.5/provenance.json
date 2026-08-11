@@ -1,18 +1,21 @@
 {
   "sourceRepository": "netkeep80/anum_docs",
-  "sourceCommit": "d131ded6318385b122ed5f2c05691c467023c32d",
+  "sourceCommit": "a0db1738a1943b8e753875d14a4220f250246a21",
   "artifacts": {
-    "contract": {"path": "contracts/mts-contract-v0.5.json", "gitBlobSha": "637a717e8ed988cac58571ab5f3ac76c065d445c"},
-    "conformance": {"path": "contracts/mts-conformance-v0.5.json", "gitBlobSha": "f54296a23b649223d79fccd5664cd97556312a59"},
-    "proof": {"path": "contracts/mts-proof-v0.4.json", "gitBlobSha": "5402be3294d17cd386300ea1984d70337d2b3a4f"},
-    "proofConformance": {"path": "contracts/mts-proof-conformance-v0.4.json", "gitBlobSha": "306dd536ec817ff29371dd4e322a2eaa789af5ba"},
-    "openingPath": {"path": "contracts/mts-opening-path-v0.4.json", "gitBlobSha": "3a51955f6dd97d6af7a97aa96b864c4918735c87"},
+    "contract": {"path": "contracts/mts-contract-v0.5.json", "gitBlobSha": "989ec0dcb87486a1239d964b6dc766225ed8b1f0"},
+    "conformance": {"path": "contracts/mts-conformance-v0.5.json", "gitBlobSha": "9c493049d32fc754a8980a80c1174f11ff7e858b"},
+    "anumStreamDeserialization": {"path": "contracts/anum-stream-deserialization-v0.3.json", "gitBlobSha": "92c92c8f33343f162033989b6ec8e4f3485a3273", "reason": "current accepted ANUM stream surface"},
+    "valueBundle": {"path": "contracts/mts-value-bundle-v0.2.json", "gitBlobSha": "fc27f2dc076bce4742f8c5a73e5e5ed5db30a5e2", "reason": "current self-contained accepted surface; v0.2 is its schema id, not a historical umbrella mode"},
+    "valueBundleConformance": {"path": "contracts/mts-value-bundle-conformance-v0.2.json", "gitBlobSha": "ca5a3624f4cf1ab880686807d10d45afbf697670"},
+    "definitionOpening": {"path": "contracts/mts-definition-opening-v0.3.json", "gitBlobSha": "fb348396e96154acbe3fe8a03885c8f3af9b26db"},
+    "definitionOpeningConformance": {"path": "contracts/mts-definition-opening-conformance-v0.3.json", "gitBlobSha": "25e70d11cf1a2c91f0dc30626ae0cb34089a5134"},
+    "derivationBase": {"path": "contracts/mts-derivation-base-v0.3.json", "gitBlobSha": "85566770ff294cb176ee995c98da058e4e69d967"},
+    "derivationBaseConformance": {"path": "contracts/mts-derivation-base-conformance-v0.3.json", "gitBlobSha": "5262b04f7d8d3191c4db9147253130ec07417ab1"},
+    "openingPath": {"path": "contracts/mts-opening-path-v0.4.json", "gitBlobSha": "315ce9656a65ba8029782d58b10b414b7b41a6ef"},
     "openingPathConformance": {"path": "contracts/mts-opening-path-conformance-v0.4.json", "gitBlobSha": "ca1dcc23d208e8f318ac6fb259d56d025ca2a34f"},
-    "directDeixis": {"path": "contracts/mts-direct-deixis-v0.5.json", "gitBlobSha": "64198b6a8a9261a2e0fe42b1a9fc6d1eba557a66"},
-    "directDeixisConformance": {"path": "contracts/mts-direct-deixis-conformance-v0.5.json", "gitBlobSha": "981e31ee6a0c090a02e04464c1a5df69a492c25a"},
-    "baseConformance": {"path": "contracts/mts-conformance-v0.2.json", "gitBlobSha": "96303366a8808d9e67ee548b445fcdbf2233f336", "reason": "transitive current dependency through mts-conformance/v0.3 and v0.4"},
-    "valueBundle": {"path": "contracts/mts-value-bundle-v0.2.json", "gitBlobSha": "1eb385195361e076037c26693fefa38954e0bc7d", "reason": "accepted flat ValueBundle dependency preserved by current mts-contract/v0.5"},
-    "valueBundleConformance": {"path": "contracts/mts-value-bundle-conformance-v0.2.json", "gitBlobSha": "ca5a3624f4cf1ab880686807d10d45afbf697670", "reason": "conformance for current accepted flat ValueBundle dependency"},
-    "anumStreamDeserialization": {"path": "contracts/anum-stream-deserialization-v0.3.json", "gitBlobSha": "92c92c8f33343f162033989b6ec8e4f3485a3273", "reason": "accepted post-reset raw/channel ANUM stream surface from #355/#356"}
+    "proof": {"path": "contracts/mts-proof-v0.4.json", "gitBlobSha": "542d48876c6420020fd3a2d97a980ea5025a59ce"},
+    "proofConformance": {"path": "contracts/mts-proof-conformance-v0.4.json", "gitBlobSha": "d3cafb8179082c109fd32a4f5777be9c30e0aba6"},
+    "directDeixis": {"path": "contracts/mts-direct-deixis-v0.5.json", "gitBlobSha": "116cb9e124214c98054b30c1033e2c1a809042f3"},
+    "directDeixisConformance": {"path": "contracts/mts-direct-deixis-conformance-v0.5.json", "gitBlobSha": "981e31ee6a0c090a02e04464c1a5df69a492c25a"}
   }
 }
