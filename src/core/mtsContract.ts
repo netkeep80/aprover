@@ -1,40 +1,83 @@
 export const CURRENT_MTS_CONTRACT = 'mts-contract/v0.5' as const
 export const CURRENT_MTS_PROOF = 'mts-proof/v0.4' as const
 
-export interface MtsReleaseDependency {
+export const CURRENT_MTS_DEPENDENCIES = [
+  'anum-stream-deserialization/v0.3',
+  'mts-value-bundle/v0.2',
+  'mts-definition-opening/v0.3',
+  'mts-derivation-base/v0.3',
+  'mts-opening-path/v0.4',
+  'mts-proof/v0.4',
+  'mts-direct-deixis/v0.5',
+] as const
+
+export const CURRENT_MTS_SURFACE_ROLES = [
+  'anum-stream-v0.3',
+  'value-bundle-v0.2',
+  'definition-opening-v0.3',
+  'derivation-base-v0.3',
+  'opening-path-v0.4',
+  'proof-v0.4',
+  'direct-deixis-v0.5',
+] as const
+
+export interface MtsAcceptedSurface {
   role: string
-  path: string
+  contractPath: string
   schema: string
-  contract: string
+  conformance?: 'embedded'
+  conformancePath?: string
 }
 
 export interface MtsContractV05 {
   schema: typeof CURRENT_MTS_CONTRACT
   status: 'accepted'
   accepted: true
-  extends: 'mts-contract/v0.4'
-  baseContract: 'contracts/mts-contract-v0.4.json'
+  dependsOn: string[]
   conformanceCorpus: 'contracts/mts-conformance-v0.5.json'
-  dependsOn: ['mts-contract/v0.4', 'mts-opening-path/v0.4', 'mts-proof/v0.4', 'mts-direct-deixis/v0.5']
+  semanticIdentity: {
+    linkIdentity: 'by ordered semantic poles'
+    runtimeHandleIsSemanticIdentity: false
+    sourcePositionIsSemanticIdentity: false
+    samePairCreatesSecondSemanticLink: false
+    root: 'R = R ⟼ R'
+    secondFullySelfClosedRootAllowed: false
+  }
+  anum: {
+    schema: 'anum-stream-deserialization/v0.3'
+    alphabet: ['[', ']', '1', '0']
+    rootIsFifthAbit: false
+    emptyStream: 'R'
+    emptyGroup: 'R'
+    linkIdentityByOrderedPoles: true
+    materializationAcceptedByThisOperation: false
+    existingAsetCarrierSemanticsAccepted: false
+  }
+  memory: {
+    readOperations: string[]
+    effectOperations: ['intern_link', 'delete_link']
+    findEqualsMaterialize: false
+    notFoundImpliesNonExistence: false
+    readOperationsMayMaterialize: false
+  }
   l5: {
     proofSchema: typeof CURRENT_MTS_PROOF
+    proofContractVersionTransportTag: 'mts-contract/v0.4'
+    transportTagIsSemanticUmbrellaDependency: false
     trustedRelations: string[]
     genericCompositionAccepted: false
-  }
-  downstream: {
-    aproverProofRepinAllowed: true
-    requiredProofSchema: typeof CURRENT_MTS_PROOF
-    consumerMayInventAdditionalCompositionRules: false
+    judgmentOrderImpliesDependency: false
+    proofDagDependencyAccepted: false
   }
 }
 
 export interface MtsConformanceV05 {
   schema: 'mts-conformance/v0.5'
   status: 'accepted'
+  accepted: true
   contract: typeof CURRENT_MTS_CONTRACT
-  requiredCorpora: MtsReleaseDependency[]
+  requiredAcceptedSurfaces: MtsAcceptedSurface[]
   releaseAssertions: Record<string, boolean>
-  downstreamAssertions: Record<string, boolean>
 }
 
 export interface MtsContractBundleV05 {
@@ -72,17 +115,40 @@ export function validateMtsContractV05(value: unknown): MtsContractV05 {
   exact(root.schema, CURRENT_MTS_CONTRACT, 'contract.schema')
   exact(root.status, 'accepted', 'contract.status')
   exact(root.accepted, true, 'contract.accepted')
-  exact(root.extends, 'mts-contract/v0.4', 'contract.extends')
-  exact(root.baseContract, 'contracts/mts-contract-v0.4.json', 'contract.baseContract')
+  if ('extends' in root || 'baseContract' in root) {
+    throw new TypeError('current mts-contract/v0.5 must not inherit a historical umbrella')
+  }
   exact(root.conformanceCorpus, 'contracts/mts-conformance-v0.5.json', 'contract.conformanceCorpus')
-  exactArray(
-    root.dependsOn,
-    ['mts-contract/v0.4', 'mts-opening-path/v0.4', 'mts-proof/v0.4', 'mts-direct-deixis/v0.5'],
-    'contract.dependsOn'
-  )
+  exactArray(root.dependsOn, CURRENT_MTS_DEPENDENCIES, 'contract.dependsOn')
+
+  const identity = record(root.semanticIdentity, 'contract.semanticIdentity')
+  exact(identity.linkIdentity, 'by ordered semantic poles', 'contract.semanticIdentity.linkIdentity')
+  exact(identity.runtimeHandleIsSemanticIdentity, false, 'contract.semanticIdentity.runtimeHandleIsSemanticIdentity')
+  exact(identity.sourcePositionIsSemanticIdentity, false, 'contract.semanticIdentity.sourcePositionIsSemanticIdentity')
+  exact(identity.samePairCreatesSecondSemanticLink, false, 'contract.semanticIdentity.samePairCreatesSecondSemanticLink')
+  exact(identity.root, 'R = R ⟼ R', 'contract.semanticIdentity.root')
+  exact(identity.secondFullySelfClosedRootAllowed, false, 'contract.semanticIdentity.secondFullySelfClosedRootAllowed')
+
+  const anum = record(root.anum, 'contract.anum')
+  exact(anum.schema, 'anum-stream-deserialization/v0.3', 'contract.anum.schema')
+  exactArray(anum.alphabet, ['[', ']', '1', '0'], 'contract.anum.alphabet')
+  exact(anum.rootIsFifthAbit, false, 'contract.anum.rootIsFifthAbit')
+  exact(anum.emptyStream, 'R', 'contract.anum.emptyStream')
+  exact(anum.emptyGroup, 'R', 'contract.anum.emptyGroup')
+  exact(anum.linkIdentityByOrderedPoles, true, 'contract.anum.linkIdentityByOrderedPoles')
+  exact(anum.materializationAcceptedByThisOperation, false, 'contract.anum.materializationAcceptedByThisOperation')
+  exact(anum.existingAsetCarrierSemanticsAccepted, false, 'contract.anum.existingAsetCarrierSemanticsAccepted')
+
+  const memory = record(root.memory, 'contract.memory')
+  exactArray(memory.effectOperations, ['intern_link', 'delete_link'], 'contract.memory.effectOperations')
+  exact(memory.findEqualsMaterialize, false, 'contract.memory.findEqualsMaterialize')
+  exact(memory.notFoundImpliesNonExistence, false, 'contract.memory.notFoundImpliesNonExistence')
+  exact(memory.readOperationsMayMaterialize, false, 'contract.memory.readOperationsMayMaterialize')
 
   const l5 = record(root.l5, 'contract.l5')
   exact(l5.proofSchema, CURRENT_MTS_PROOF, 'contract.l5.proofSchema')
+  exact(l5.proofContractVersionTransportTag, 'mts-contract/v0.4', 'contract.l5.proofContractVersionTransportTag')
+  exact(l5.transportTagIsSemanticUmbrellaDependency, false, 'contract.l5.transportTagIsSemanticUmbrellaDependency')
   exactArray(
     l5.trustedRelations,
     [
@@ -96,15 +162,8 @@ export function validateMtsContractV05(value: unknown): MtsContractV05 {
     'contract.l5.trustedRelations'
   )
   exact(l5.genericCompositionAccepted, false, 'contract.l5.genericCompositionAccepted')
-
-  const downstream = record(root.downstream, 'contract.downstream')
-  exact(downstream.aproverProofRepinAllowed, true, 'contract.downstream.aproverProofRepinAllowed')
-  exact(downstream.requiredProofSchema, CURRENT_MTS_PROOF, 'contract.downstream.requiredProofSchema')
-  exact(
-    downstream.consumerMayInventAdditionalCompositionRules,
-    false,
-    'contract.downstream.consumerMayInventAdditionalCompositionRules'
-  )
+  exact(l5.judgmentOrderImpliesDependency, false, 'contract.l5.judgmentOrderImpliesDependency')
+  exact(l5.proofDagDependencyAccepted, false, 'contract.l5.proofDagDependencyAccepted')
 
   return value as MtsContractV05
 }
@@ -116,48 +175,51 @@ export function validateMtsConformanceV05(
   const root = record(value, 'conformance')
   exact(root.schema, 'mts-conformance/v0.5', 'conformance.schema')
   exact(root.status, 'accepted', 'conformance.status')
+  exact(root.accepted, true, 'conformance.accepted')
   exact(root.contract, contract.schema, 'conformance.contract')
 
-  const required = array(root.requiredCorpora, 'conformance.requiredCorpora').map((item, index) => {
-    const dependency = record(item, `conformance.requiredCorpora[${index}]`)
-    for (const key of ['role', 'path', 'schema', 'contract'] as const) {
-      if (typeof dependency[key] !== 'string') {
-        throw new TypeError(`conformance.requiredCorpora[${index}].${key} must be a string`)
+  const surfaces = array(root.requiredAcceptedSurfaces, 'conformance.requiredAcceptedSurfaces').map(
+    (item, index) => {
+      const surface = record(item, `conformance.requiredAcceptedSurfaces[${index}]`)
+      for (const key of ['role', 'contractPath', 'schema'] as const) {
+        if (typeof surface[key] !== 'string') {
+          throw new TypeError(`conformance.requiredAcceptedSurfaces[${index}].${key} must be a string`)
+        }
       }
+      if (surface.conformance !== undefined && surface.conformance !== 'embedded') {
+        throw new TypeError(`conformance.requiredAcceptedSurfaces[${index}].conformance must be embedded`)
+      }
+      if (surface.conformancePath !== undefined && typeof surface.conformancePath !== 'string') {
+        throw new TypeError(`conformance.requiredAcceptedSurfaces[${index}].conformancePath must be a string`)
+      }
+      return surface as unknown as MtsAcceptedSurface
     }
-    return dependency as unknown as MtsReleaseDependency
-  })
-
-  const roles = required.map(item => item.role)
-  exactArray(
-    roles,
-    ['base-v0.4', 'opening-path-v0.4', 'proof-v0.4', 'direct-deixis-v0.5'],
-    'conformance.requiredCorpora roles'
   )
-  const proof = required.find(item => item.role === 'proof-v0.4')
-  if (proof?.schema !== 'mts-proof-conformance/v0.4' || proof.contract !== CURRENT_MTS_PROOF) {
-    throw new TypeError('conformance proof corpus must bind mts-proof/v0.4')
-  }
+
+  exactArray(
+    surfaces.map(surface => surface.role),
+    CURRENT_MTS_SURFACE_ROLES,
+    'conformance.requiredAcceptedSurfaces roles'
+  )
+  exactArray(
+    surfaces.map(surface => surface.schema),
+    CURRENT_MTS_DEPENDENCIES,
+    'conformance.requiredAcceptedSurfaces schemas'
+  )
 
   const release = record(root.releaseAssertions, 'conformance.releaseAssertions')
-  exact(release.allSixProofRelationsReplay, true, 'releaseAssertions.allSixProofRelationsReplay')
-  exact(release.proofSearchRemainsUntrusted, true, 'releaseAssertions.proofSearchRemainsUntrusted')
+  exact(release.historicalUmbrellaIsNormativeParent, false, 'releaseAssertions.historicalUmbrellaIsNormativeParent')
+  exact(release.currentContractHasNoExtendsOrBaseContract, true, 'releaseAssertions.currentContractHasNoExtendsOrBaseContract')
+  exact(release.linkIdentityByOrderedPoles, true, 'releaseAssertions.linkIdentityByOrderedPoles')
+  exact(release.rootIsUniqueFullySelfClosedLink, true, 'releaseAssertions.rootIsUniqueFullySelfClosedLink')
+  exact(release.anumHasExactlyFourAbits, true, 'releaseAssertions.anumHasExactlyFourAbits')
+  exact(release.anumRootIsFifthAbit, false, 'releaseAssertions.anumRootIsFifthAbit')
+  exact(release.anumEmptyStreamIsRoot, true, 'releaseAssertions.anumEmptyStreamIsRoot')
+  exact(release.anumEmptyGroupIsRoot, true, 'releaseAssertions.anumEmptyGroupIsRoot')
+  exact(release.trustedProofRelationsExactlySix, true, 'releaseAssertions.trustedProofRelationsExactlySix')
   exact(release.genericCompositionAccepted, false, 'releaseAssertions.genericCompositionAccepted')
   exact(release.judgmentOrderImpliesDependency, false, 'releaseAssertions.judgmentOrderImpliesDependency')
-
-  const downstream = record(root.downstreamAssertions, 'conformance.downstreamAssertions')
-  exact(downstream.aproverMayPinMtsContractV05, true, 'downstream.aproverMayPinMtsContractV05')
-  exact(downstream.aproverMustPinMtsProofV04, true, 'downstream.aproverMustPinMtsProofV04')
-  exact(
-    downstream.aproverMustReplayAllSixRelationsIndependently,
-    true,
-    'downstream.aproverMustReplayAllSixRelationsIndependently'
-  )
-  exact(
-    downstream.aproverMustNotInventAdditionalComposition,
-    true,
-    'downstream.aproverMustNotInventAdditionalComposition'
-  )
+  exact(release.existingAsetAnumCarrierAccepted, false, 'releaseAssertions.existingAsetAnumCarrierAccepted')
 
   return value as MtsConformanceV05
 }
