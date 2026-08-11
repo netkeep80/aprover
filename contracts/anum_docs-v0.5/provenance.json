@@ -1,6 +1,6 @@
 {
   "sourceRepository": "netkeep80/anum_docs",
-  "sourceCommit": "5f985b2abc273efaa6c369781c5ad1e08c282d34",
+  "sourceCommit": "d131ded6318385b122ed5f2c05691c467023c32d",
   "artifacts": {
     "contract": {"path": "contracts/mts-contract-v0.5.json", "gitBlobSha": "637a717e8ed988cac58571ab5f3ac76c065d445c"},
     "conformance": {"path": "contracts/mts-conformance-v0.5.json", "gitBlobSha": "f54296a23b649223d79fccd5664cd97556312a59"},
@@ -9,6 +9,10 @@
     "openingPath": {"path": "contracts/mts-opening-path-v0.4.json", "gitBlobSha": "3a51955f6dd97d6af7a97aa96b864c4918735c87"},
     "openingPathConformance": {"path": "contracts/mts-opening-path-conformance-v0.4.json", "gitBlobSha": "ca1dcc23d208e8f318ac6fb259d56d025ca2a34f"},
     "directDeixis": {"path": "contracts/mts-direct-deixis-v0.5.json", "gitBlobSha": "64198b6a8a9261a2e0fe42b1a9fc6d1eba557a66"},
-    "directDeixisConformance": {"path": "contracts/mts-direct-deixis-conformance-v0.5.json", "gitBlobSha": "981e31ee6a0c090a02e04464c1a5df69a492c25a"}
+    "directDeixisConformance": {"path": "contracts/mts-direct-deixis-conformance-v0.5.json", "gitBlobSha": "981e31ee6a0c090a02e04464c1a5df69a492c25a"},
+    "baseConformance": {"path": "contracts/mts-conformance-v0.2.json", "gitBlobSha": "96303366a8808d9e67ee548b445fcdbf2233f336", "reason": "transitive current dependency through mts-conformance/v0.3 and v0.4"},
+    "valueBundle": {"path": "contracts/mts-value-bundle-v0.2.json", "gitBlobSha": "1eb385195361e076037c26693fefa38954e0bc7d", "reason": "accepted flat ValueBundle dependency preserved by current mts-contract/v0.5"},
+    "valueBundleConformance": {"path": "contracts/mts-value-bundle-conformance-v0.2.json", "gitBlobSha": "ca5a3624f4cf1ab880686807d10d45afbf697670", "reason": "conformance for current accepted flat ValueBundle dependency"},
+    "anumStreamDeserialization": {"path": "contracts/anum-stream-deserialization-v0.3.json", "gitBlobSha": "92c92c8f33343f162033989b6ec8e4f3485a3273", "reason": "accepted post-reset raw/channel ANUM stream surface from #355/#356"}
   }
 }
