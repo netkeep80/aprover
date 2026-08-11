@@ -3,7 +3,7 @@
  *
  * `anum_docs` остаётся нормативным источником теории и контрактов МТС. Здесь
  * публикуются только единый parser/runtime, текущие consumers и replay-checker;
- * старые совместимые proof API отсутствуют.
+ * старые совместимые proof/ANUM API отсутствуют.
  */
 
 export type {
@@ -195,7 +195,6 @@ export type {
   QuatAnumStats,
 } from './quatAnum'
 export {
-  ANUM_RAW_CARRIER_SCHEMA,
   VALID_ABITS,
   ABIT_ROLES,
   QuatAnumError,
@@ -211,20 +210,17 @@ export {
 } from './quatAnum'
 
 export type {
-  AnumDenotationContext,
-  ProtocolAnchor,
-  DenotationRef,
-  DenotationNode,
-  StructuralAnumDenotation,
-  RawAnumDenotation,
-  QuotedRawAnumDenotation,
-  AnumDenotation,
+  AnumStreamOperation,
+  AnumResolvedValue,
+  SemanticLinkExpression,
+  AnumStreamDenotation,
+  AnumStreamErrorCode,
 } from './anumDenotation'
 export {
-  denotateAnum,
-  validateAnumDenotation,
-  canonicalDenotationJson,
-  canonicalAnum,
+  ANUM_STREAM_DESERIALIZATION_SCHEMA,
+  AnumStreamDeserializationError,
+  semanticLink,
+  deserializeAnumStream,
 } from './anumDenotation'
 
 export type { FileMetadata, SupportedExtension } from './fileIO'
