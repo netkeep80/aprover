@@ -1,121 +1,103 @@
 # `.anum` в aprover
 
-> **Статус:** consumer `anum-raw-carrier/v0.2`. Нормативная denotation находится только в `anum_docs`.
+> **Статус:** consumer accepted `anum-stream-deserialization/v0.3` из `anum_docs`.
 
-`aprover` не определяет собственную семантику абит и не разворачивает `0`, `1`, `[`, `]` в локальные формулы МТС. Канонические contracts закреплены в `contracts/anum_docs-v0.2/` вместе с provenance.
+`aprover` не определяет собственную семантику абит. Нормативный raw/channel stream contract закреплён byte-exact в единственном current snapshot `contracts/anum_docs-v0.5/`.
 
-## Raw carrier
+## Четыре абита и неявный корень
 
-На transport-уровне `.anum` использует четыре символа:
-
-```text
-0  1  [  ]
-```
-
-Accepted contract `anum-raw-carrier/v0.2` задаёт для них protocol roles:
+Transport-алфавит ровно:
 
 ```text
-role:abit:0
-role:abit:1
-role:abit:[
-role:abit:]
+[ ] 1 0
 ```
 
-Конструкция carrier-а:
+`R = ∞` не является пятым передаваемым абитом. Каждый deserialization context автоматически начинается с `R`.
+
+Обязательные следствия current contract:
 
 ```text
-current = role:root
-for each raw abit x:
-    node[i] = Link(current, role:abit:x)
-    current = node[i]
+des(ε)  = R
+des([]) = R
+R = R ⟼ R
 ```
 
-Identity узлов occurrence-local и последовательная. Display glyph не является persistent/global identity.
-
-## Raw carrier не равен denotation
-
-Это принципиальная граница v0.2:
+`1` разрешается в единственную canonical `L`, `0` — в единственную canonical `U`. Повтор позиции не создаёт новую semantic link:
 
 ```text
-raw carrier  ≠  denotation
+1110 -> [L, L, L, U]
 ```
 
-Поэтому application layer **не** вводит таблицу вроде:
+Три позиции `1` используют один semantic `L`.
+
+## Stream interpreter
+
+В **этом конкретном raw/channel interpreter** символы имеют операционные роли:
 
 ```text
-[ = ...
-] = ...
-1 = ...
-0 = ...
+[ -> OPEN
+] -> CLOSE
+1 -> VALUE(L)
+0 -> VALUE(U)
 ```
 
-и не реализует отдельную recursive semantics.
+Это не объявляет `[` и `]` универсальными opcodes всей МТС.
 
-Следующие pinned artifacts принадлежат upstream `anum_docs`:
+Каждый frame хранит `started` и `current`, начально `false` и `R`. Первый `VALUE(v)` делает `current=v`; последующие значения сворачиваются слева через `Link(current,v)`. Пустой `CLOSE` возвращает `R`; непустой возвращает `Link(R,inner)`. Вложенный результат поступает во внешний frame как одно значение.
 
-- `anum-raw-carrier-v0.2.json`;
-- `anum-boundary-projection-v0.2.json`;
-- `anum-denotation-v0.2.json`;
-- `anum-pair-denotation-v0.2.json`;
-- `anum-recursive-denotation-v0.2.json`;
-- соответствующие conformance corpora.
-
-`aprover` обязан потреблять их, а не реконструировать правила независимо.
-
-## Важное следствие: баланс скобок
-
-Баланс `[`/`]` **не является raw-carrier invariant**. Например:
+Примеры:
 
 ```text
-][
+""       -> R
+"1"      -> L
+"10"     -> L ⟼ U
+"[]"     -> R
+"[10]"   -> R ⟼ (L ⟼ U)
+"[[10]]" -> R ⟼ (R ⟼ (L ⟼ U))
 ```
 
-— допустимая последовательность transport abits. Имеет ли она структурную denotation и какую именно — вопрос более позднего contracted L3 layer.
+Незакрытая `[` и неожиданная `]` являются ошибками semantic stream execution.
 
-Следовательно, `src/core/quatAnum.ts` на raw-уровне проверяет только:
+## Semantic identity
 
-- алфавит `0`, `1`, `[`, `]`;
-- whitespace/comments как presentation noise.
+`Link(A,B)` в deserializer — чистый semantic constructor:
 
-Он не пытается интерпретировать скобки.
+```text
+Link(A,B) = Link(C,D) iff A=C and B=D
+```
+
+Поэтому `Link(R,R)=R`. Source offset, stack frame, JavaScript object и UI transport node id не создают вторую связь.
+
+`deserializeAnumStream()` не имеет доступа к `MemoryView`, `realize` или `delete`. Поиск/denotation и materialization остаются разными операциями.
+
+## Transport presentation в UI
+
+`src/core/quatAnum.ts` намеренно уже семантики: это lossless application adapter, который очищает whitespace/comments и сохраняет исходную последовательность четырёх абитов для редактора/визуализации.
+
+Его `RawCarrierNode.id` — только позиционный presentation id. Например `][` можно сохранить как raw transport input, но `deserializeAnumStream('][')` затем отвергнет его как `unexpected-close`.
+
+То есть:
+
+```text
+transport presentation != semantic Link identity
+lexical preservation     != successful deserialization
+```
 
 ## Поведение UI
 
-Для существующего редактора `.anum` показывается lossless как `AbitLit`:
+Панель `Anum stream deserialization v0.3` показывает для каждой строки:
 
-```text
-01   →   '01'
-][   →   ']['
-```
+- semantic result;
+- resolved `L/U` values;
+- последовательность `OPEN/CLOSE/VALUE`;
+- максимальную глубину stack.
 
-Это **presentation bridge**, а не перевод carrier-а в L2 denotation. Поэтому такой вывод не содержит `⟼`, `♀` или `♂` и не претендует на доказательство структуры raw Anum.
-
-Панель conversion показывает последовательное построение raw carrier:
-
-```text
-node 0: role:root → role:abit:0
-node 1: node 0    → role:abit:1
-```
+Occurrence-tree node ids, quote/relative modes и canonical inverse из старого ANUM v0.2 API удалены, а не сохранены как compatibility mode.
 
 ## Исполняемая проверка
 
-`tests/unit/quatAnum.test.ts` выполняет vendored `anum-raw-carrier-conformance-v0.2.json` напрямую. Это veto против расхождения application adapter и upstream contract.
+`tests/unit/anumDenotation.test.ts` непосредственно исполняет embedded conformance vectors vendored `anum-stream-deserialization/v0.3`. `tests/unit/quatAnum.test.ts` отдельно проверяет только lossless transport-presentation boundary.
 
-## Что намеренно отсутствует
+## Deferred boundary
 
-В `aprover` нет локальных:
-
-- `ABIT_DEFINITIONS`;
-- `quatAnumToFormal()` с собственной MTS semantics;
-- `parseAbitToAST()` с hard-coded denotation;
-- implicit `realize`;
-- второго parser-а для MTS;
-- assumptions о global identity абит.
-
-Если приложению понадобится полноценная recursive denotation `.anum`, она должна быть реализована как consumer pinned L3 conformance, отдельным integration slice, без копирования теории.
-
-## См. также
-
-- [`docs/mts/README.md`](../README.md) — граница теории и приложения;
-- [`03-string-anum.md`](03-string-anum.md) — `.astr` application adapter;
-- [`netkeep80/anum_docs`](https://github.com/netkeep80/anum_docs) — нормативная теория и L3 contracts.
+Current v0.3 принимает raw/channel stream input. Вход из уже существующей связи-носителя асети и доказательство его эквивалентности stream execution остаются отдельной задачей `anum_docs#333`; `aprover` не изобретает эту семантику локально.
