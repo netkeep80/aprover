@@ -5,59 +5,51 @@ import { describe, expect, it } from 'vitest'
 
 import AnumDenotationPanel from '../../src/components/AnumDenotationPanel.vue'
 
-describe('AnumDenotationPanel', () => {
-  it('renders structural root denotation and canonical inverse', () => {
-    const wrapper = mount(AnumDenotationPanel, { props: { rawLines: ['01'] } })
+describe('AnumDenotationPanel current stream v0.3', () => {
+  it('shows semantic stream result without occurrence-tree ids', () => {
+    const wrapper = mount(AnumDenotationPanel, { props: { rawLines: ['10'] } })
 
-    expect(wrapper.text()).toContain('Anum denotation v0.2')
-    expect(wrapper.text()).toContain('structural')
-    expect(wrapper.text()).toContain('protocol:0')
-    expect(wrapper.text()).toContain('protocol:1')
-    expect(wrapper.text()).toContain('node:0')
-    expect(wrapper.text()).toContain('canonicalRaw')
-    expect(wrapper.text()).toContain('01')
+    expect(wrapper.text()).toContain('Anum stream deserialization v0.3')
+    expect(wrapper.text()).toContain('semantic-link')
+    expect(wrapper.text()).toContain('(L⟼U)')
+    expect(wrapper.text()).toContain('L, U')
+    expect(wrapper.text()).toContain('VALUE → VALUE')
+    expect(wrapper.text()).not.toContain('node:')
+    expect(wrapper.text()).not.toContain('protocol:')
+    expect(wrapper.find('select').exists()).toBe(false)
   })
 
-  it('renders nested recursive nodes in postorder', () => {
-    const wrapper = mount(AnumDenotationPanel, { props: { rawLines: ['[01]1'] } })
-    const rows = wrapper.findAll('tbody tr')
+  it('renders empty group as root', () => {
+    const wrapper = mount(AnumDenotationPanel, { props: { rawLines: ['[]'] } })
 
-    expect(rows).toHaveLength(2)
-    expect(rows[0].text()).toContain('0')
-    expect(rows[1].text()).toContain('1')
-    expect(wrapper.text()).toContain('[01]1')
+    expect(wrapper.get('.result').text()).toBe('R')
+    expect(wrapper.text()).toContain('OPEN → CLOSE')
   })
 
-  it('switches to quote and relative context through the same core consumer', async () => {
-    const wrapper = mount(AnumDenotationPanel, { props: { rawLines: ['[01]'] } })
-    const select = wrapper.get('select')
+  it('renders non-empty nested root-wrap', () => {
+    const wrapper = mount(AnumDenotationPanel, { props: { rawLines: ['[10]'] } })
 
-    await select.setValue('quote')
-    expect(wrapper.text()).toContain('quoted-raw')
-    expect(wrapper.text()).toContain('01')
-
-    await select.setValue('relative')
-    expect(wrapper.text()).toContain('raw')
-    expect(wrapper.text()).toContain('[01]')
+    expect(wrapper.get('.result').text()).toBe('(R⟼(L⟼U))')
+    expect(wrapper.text()).toContain('maxDepth')
+    expect(wrapper.text()).toContain('1')
   })
 
-  it('renders multiple raw lines independently', () => {
+  it('renders multiple raw lines independently and exposes semantic errors', () => {
     const wrapper = mount(AnumDenotationPanel, {
-      props: { rawLines: ['0', '01', '[['] },
+      props: { rawLines: ['1', '[]', ']'] },
     })
 
     expect(wrapper.findAll('.entry')).toHaveLength(3)
-    expect(wrapper.text()).toContain('line 1')
-    expect(wrapper.text()).toContain('line 2')
-    expect(wrapper.text()).toContain('line 3')
-    expect(wrapper.text()).toContain('raw')
+    expect(wrapper.findAll('.result').map(node => node.text())).toEqual(['L', 'R'])
+    expect(wrapper.get('[role="alert"]').text()).toContain('unexpected-close')
   })
 
-  it('contains no L4 mutation controls', () => {
-    const wrapper = mount(AnumDenotationPanel, { props: { rawLines: ['01'] } })
+  it('contains no L4 mutation controls and states identity boundary', () => {
+    const wrapper = mount(AnumDenotationPanel, { props: { rawLines: ['1110'] } })
 
     expect(wrapper.findAll('button')).toHaveLength(0)
-    expect(wrapper.text()).toContain('Presentation only')
+    expect(wrapper.text()).toContain('ordered poles')
+    expect(wrapper.text()).toContain('not identities')
     expect(wrapper.text()).toContain('no MemoryView')
   })
 })
