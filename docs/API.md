@@ -12,7 +12,7 @@ const expression = parseExpr('[] = ◁')
 console.log(toCanonicalString(expression))
 
 const recovered = parseWithRecovery('[] = ◁')
-console.log(recovered.ast, recovered.errors)
+console.log(recovered.file, recovered.error)
 ```
 
 Canonical link/inversion/inequality spellings are `⟼`, `¬F`, `!=`; legacy aliases are not a compatibility language.
@@ -66,16 +66,7 @@ const proof: MtsProofObjectV04 = {
 console.log(checkProofV04(proof))
 ```
 
-Public replay accepts only:
-
-```text
-proofVersion    = mts-proof/v0.4
-contractVersion = mts-contract/v0.4
-```
-
-The application-level release pin is `mts-contract/v0.5`; its upstream contract explicitly requires this v0.4 proof schema/version pair.
-
-`mts-proof/v0.2` and `mts-proof/v0.3` are not compatibility APIs. Legacy artifacts fail closed at the current replay boundary.
+`mts-proof/v0.2` и `mts-proof/v0.3` не являются compatibility APIs. Legacy artifacts fail closed at the current replay boundary.
 
 ## Untrusted proof search
 
@@ -108,16 +99,40 @@ memory.findLink(2, 3)
 
 Application memory handles are technical references; display labels are not semantic identity.
 
-## Visual graph
+## `.anum`: transport presentation vs semantic deserialization
+
+`.anum` has two deliberately separate application layers.
+
+`quatAnum.ts` is a lossless **transport presentation** adapter:
 
 ```ts
-import { parse, projectStatementsToGraph } from '../src/core/index'
+import { describeRawCarrier } from '../src/core/index'
 
-const file = parse('[] = []')
-const graph = projectStatementsToGraph(file.statements)
+const transport = describeRawCarrier('1110')
+console.log(transport.raw) // 1110
 ```
 
-The graph is a presentation of source structure, not a second semantic identity model.
+Its `node.id` values are source-position/presentation ids only. They are not MTS Link identities.
+
+Semantic execution belongs exclusively to accepted `anum-stream-deserialization/v0.3`:
+
+```ts
+import { deserializeAnumStream, semanticLink } from '../src/core/index'
+
+deserializeAnumStream('').result       // R
+deserializeAnumStream('[]').result     // R
+deserializeAnumStream('10').result     // (L⟼U)
+deserializeAnumStream('[10]').result   // (R⟼(L⟼U))
+deserializeAnumStream('1110').resolvedValues // ['L', 'L', 'L', 'U']
+
+semanticLink('R', 'R') // R
+```
+
+The alphabet is exactly `[ ] 1 0`; `R` is not a fifth abit. `semanticLink()` is a pure constructor by ordered semantic poles. `deserializeAnumStream()` never reads or writes `MemoryView` and exposes no materialization operation.
+
+Lexical transport acceptance and semantic stack validity are separate. For example `describeRawCarrier('][')` can preserve the raw bytes for presentation, while `deserializeAnumStream('][')` rejects with `unexpected-close`.
+
+Removed v0.2 occurrence-tree APIs (`denotateAnum`, `canonicalAnum`, `validateAnumDenotation` and structural node-id IR) are intentionally not compatibility exports.
 
 ## `.astr` adapter
 
@@ -129,26 +144,18 @@ import { stringAnumToFormal } from '../src/core/index'
 stringAnumToFormal('hello')
 ```
 
-## `.anum` adapter
+## Current vendor snapshot
 
-ANUM has its own versioned L3 contracts in `anum_docs`. Their schema versions are independent from the public proof version of `aprover`.
-
-```ts
-import { describeRawCarrier } from '../src/core/index'
-
-describeRawCarrier('01')
-```
-
-The application must not invent local abit denotation or silently reinterpret current ANUM contracts merely to make their version number match `mts-contract/v0.5`.
+Use only `contracts/anum_docs-v0.5/` as the pinned dependency directory. It contains current MTS/proof/ANUM artifacts plus byte-exact transitive schemas still required by current upstream (`mts-conformance/v0.2`, flat `mts-value-bundle/v0.2` and its corpus). The schema suffix does not create a legacy runtime mode.
 
 ## File formats
 
 ```text
 .mtl   MTS formal-notation source
 .astr  application UTF-8 adapter
-.anum  application Anum transport adapter
+.anum  application Anum transport adapter + current v0.3 semantic deserializer
 ```
 
 ## Public entry point
 
-Use `src/core/index.ts`. It exports canonical AST/parser/runtime, the single current `mts-proof/v0.4` replay API, untrusted current-format proof search, and application adapters. Historical proof APIs are intentionally absent.
+Use `src/core/index.ts`. It exports canonical AST/parser/runtime, the single current `mts-proof/v0.4` replay API, untrusted current-format proof search, current ANUM v0.3 semantic deserialization, and application adapters. Historical proof/ANUM APIs are intentionally absent.
