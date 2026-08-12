@@ -51,16 +51,53 @@
     "persistence": "core/foundation_v2_persistent.py"
   },
   "surfaces": {
-    "root": {"referenceCore": "core/foundation_v2_root.py", "effect": "construct/validate explicit rooted kernel"},
-    "source": {"referenceCore": "core/foundation_v2_source.py", "semanticAuthority": "rooted evidence, not AST/token identity"},
-    "state": {"referenceCore": "core/foundation_v2_state.py", "contextFrameAdapterAccepted": false},
-    "interpreter": {"referenceCore": "core/foundation_v2_interpreter.py", "readOnlyReplayMayMaterialize": false},
-    "run": {"referenceCore": "core/foundation_v2_run.py", "readOnlyReplayMayMaterialize": false},
-    "proof": {"referenceCore": "core/foundation_v2_proof.py", "trustedChecker": "core/foundation_v2_checker.py"},
-    "directDeixis": {"schema": "mts-direct-deixis/v0.6", "referenceCore": "core/foundation_v2_direct_deixis.py", "migrationDecision": "cutover/direct-deixis-rooted-migration-decision-v0.1.json", "observableResultSemanticsChangedFromV05": false},
-    "valueBundle": {"schema": "mts-value-bundle/v0.3", "referenceCore": "core/foundation_v2_value_bundle.py", "migrationDecision": "cutover/value-bundle-rooted-migration-decision-v0.1.json", "observableResultSemanticsChangedFromV02": false},
-    "anum": {"schema": "anum-deserialization/v0.4", "streamReferenceCore": "core/anum_protocol.py", "carrierReferenceCore": "core/anum_carrier.py", "materializationReferenceCore": "core/foundation_v2_materialization.py"},
-    "persistence": {"referenceCore": "core/foundation_v2_persistent.py", "runtimeHandleIsPortableIdentity": false, "storageIdIsSemanticIdentity": false}
+    "root": {
+      "referenceCore": "core/foundation_v2_root.py",
+      "effect": "construct/validate explicit rooted kernel"
+    },
+    "source": {
+      "referenceCore": "core/foundation_v2_source.py",
+      "semanticAuthority": "rooted evidence, not AST/token identity"
+    },
+    "state": {
+      "referenceCore": "core/foundation_v2_state.py",
+      "contextFrameAdapterAccepted": false
+    },
+    "interpreter": {
+      "referenceCore": "core/foundation_v2_interpreter.py",
+      "readOnlyReplayMayMaterialize": false
+    },
+    "run": {
+      "referenceCore": "core/foundation_v2_run.py",
+      "readOnlyReplayMayMaterialize": false
+    },
+    "proof": {
+      "referenceCore": "core/foundation_v2_proof.py",
+      "trustedChecker": "core/foundation_v2_checker.py"
+    },
+    "directDeixis": {
+      "schema": "mts-direct-deixis/v0.6",
+      "referenceCore": "core/foundation_v2_direct_deixis.py",
+      "migrationDecision": "cutover/direct-deixis-rooted-migration-decision-v0.1.json",
+      "observableResultSemanticsChangedFromV05": false
+    },
+    "valueBundle": {
+      "schema": "mts-value-bundle/v0.3",
+      "referenceCore": "core/foundation_v2_value_bundle.py",
+      "migrationDecision": "cutover/value-bundle-rooted-migration-decision-v0.1.json",
+      "observableResultSemanticsChangedFromV02": false
+    },
+    "anum": {
+      "schema": "anum-deserialization/v0.4",
+      "streamReferenceCore": "core/anum_protocol.py",
+      "carrierReferenceCore": "core/anum_carrier.py",
+      "materializationReferenceCore": "core/foundation_v2_materialization.py"
+    },
+    "persistence": {
+      "referenceCore": "core/foundation_v2_persistent.py",
+      "runtimeHandleIsPortableIdentity": false,
+      "storageIdIsSemanticIdentity": false
+    }
   },
   "effects": {
     "findEqualsMaterialize": false,
