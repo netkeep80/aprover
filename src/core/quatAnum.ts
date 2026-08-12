@@ -3,7 +3,7 @@
  *
  * This module only cleans, validates and visualizes the four-character
  * transport stream. Semantic execution belongs to
- * `anum-stream-deserialization/v0.3` in `anumDenotation.ts`.
+ * `anum-deserialization/v0.4` in `anumDenotation.ts`.
  * Transport node ids below are presentation positions, never semantic Link
  * identities.
  */
@@ -174,7 +174,7 @@ export function quatAnumFileToMtl(content: string, options: QuatAnumOptions = {}
       skipEmptyLines: opts.skipEmptyLines,
       headerLines: [
         '// Generated from .anum quaternary channel',
-        '// Semantic contract: anum-stream-deserialization/v0.3 (executed separately)',
+        '// Semantic contract: anum-deserialization/v0.4 (executed separately)',
         '// AbitLit below is lossless transport presentation; no Link identity is implied.',
       ],
     },

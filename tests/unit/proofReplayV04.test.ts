@@ -13,15 +13,10 @@ import {
   proofObjectV04ToData,
 } from '../../src/core/proofReplayV04'
 
-const bundleRoot = resolve(process.cwd(), 'contracts/anum_docs-v0.5')
+const bundleRoot = resolve(process.cwd(), 'contracts/anum_docs-v0.6')
 const provenancePath = resolve(bundleRoot, 'provenance.json')
-const contractPath = resolve(bundleRoot, 'mts-contract-v0.5.json')
-const proofPath = resolve(bundleRoot, 'mts-proof-v0.4.json')
-const proofConformancePath = resolve(bundleRoot, 'mts-proof-conformance-v0.4.json')
-const derivationPath = resolve(bundleRoot, 'mts-derivation-base-v0.3.json')
-const derivationConformancePath = resolve(bundleRoot, 'mts-derivation-base-conformance-v0.3.json')
-const openingPath = resolve(bundleRoot, 'mts-opening-path-v0.4.json')
-const openingConformancePath = resolve(bundleRoot, 'mts-opening-path-conformance-v0.4.json')
+const contractPath = resolve(bundleRoot, 'mts-contract-v0.6.json')
+const conformancePath = resolve(bundleRoot, 'mts-conformance-v0.6.json')
 
 function readJson(path: string): unknown {
   return JSON.parse(readFileSync(path, 'utf8')) as unknown
@@ -65,12 +60,18 @@ interface ProofV04Corpus {
   }
 }
 
+interface CurrentConformance {
+  corpora: { openingPath: OpeningCorpus; proof: ProofV04Corpus }
+}
+
+const currentConformance = readJson(conformancePath) as CurrentConformance
+
 function openingCorpus(): OpeningCorpus {
-  return readJson(openingConformancePath) as OpeningCorpus
+  return currentConformance.corpora.openingPath
 }
 
 function proofCorpus(): ProofV04Corpus {
-  return readJson(proofConformancePath) as ProofV04Corpus
+  return currentConformance.corpora.proof
 }
 
 function openingJudgment(vector: OpeningPathVector): Record<string, unknown> {
@@ -92,26 +93,17 @@ function proofArtifact(judgments: readonly unknown[]) {
   }
 }
 
-describe('current anum_docs v0.5 exact pin', () => {
-  it('pins the compressed upstream release byte-exactly', () => {
+describe('current anum_docs v0.6 exact pin', () => {
+  it('pins the two current upstream machine artifacts byte-exactly', () => {
     const provenance = readJson(provenancePath) as {
       sourceRepository: string
       sourceCommit: string
       artifacts: Record<string, { gitBlobSha: string }>
     }
     expect(provenance.sourceRepository).toBe('netkeep80/anum_docs')
-    expect(provenance.sourceCommit).toBe('a0db1738a1943b8e753875d14a4220f250246a21')
-
-    const pinned: Array<[string, string]> = [
-      [contractPath, provenance.artifacts.contract.gitBlobSha],
-      [proofPath, provenance.artifacts.proof.gitBlobSha],
-      [proofConformancePath, provenance.artifacts.proofConformance.gitBlobSha],
-      [derivationPath, provenance.artifacts.derivationBase.gitBlobSha],
-      [derivationConformancePath, provenance.artifacts.derivationBaseConformance.gitBlobSha],
-      [openingPath, provenance.artifacts.openingPath.gitBlobSha],
-      [openingConformancePath, provenance.artifacts.openingPathConformance.gitBlobSha],
-    ]
-    for (const [path, expected] of pinned) expect(gitBlobSha(path)).toBe(expected)
+    expect(provenance.sourceCommit).toBe('614d3ef51889d117b95a4a3a109b6237227d30d8')
+    expect(gitBlobSha(contractPath)).toBe(provenance.artifacts.contract.gitBlobSha)
+    expect(gitBlobSha(conformancePath)).toBe(provenance.artifacts.conformance.gitBlobSha)
   })
 
   it('pins exactly six relations without restoring a historical umbrella dependency', () => {
@@ -125,7 +117,7 @@ describe('current anum_docs v0.5 exact pin', () => {
         genericCompositionAccepted: boolean
       }
     }
-    expect(contract.schema).toBe('mts-contract/v0.5')
+    expect(contract.schema).toBe('mts-contract/v0.6')
     expect(contract.l5.proofSchema).toBe(MTS_PROOF_SCHEMA_V04)
     expect(contract.l5.proofContractVersionTransportTag).toBe(MTS_PROOF_CONTRACT_VERSION_V04)
     expect(contract.l5.transportTagIsSemanticUmbrellaDependency).toBe(false)
@@ -150,7 +142,9 @@ describe('trusted current mts-proof/v0.4 replay', () => {
 
   it('rejects forged base claims through the same v0.4 API', () => {
     const open = proofCorpus().baseJudgments.find(item => item.id === 'opens-direct')
-    const context = proofCorpus().baseJudgments.find(item => item.id === 'contextually-satisfies-aroot')
+    const context = proofCorpus().baseJudgments.find(
+      item => item.id === 'contextually-satisfies-aroot'
+    )
     if (open === undefined || context === undefined) throw new Error('missing current base vector')
 
     const forgedOpen = clone(open.judgment)

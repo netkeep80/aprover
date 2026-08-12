@@ -1,8 +1,8 @@
 # `.anum` в aprover
 
-> **Статус:** consumer accepted `anum-stream-deserialization/v0.3` из `anum_docs`.
+> **Статус:** consumer accepted `anum-deserialization/v0.4` из `anum_docs`.
 
-`aprover` не определяет собственную семантику абит. Нормативный raw/channel stream contract закреплён byte-exact в единственном current snapshot `contracts/anum_docs-v0.5/`.
+`aprover` не определяет собственную семантику абит. Нормативный raw/channel stream contract закреплён byte-exact в единственном current snapshot `contracts/anum_docs-v0.6/`.
 
 ## Четыре абита и неявный корень
 
@@ -85,7 +85,7 @@ lexical preservation     != successful deserialization
 
 ## Поведение UI
 
-Панель `Anum stream deserialization v0.3` показывает для каждой строки:
+Панель `Anum raw transport deserialization v0.4` показывает для каждой строки:
 
 - semantic result;
 - resolved `L/U` values;
@@ -96,7 +96,7 @@ Occurrence-tree node ids, quote/relative modes и canonical inverse из ста�
 
 ## Исполняемая проверка
 
-`tests/unit/anumDenotation.test.ts` непосредственно исполняет embedded conformance vectors vendored `anum-stream-deserialization/v0.3`. `tests/unit/quatAnum.test.ts` отдельно проверяет только lossless transport-presentation boundary.
+`tests/unit/anumDenotation.test.ts` непосредственно исполняет embedded conformance vectors vendored `anum-deserialization/v0.4`. `tests/unit/quatAnum.test.ts` отдельно проверяет только lossless transport-presentation boundary.
 
 ## Deferred boundary
 

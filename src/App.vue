@@ -311,7 +311,7 @@ onUnmounted(() => {
     </header>
 
     <div class="runtime-note">
-      Current trusted proof path: <code>mts-proof/v0.4</code> under <code>mts-contract/v0.5</code>. Search строит только current artifact; acceptance всегда определяется independent replay.
+      Current trusted proof path: <code>mts-proof/v0.4</code> under <code>mts-contract/v0.6</code>. Search строит только current artifact; acceptance всегда определяется independent replay.
     </div>
 
     <ProofReplayPanel

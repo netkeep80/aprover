@@ -5,11 +5,11 @@ import { describe, expect, it } from 'vitest'
 
 import AnumDenotationPanel from '../../src/components/AnumDenotationPanel.vue'
 
-describe('AnumDenotationPanel current stream v0.3', () => {
+describe('AnumDenotationPanel current raw transport v0.4', () => {
   it('shows semantic stream result without occurrence-tree ids', () => {
     const wrapper = mount(AnumDenotationPanel, { props: { rawLines: ['10'] } })
 
-    expect(wrapper.text()).toContain('Anum stream deserialization v0.3')
+    expect(wrapper.text()).toContain('Anum raw transport deserialization v0.4')
     expect(wrapper.text()).toContain('semantic-link')
     expect(wrapper.text()).toContain('(L⟼U)')
     expect(wrapper.text()).toContain('L, U')

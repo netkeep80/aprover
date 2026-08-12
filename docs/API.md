@@ -1,6 +1,6 @@
 # aprover API
 
-`aprover` — application/library consumer нормативной МТС из [`netkeep80/anum_docs`](https://github.com/netkeep80/anum_docs). Текущий release pin приложения — `mts-contract/v0.5`; этот документ описывает только application API и не определяет теорию МТС.
+`aprover` — application/library consumer нормативной МТС из [`netkeep80/anum_docs`](https://github.com/netkeep80/anum_docs). Текущий release pin приложения — `mts-contract/v0.6`; этот документ описывает только application API и не определяет теорию МТС.
 
 ## Canonical source
 
@@ -114,7 +114,7 @@ console.log(transport.raw) // 1110
 
 Its `node.id` values are source-position/presentation ids only. They are not MTS Link identities.
 
-Semantic execution belongs exclusively to accepted `anum-stream-deserialization/v0.3`:
+Semantic execution belongs exclusively to accepted `anum-deserialization/v0.4`:
 
 ```ts
 import { deserializeAnumStream, semanticLink } from '../src/core/index'
@@ -146,7 +146,7 @@ stringAnumToFormal('hello')
 
 ## Current vendor snapshot
 
-Use only `contracts/anum_docs-v0.5/` as the pinned dependency directory. It contains current MTS/proof/ANUM artifacts plus byte-exact transitive schemas still required by current upstream (`mts-conformance/v0.2`, flat `mts-value-bundle/v0.2` and its corpus). The schema suffix does not create a legacy runtime mode.
+Use only `contracts/anum_docs-v0.6/` as the pinned dependency directory. It contains current MTS/proof/ANUM artifacts plus byte-exact transitive schemas still required by current upstream (`mts-conformance/v0.2`, flat `mts-value-bundle/v0.2` and its corpus). The schema suffix does not create a legacy runtime mode.
 
 ## File formats
 

@@ -1,0 +1,17 @@
+{
+  "sourceRepository": "netkeep80/anum_docs",
+  "sourceCommit": "614d3ef51889d117b95a4a3a109b6237227d30d8",
+  "artifacts": {
+    "contract": {
+      "path": "contracts/mts-contract-v0.6.json",
+      "gitBlobSha": "772be46f6ab8866d64177acb8f4be46da714832a",
+      "reason": "exact current-only upstream machine artifact"
+    },
+    "conformance": {
+      "path": "contracts/mts-conformance-v0.6.json",
+      "gitBlobSha": "b8217b66b3212cd51916f30b820c3e30699ed8ab",
+      "reason": "exact current-only upstream machine artifact"
+    }
+  },
+  "vendorPolicy": "only current upstream machine artifacts; no leaf or historical compatibility JSON"
+}

@@ -3,6 +3,7 @@ import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 import {
+  ANUM_DESERIALIZATION_SCHEMA,
   AnumStreamDeserializationError,
   deserializeAnumStream,
   semanticLink,
@@ -23,54 +24,71 @@ interface InvalidCase {
   error: string
 }
 
-interface StreamContract {
+interface AnumCorpus {
   schema: string
   status: string
   accepted: boolean
-  semanticReset: number
-  alphabet: {
-    abits: string[]
-    rootIsFifthAbit: boolean
-  }
-  semanticIdentity: {
-    linkIdentity: string
-    samePairCreatesSecondSemanticLink: boolean
-    repeatedSourcePositionCreatesSecondSemanticLink: boolean
-  }
-  conformance: {
-    valid: ValidCase[]
-    invalid: InvalidCase[]
+  contract: string
+  valid: ValidCase[]
+  invalid: InvalidCase[]
+  raw: { stackSemanticsChangedFromV03: boolean }
+}
+
+interface CurrentConformance {
+  corpora: { anum: AnumCorpus }
+}
+
+interface CurrentContract {
+  surfaces: {
+    anum: {
+      schema: string
+      semanticReset: number
+      alphabet: { abits: string[]; rootIsFifthAbit: boolean }
+      semanticIdentity: {
+        linkIdentity: string
+        samePairCreatesSecondSemanticLink: boolean
+        repeatedSourcePositionCreatesSecondSemanticLink: boolean
+      }
+      transports: { rawChannel: { operation: string } }
+    }
   }
 }
 
+const bundleRoot = resolve(process.cwd(), 'contracts/anum_docs-v0.6')
+const current = JSON.parse(
+  readFileSync(resolve(bundleRoot, 'mts-conformance-v0.6.json'), 'utf8')
+) as CurrentConformance
 const contract = JSON.parse(
-  readFileSync(
-    resolve(process.cwd(), 'contracts/anum_docs-v0.5/anum-stream-deserialization-v0.3.json'),
-    'utf8'
-  )
-) as StreamContract
+  readFileSync(resolve(bundleRoot, 'mts-contract-v0.6.json'), 'utf8')
+) as CurrentContract
+const corpus = current.corpora.anum
+const surface = contract.surfaces.anum
 
-describe('current ANUM stream deserialization v0.3', () => {
-  it('pins the accepted post-reset surface', () => {
-    expect(contract.schema).toBe('anum-stream-deserialization/v0.3')
-    expect(contract.status).toBe('accepted')
-    expect(contract.accepted).toBe(true)
-    expect(contract.semanticReset).toBe(343)
-    expect(contract.alphabet.abits).toEqual(['[', ']', '1', '0'])
-    expect(contract.alphabet.rootIsFifthAbit).toBe(false)
-    expect(contract.semanticIdentity.linkIdentity).toBe('by ordered semantic poles')
-    expect(contract.semanticIdentity.samePairCreatesSecondSemanticLink).toBe(false)
-    expect(contract.semanticIdentity.repeatedSourcePositionCreatesSecondSemanticLink).toBe(false)
+describe('current ANUM raw transport inside deserialization v0.4', () => {
+  it('pins the accepted post-reset raw transport without changing v0.3 stack semantics', () => {
+    expect(ANUM_DESERIALIZATION_SCHEMA).toBe('anum-deserialization/v0.4')
+    expect(surface.schema).toBe(ANUM_DESERIALIZATION_SCHEMA)
+    expect(surface.semanticReset).toBe(343)
+    expect(surface.alphabet.abits).toEqual(['[', ']', '1', '0'])
+    expect(surface.alphabet.rootIsFifthAbit).toBe(false)
+    expect(surface.semanticIdentity.linkIdentity).toBe('by ordered semantic poles')
+    expect(surface.semanticIdentity.samePairCreatesSecondSemanticLink).toBe(false)
+    expect(surface.semanticIdentity.repeatedSourcePositionCreatesSecondSemanticLink).toBe(false)
+    expect(surface.transports.rawChannel.operation).toBe('deserialize_stream')
+    expect(corpus.schema).toBe('anum-deserialization-conformance/v0.4')
+    expect(corpus.status).toBe('accepted')
+    expect(corpus.accepted).toBe(true)
+    expect(corpus.contract).toBe('anum-deserialization/v0.4')
+    expect(corpus.raw.stackSemanticsChangedFromV03).toBe(false)
   })
 
-  for (const testCase of contract.conformance.valid) {
+  for (const testCase of corpus.valid) {
     it(`executes ${testCase.id}`, () => {
       const actual = deserializeAnumStream(testCase.source)
       expect(actual.result).toBe(testCase.expectedDenotation)
       expect(actual.operations).toEqual(testCase.expectedOperations)
-      if (testCase.expectedResolvedValues) {
+      if (testCase.expectedResolvedValues)
         expect(actual.resolvedValues).toEqual(testCase.expectedResolvedValues)
-      }
       if (testCase.expectedDistinctRootRefs) {
         expect([...new Set(actual.resolvedValues)].sort()).toEqual(
           [...testCase.expectedDistinctRootRefs].sort()
@@ -79,7 +97,7 @@ describe('current ANUM stream deserialization v0.3', () => {
     })
   }
 
-  for (const testCase of contract.conformance.invalid) {
+  for (const testCase of corpus.invalid) {
     it(`rejects ${testCase.id}`, () => {
       try {
         deserializeAnumStream(testCase.source)
