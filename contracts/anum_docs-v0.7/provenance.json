@@ -1,0 +1,25 @@
+{
+  "sourceRepository": "https://github.com/netkeep80/anum_docs",
+  "sourceCommit": "f9075d531ff7ed7e07da012bf350ca1af5ba516a",
+  "release": "mts-contract/v0.7",
+  "artifacts": [
+    {
+      "path": "contracts/mts-contract-v0.7.json",
+      "vendoredPath": "contracts/anum_docs-v0.7/mts-contract-v0.7.json",
+      "gitBlobSha": "25574d7215fe004ae710c20c2f4249b3367b9648",
+      "schema": "mts-contract/v0.7"
+    },
+    {
+      "path": "contracts/mts-conformance-v0.7.json",
+      "vendoredPath": "contracts/anum_docs-v0.7/mts-conformance-v0.7.json",
+      "gitBlobSha": "99a72fa16e6f236b19ed75d3039061b209f9efdb",
+      "schema": "mts-conformance/v0.7"
+    },
+    {
+      "path": "cutover/foundation-v2-c9-acceptance-v0.1.json",
+      "vendoredPath": "contracts/anum_docs-v0.7/foundation-v2-c9-acceptance-v0.1.json",
+      "gitBlobSha": "2e0569faea4e9ba9af869a5092a6a33f0ef04266",
+      "schema": "foundation-v2-c9-acceptance/v0.1"
+    }
+  ]
+}
