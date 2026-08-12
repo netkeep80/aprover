@@ -1,0 +1,78 @@
+name: agent-v07-provenance
+
+on:
+  push:
+    branches:
+      - agent/mts-v07-repin
+
+permissions:
+  contents: write
+
+jobs:
+  provenance:
+    if: github.event.head_commit.message != 'Generate MTS v0.7 provenance'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/mts-v07-repin
+          fetch-depth: 0
+
+      - name: Fetch exact upstream commit
+        run: |
+          git clone --quiet --no-checkout https://github.com/netkeep80/anum_docs.git /tmp/anum_docs
+          git -C /tmp/anum_docs checkout --quiet f9075d531ff7ed7e07da012bf350ca1af5ba516a
+
+      - name: Verify byte-exact vendoring and generate provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          local_dir=contracts/anum_docs-v0.7
+          upstream=/tmp/anum_docs
+
+          cmp "$local_dir/mts-contract-v0.7.json" "$upstream/contracts/mts-contract-v0.7.json"
+          cmp "$local_dir/mts-conformance-v0.7.json" "$upstream/contracts/mts-conformance-v0.7.json"
+          cmp "$local_dir/foundation-v2-c9-acceptance-v0.1.json" "$upstream/cutover/foundation-v2-c9-acceptance-v0.1.json"
+
+          contract_sha=$(git -C "$upstream" hash-object contracts/mts-contract-v0.7.json)
+          conformance_sha=$(git -C "$upstream" hash-object contracts/mts-conformance-v0.7.json)
+          acceptance_sha=$(git -C "$upstream" hash-object cutover/foundation-v2-c9-acceptance-v0.1.json)
+
+          cat > "$local_dir/provenance.json" <<EOF
+          {
+            "sourceRepository": "https://github.com/netkeep80/anum_docs",
+            "sourceCommit": "f9075d531ff7ed7e07da012bf350ca1af5ba516a",
+            "release": "mts-contract/v0.7",
+            "artifacts": [
+              {
+                "path": "contracts/mts-contract-v0.7.json",
+                "vendoredPath": "contracts/anum_docs-v0.7/mts-contract-v0.7.json",
+                "gitBlobSha": "$contract_sha",
+                "schema": "mts-contract/v0.7"
+              },
+              {
+                "path": "contracts/mts-conformance-v0.7.json",
+                "vendoredPath": "contracts/anum_docs-v0.7/mts-conformance-v0.7.json",
+                "gitBlobSha": "$conformance_sha",
+                "schema": "mts-conformance/v0.7"
+              },
+              {
+                "path": "cutover/foundation-v2-c9-acceptance-v0.1.json",
+                "vendoredPath": "contracts/anum_docs-v0.7/foundation-v2-c9-acceptance-v0.1.json",
+                "gitBlobSha": "$acceptance_sha",
+                "schema": "foundation-v2-c9-acceptance/v0.1"
+              }
+            ]
+          }
+          EOF
+
+      - name: Commit generated provenance
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add contracts/anum_docs-v0.7/provenance.json
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m 'Generate MTS v0.7 provenance'
+          git push origin HEAD:agent/mts-v07-repin
