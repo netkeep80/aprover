@@ -8,15 +8,15 @@
 
 `aprover` — **consumer**, а не второй нормативный источник МТС. Каноническая теория, root definitions и machine-readable contracts находятся в [`netkeep80/anum_docs`](https://github.com/netkeep80/anum_docs).
 
-Текущий MTS release pin — `mts-contract/v0.5`. Единственный публичный proof format приложения — `mts-proof/v0.4` с `contractVersion = mts-contract/v0.4`, как требует upstream v0.5 umbrella. Текущий raw/channel ANUM surface — `anum-stream-deserialization/v0.3`.
+Текущий MTS release pin — `mts-contract/v0.6`. Единственный публичный proof format приложения — `mts-proof/v0.4` с `contractVersion = mts-contract/v0.4`, как требует upstream v0.5 umbrella. Текущий raw/channel ANUM surface — `anum-deserialization/v0.4`.
 
 ```text
 anum_docs current accepted surface
-├── mts-contract/v0.5
+├── mts-contract/v0.6
 ├── mts-proof/v0.4
 ├── mts-opening-path/v0.4
 ├── mts-direct-deixis/v0.5
-├── anum-stream-deserialization/v0.3
+├── anum-deserialization/v0.4
 └── current transitive conformance/value-bundle dependencies
         │ exact pinned dependency
         ▼
@@ -63,7 +63,7 @@ Trusted relations задаются upstream contract: `ContextuallySatisfies`, `
 
 ## ANUM
 
-`src/core/anumDenotation.ts` потребляет accepted `anum-stream-deserialization/v0.3` из `anum_docs`.
+`src/core/anumDenotation.ts` потребляет accepted `anum-deserialization/v0.4` из `anum_docs`.
 
 Ключевая граница:
 
@@ -81,10 +81,10 @@ R = R ⟼ R
 
 ## Current pinned snapshot
 
-Все необходимые upstream artifacts лежат в одном каталоге `contracts/anum_docs-v0.5/`. Некоторые **транзитивные текущие dependencies** сохраняют собственный schema id `v0.2`, потому что именно так их публикует текущий upstream release:
+Все необходимые upstream artifacts лежат в одном каталоге `contracts/anum_docs-v0.6/`. Некоторые **транзитивные текущие dependencies** сохраняют собственный schema id `v0.2`, потому что именно так их публикует текущий upstream release:
 
 - `mts-conformance/v0.2` — base corpus, требуемый current conformance umbrella;
-- `mts-value-bundle/v0.2` и его corpus — accepted flat ValueBundle, явно сохраняемый `mts-contract/v0.5`.
+- `mts-value-bundle/v0.2` и его corpus — accepted flat ValueBundle, явно сохраняемый `mts-contract/v0.6`.
 
 Это не legacy runtime mode и не compatibility implementation. Отдельного `contracts/anum_docs-v0.2/` после cutover нет.
 

@@ -41,7 +41,7 @@ describe('Anum quaternary channel presentation adapter', () => {
 
   it('presents .anum losslessly and names current semantic contract separately', () => {
     const source = quatAnumFileToMtl('10\n[]')
-    expect(source).toContain('anum-stream-deserialization/v0.3')
+    expect(source).toContain('anum-deserialization/v0.4')
     expect(source).toContain("'10'.")
     expect(source).toContain("'[]'.")
     expect(source).not.toContain('R⟼')

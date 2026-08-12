@@ -2,7 +2,7 @@
 
 `aprover` не является нормативным источником теории МТС. Каноническое изложение, root definitions и machine-readable contracts находятся в [`netkeep80/anum_docs`](https://github.com/netkeep80/anum_docs).
 
-Приложение потребляет текущий accepted release `mts-contract/v0.5`; единственный публичный proof format — `mts-proof/v0.4`; current raw/channel ANUM surface — `anum-stream-deserialization/v0.3`. Собственные аксиомы или compatibility semantics здесь не вводятся.
+Приложение потребляет текущий accepted release `mts-contract/v0.6`; единственный публичный proof format — `mts-proof/v0.4`; current raw/channel ANUM surface — `anum-deserialization/v0.4`. Собственные аксиомы или compatibility semantics здесь не вводятся.
 
 ## Что документируется здесь
 
@@ -17,10 +17,10 @@
 
 ```text
 anum_docs current accepted release
-  mts-contract/v0.5
+  mts-contract/v0.6
   mts-proof/v0.4
   opening-path + direct-deixis contracts
-  anum-stream-deserialization/v0.3
+  anum-deserialization/v0.4
         │ exact pin
         ▼
 aprover

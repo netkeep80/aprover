@@ -79,12 +79,10 @@ interface Corpus {
   veto: Record<string, boolean>
 }
 
-const corpus = JSON.parse(
-  readFileSync(
-    resolve(process.cwd(), 'contracts/anum_docs-v0.5/mts-value-bundle-conformance-v0.2.json'),
-    'utf8'
-  )
-) as Corpus
+const currentConformance = JSON.parse(
+  readFileSync(resolve(process.cwd(), 'contracts/anum_docs-v0.6/mts-conformance-v0.6.json'), 'utf8')
+) as { corpora: { valueBundle: Corpus } }
+const corpus = currentConformance.corpora.valueBundle
 
 function entryFor(context?: string): ExpectedBundleRole {
   if (context === 'constraint-entry') return 'constraint'
@@ -111,7 +109,7 @@ function setValue(
 }
 
 describe('current accepted flat ValueBundle dependency', () => {
-  it('consumes the exact v0.2 schema still required by current MTS v0.5', () => {
+  it('consumes the exact v0.2 schema still required by current MTS v0.6', () => {
     expect(corpus.schema).toBe('mts-value-bundle-conformance/v0.2')
     expect(corpus.contract).toBe('mts-value-bundle/v0.2')
     expect(corpus.status).toBe('accepted')
@@ -180,8 +178,7 @@ describe('current accepted flat ValueBundle dependency', () => {
         sequence,
         [],
         elaboration,
-        (form: ASTNode, path) =>
-          resolveCorpusForm(form, path, corpus.expansionMemory.symbols, {}),
+        (form: ASTNode, path) => resolveCorpusForm(form, path, corpus.expansionMemory.symbols, {}),
         memory
       )
       expect(value.identities, testCase.id).toEqual(testCase.expectedLinks)

@@ -217,11 +217,14 @@ export type {
   AnumStreamErrorCode,
 } from './anumDenotation'
 export {
-  ANUM_STREAM_DESERIALIZATION_SCHEMA,
+  ANUM_DESERIALIZATION_SCHEMA,
   AnumStreamDeserializationError,
   semanticLink,
   deserializeAnumStream,
 } from './anumDenotation'
+
+export type { AnumCarrierErrorCode, AnumCarrierVocabulary } from './anumCarrier'
+export { AnumCarrierInputError, decodeAnumCarrier, deserializeAnumCarrier } from './anumCarrier'
 
 export type { FileMetadata, SupportedExtension } from './fileIO'
 export {

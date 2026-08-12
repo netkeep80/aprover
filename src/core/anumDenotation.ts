@@ -1,14 +1,14 @@
 /**
- * Current ANUM raw/channel stream deserialization consumer.
+ * Current raw/channel stack engine for accepted dual-input ANUM deserialization.
  *
  * Normative behavior is pinned from `anum_docs` as
- * `anum-stream-deserialization/v0.3`. The operation is pure: semantic Link
+ * `anum-deserialization/v0.4`. Carrier input is decoded separately and delegates here. The operation is pure: semantic Link
  * identity is determined only by ordered poles; source positions, stack
  * frames and runtime objects are not Link identities. No MemoryView or
  * materialization API is reachable from this module.
  */
 
-export const ANUM_STREAM_DESERIALIZATION_SCHEMA = 'anum-stream-deserialization/v0.3' as const
+export const ANUM_DESERIALIZATION_SCHEMA = 'anum-deserialization/v0.4' as const
 
 export type AnumStreamOperation = 'OPEN' | 'CLOSE' | 'VALUE'
 export type AnumResolvedValue = 'L' | 'U'
@@ -31,7 +31,9 @@ export class AnumStreamDeserializationError extends Error {
     readonly offset: number,
     readonly token?: string
   ) {
-    super(`ANUM stream error ${code} at position ${offset}${token === undefined ? '' : `: ${JSON.stringify(token)}`}`)
+    super(
+      `ANUM stream error ${code} at position ${offset}${token === undefined ? '' : `: ${JSON.stringify(token)}`}`
+    )
     this.name = 'AnumStreamDeserializationError'
   }
 }
@@ -67,7 +69,7 @@ function appendValue(frame: Frame, value: SemanticLinkExpression): void {
 }
 
 /**
- * Execute the accepted v0.3 raw/channel stack machine.
+ * Execute the accepted v0.4 raw/channel stack machine.
  *
  * - root frame and every nested frame start at R;
  * - `1` resolves to the one canonical L, `0` to the one canonical U;

@@ -9,7 +9,7 @@ test.describe('aprover canonical MTS UI', () => {
     await expect(page.locator('h1')).toHaveText('aprover')
     await expect(page.locator('.subtitle')).toContainText('формальной нотации МТС v0.2')
     await expect(page.locator('.runtime-note')).toContainText('mts-proof/v0.4')
-    await expect(page.locator('.runtime-note')).toContainText('mts-contract/v0.5')
+    await expect(page.locator('.runtime-note')).toContainText('mts-contract/v0.6')
     await expect(page.locator('.runtime-note')).toContainText('independent replay')
   })
 
@@ -159,7 +159,7 @@ test.describe('aprover canonical MTS UI', () => {
       buffer: Buffer.from('10\n[]\n'),
     })
 
-    const panel = page.getByLabel('Anum stream deserialization v0.3')
+    const panel = page.getByLabel('Anum raw transport deserialization v0.4')
     await expect(panel).toBeVisible()
     await expect(panel.locator('.entry')).toHaveCount(2)
     await expect(panel.locator('.result').nth(0)).toHaveText('(L⟼U)')

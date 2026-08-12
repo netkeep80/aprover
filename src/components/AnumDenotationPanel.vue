@@ -28,10 +28,10 @@ const entries = computed(() =>
 </script>
 
 <template>
-  <section class="anum-denotation-panel" aria-label="Anum stream deserialization v0.3">
+  <section class="anum-denotation-panel" aria-label="Anum raw transport deserialization v0.4">
     <header class="denotation-header">
       <div>
-        <strong>Anum stream deserialization v0.3</strong>
+        <strong>Anum raw transport deserialization v0.4</strong>
         <span class="boundary">pure read-only consumer</span>
       </div>
     </header>
