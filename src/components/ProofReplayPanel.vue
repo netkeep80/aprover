@@ -48,8 +48,8 @@ const openGeneratedProof = (source: string) => {
   <section v-else class="proof-replay-panel" data-testid="proof-replay-panel">
     <header class="proof-replay-header">
       <div>
-        <strong>Trusted proof replay</strong>
-        <span class="proof-replay-subtitle">mts-proof/v0.4 · current-only replay</span>
+        <strong>Legacy proof replay</strong>
+        <span class="proof-replay-subtitle">historical mts-proof/v0.4 · local compatibility checker</span>
       </div>
       <div class="proof-replay-actions">
         <input
@@ -59,7 +59,7 @@ const openGeneratedProof = (source: string) => {
           accept=".json,application/json"
           @change="loadFile"
         />
-        <button type="button" class="proof-action proof-search-open" @click="openSearch">Search</button>
+        <button type="button" class="proof-action proof-search-open" @click="openSearch">Legacy search</button>
         <button type="button" class="proof-action" @click="openFile">Load JSON</button>
         <button type="button" class="proof-action" @click="clear">Clear</button>
         <button type="button" class="proof-action close" aria-label="Close proof replay" @click="emit('close')">
@@ -69,19 +69,19 @@ const openGeneratedProof = (source: string) => {
     </header>
 
     <div class="proof-replay-body">
-      <label class="proof-source-label" for="proof-artifact-source">Proof artifact JSON</label>
+      <label class="proof-source-label" for="proof-artifact-source">Legacy proof artifact JSON</label>
       <textarea
         id="proof-artifact-source"
         class="proof-source"
         :value="modelValue"
         spellcheck="false"
-        placeholder="Paste an mts-proof/v0.4 JSON artifact here"
+        placeholder="Paste a historical mts-proof/v0.4 JSON artifact here"
         @input="updateSource"
       />
 
       <div class="proof-result" :class="`status-${view.status}`">
         <div v-if="view.status === 'empty'" class="proof-empty">
-          Load or paste a current proof artifact. The artifact is validated before independent replay.
+          Load or paste a historical v0.4 artifact. This local compatibility replay is not accepted MTS v0.10 proof approval.
         </div>
 
         <div v-else-if="view.status === 'invalid'" class="proof-invalid">
@@ -93,7 +93,7 @@ const openGeneratedProof = (source: string) => {
         <template v-else>
           <div class="proof-summary">
             <span class="proof-verdict" :class="{ accepted: view.accepted, rejected: !view.accepted }">
-              {{ view.accepted ? 'REPLAY ACCEPTED' : 'REPLAY REJECTED' }}
+              {{ view.accepted ? 'LEGACY REPLAY MATCHED' : 'LEGACY REPLAY REJECTED' }}
             </span>
             <code>{{ view.schema }}</code>
             <code>{{ view.contractVersion }}</code>
@@ -108,7 +108,7 @@ const openGeneratedProof = (source: string) => {
                   class="step-verdict"
                   :class="{ accepted: judgment.accepted, rejected: !judgment.accepted }"
                 >
-                  {{ judgment.accepted ? 'accepted' : 'rejected' }}
+                  {{ judgment.accepted ? 'matched' : 'rejected' }}
                 </span>
               </div>
 
@@ -129,7 +129,7 @@ const openGeneratedProof = (source: string) => {
               </div>
 
               <div v-if="judgment.details.length" class="proof-section">
-                <span class="proof-section-title">Replay claim</span>
+                <span class="proof-section-title">Legacy replay claim</span>
                 <div class="proof-values">
                   <code v-for="item in judgment.details" :key="item">{{ item }}</code>
                 </div>
