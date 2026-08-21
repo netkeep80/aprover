@@ -1,19 +1,19 @@
 import { expect, test } from '@playwright/test'
 
-test.describe('aprover canonical MTS UI', () => {
+test.describe('aprover current MTS consumer UI', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/')
   })
 
-  test('shows the application as a canonical notation consumer', async ({ page }) => {
+  test('shows the application as an exact current MTS consumer', async ({ page }) => {
     await expect(page.locator('h1')).toHaveText('aprover')
-    await expect(page.locator('.subtitle')).toContainText('формальной нотации МТС v0.2')
-    await expect(page.locator('.runtime-note')).toContainText('mts-proof/v0.4')
-    await expect(page.locator('.runtime-note')).toContainText('mts-contract/v0.6')
-    await expect(page.locator('.runtime-note')).toContainText('independent replay')
+    await expect(page.locator('.subtitle')).toContainText('exact @mts/core v0.10')
+    await expect(page.locator('.runtime-note')).toContainText('exact @mts/core v0.10')
+    await expect(page.locator('.runtime-note')).not.toContainText('mts-proof/v0.4')
+    await expect(page.locator('.runtime-note')).not.toContainText('mts-contract/v0.6')
   })
 
-  test('loads the canonical v0.2 root instead of legacy A0-A11 examples', async ({ page }) => {
+  test('loads the current canonical root application sample', async ({ page }) => {
     const source = await page.locator('.code-input').inputValue()
     expect(source).toContain('∞ : {◁ = ∞, ▷ = ∞}')
     expect(source).toContain('(=) : {♀◁ = ♀▷, ◁♂ = ▷♂}')
@@ -36,75 +36,14 @@ test.describe('aprover canonical MTS UI', () => {
     await expect(page.locator('.error-panel')).toBeVisible()
   })
 
-  test('does not expose legacy proof-search controls', async ({ page }) => {
+  test('does not expose legacy interpretation or proof controls', async ({ page }) => {
     await expect(page.locator('.result-item')).toHaveCount(0)
     await expect(page.locator('button').filter({ hasText: 'INT' })).toHaveCount(0)
     await expect(page.locator('button').filter({ hasText: 'Результаты' })).toHaveCount(0)
+    await expect(page.locator('.proof-replay-toggle')).toHaveCount(0)
+    await expect(page.getByTestId('proof-replay-panel')).toHaveCount(0)
+    await expect(page.getByTestId('proof-search-panel')).toHaveCount(0)
     await expect(page.locator('text=statements verified')).toHaveCount(0)
-  })
-
-  test('loads and independently replays a current mts-proof/v0.4 artifact', async ({ page }) => {
-    const artifact = JSON.stringify({
-      proofVersion: 'mts-proof/v0.4',
-      contractVersion: 'mts-contract/v0.4',
-      judgments: [
-        {
-          relation: 'ContextuallySatisfies',
-          expression: '[] = ◁',
-          context: { start: 10, end: 12, parent: null },
-          symbols: [],
-          memory: [],
-          expected: {
-            substitutions: [{ path: [0], link: 10 }],
-            aliases: [],
-          },
-        },
-      ],
-    })
-
-    await page.locator('.proof-replay-toggle').click()
-    await expect(page.getByTestId('proof-replay-panel')).toBeVisible()
-    await page.locator('#proof-artifact-source').fill(artifact)
-
-    await expect(page.locator('.proof-verdict')).toContainText('REPLAY ACCEPTED')
-    await expect(page.locator('.proof-summary')).toContainText('mts-proof/v0.4')
-    await expect(page.locator('.proof-expression')).toContainText('[] = ◁')
-    await expect(page.locator('.proof-step')).toContainText('[] @ 0 → LinkRef 10')
-  })
-
-  test('separates current proof validation errors from replay rejection', async ({ page }) => {
-    await page.locator('.proof-replay-toggle').click()
-    const source = page.locator('#proof-artifact-source')
-
-    await source.fill(
-      JSON.stringify({
-        proofVersion: 'mts-proof/v0.4',
-        contractVersion: 'mts-contract/v0.4',
-        judgments: [
-          {
-            relation: 'ContextuallySatisfies',
-            expression: '[] = ◁',
-            context: { start: 10, end: 12, parent: null },
-            symbols: [],
-            memory: [],
-            expected: {
-              substitutions: [{ path: [0], link: 12 }],
-              aliases: [],
-            },
-          },
-        ],
-      })
-    )
-    await expect(page.locator('.proof-verdict')).toContainText('REPLAY REJECTED')
-    await expect(page.locator('.proof-invalid')).toHaveCount(0)
-
-    await source.fill(
-      '{"proofVersion":"mts-proof/v0.2","contractVersion":"mts-contract/v0.2","steps":[]}'
-    )
-    await expect(page.locator('.proof-invalid')).toContainText('Validation error')
-    await expect(page.locator('.proof-invalid')).toContainText('$.proofVersion')
-    await expect(page.locator('.proof-invalid')).toContainText('mts-proof/v0.4')
-    await expect(page.locator('.proof-verdict')).toHaveCount(0)
   })
 
   test('keeps AST inspection and source highlighting', async ({ page }) => {
@@ -138,12 +77,12 @@ test.describe('aprover canonical MTS UI', () => {
     await expect(page.locator('.graph-panel')).toBeVisible()
   })
 
-  test('supports the basic file toolbar without proof-result export', async ({ page }) => {
+  test('supports the basic file toolbar without proof-result export or replay', async ({ page }) => {
     await expect(page.locator('.toolbar-btn[title*="Новый"]')).toBeVisible()
     await expect(page.locator('.toolbar-btn[title*="Открыть"]')).toBeVisible()
     await expect(page.locator('.toolbar-btn[title*="Сохранить"]')).toBeVisible()
     await expect(page.locator('.recent-btn')).toBeVisible()
-    await expect(page.locator('.proof-replay-toggle')).toBeVisible()
+    await expect(page.locator('.proof-replay-toggle')).toHaveCount(0)
     await expect(page.locator('.toolbar-btn[title*="Результаты"]')).toHaveCount(0)
   })
 
