@@ -47,3 +47,19 @@ jobs:
           name: playwright-report
           path: playwright-report/
           retention-days: 30
+
+  mts-core-consumer:
+    name: Verify accepted @mts/core consumer lock
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup package verification Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Rebuild, digest and consume exact @mts/core artifact
+        run: node scripts/verify-mts-core-consumer.mjs
