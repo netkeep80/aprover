@@ -2,11 +2,11 @@
  * Публичное application-ядро aprover.
  *
  * `anum_docs` остаётся нормативным источником теории и текущей семантики МТС.
- * Этот barrel публикует consumer-only syntax/presentation/I/O adapters и тонкий
- * ANUM adapter над exact-pinned `@mts/core` v0.10.
+ * Этот barrel публикует только consumer-only syntax/presentation/I/O adapters и
+ * тонкий ANUM adapter над exact-pinned `@mts/core` v0.10.
  *
- * Исторические local v0.2 interpreter/memory/value-bundle и proof-v0.3/v0.4
- * replay/search намеренно НЕ экспортируются отсюда как current MTS API.
+ * Исторические interpreter/memory/value-bundle/proof replay/search runtimes
+ * отсутствуют в current tree; история хранится в Git, а не compatibility API.
  */
 
 export type {
