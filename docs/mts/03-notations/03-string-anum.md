@@ -2,11 +2,11 @@
 
 > **Статус:** application-specific adapter. Это не нормативная нотация МТС и не отдельная теория ачисел.
 
-Каноническая формальная нотация, root definitions и machine-readable contracts определяются в [`netkeep80/anum_docs`](https://github.com/netkeep80/anum_docs). `aprover` не выводит из `.astr` новых аксиом и не использует собственную grammar/semantics поверх МТС v0.2.
+Каноническая формальная нотация, accepted contracts и semantic runtime определяются в [`netkeep80/anum_docs`](https://github.com/netkeep80/anum_docs). Current semantic authority `aprover` — exact-pinned `@mts/core` v0.10; `.astr` не вводит собственной MTS semantics.
 
 ## Назначение
 
-`.astr` — удобный UTF-8 формат приложения: каждая содержательная строка рассматривается как одно строковое значение и проецируется в **тот же canonical AST**, который использует `.mtl`.
+`.astr` — удобный UTF-8 формат приложения: каждая содержательная строка рассматривается как одно строковое значение и проецируется в **тот же application AST**, который использует `.mtl`.
 
 Текущая presentation-проекция одной строки `s`:
 
@@ -16,7 +16,7 @@
 
 Для пустого значения используется `∞`.
 
-Это правило — API/UI convention `aprover`, а не утверждение, что каждый UTF-8 символ является отдельной онтологической сущностью МТС. В частности, приложение не вводит посимвольную цепочку, отдельные аксиомы символов или второй parser.
+Это правило — API/UI convention `aprover`, а не утверждение, что каждый UTF-8 символ является отдельной онтологической сущностью МТС. Приложение не вводит посимвольную цепочку, отдельные аксиомы символов или второй semantic runtime.
 
 ## Пример
 
@@ -41,7 +41,7 @@ Presentation в редакторе:
 `src/core/stringAnum.ts`:
 
 - читает line-oriented UTF-8 application data;
-- создаёт shared `LinkExpr(Infinity, StringLit)`;
+- создаёт shared `LinkExpr(Infinity, StringLit)` для presentation;
 - умеет восстановить строковое значение из этого узкого application shape;
 - генерирует canonical MTS source для presentation;
 - не содержит собственной MTS semantics.
@@ -50,10 +50,10 @@ Presentation в редакторе:
 
 ## Граница доверия
 
-`.astr` не участвует в trusted proof semantics сам по себе. После проекции дальнейшие parse/interpret/replay выполняются обычным canonical runtime `aprover`, закреплённым на contracts из `anum_docs`.
+`.astr` сам по себе не участвует в theorem acceptance. Parse/presentation остаются consumer-only операциями. Если результат должен участвовать в семантической проверке или доказательстве, authority должна исходить из current accepted `@mts/core` и будущего generic approver (#156), а не из `.astr` adapter.
 
 ## См. также
 
 - [`docs/mts/README.md`](../README.md) — архитектурная граница `anum_docs → aprover`;
-- [`04-quaternary.md`](04-quaternary.md) — `.anum` как raw-carrier adapter;
+- [`04-quaternary.md`](04-quaternary.md) — `.anum` transport/presentation adapter;
 - [`netkeep80/anum_docs`](https://github.com/netkeep80/anum_docs) — нормативная теория и contracts.
