@@ -223,9 +223,6 @@ export {
   deserializeAnumStream,
 } from './anumDenotation'
 
-export type { AnumCarrierErrorCode, AnumCarrierVocabulary } from './anumCarrier'
-export { AnumCarrierInputError, decodeAnumCarrier, deserializeAnumCarrier } from './anumCarrier'
-
 export type { FileMetadata, SupportedExtension } from './fileIO'
 export {
   SUPPORTED_EXTENSIONS,
