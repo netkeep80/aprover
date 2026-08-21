@@ -6,7 +6,6 @@ import Editor from './components/Editor.vue'
 import ASTViewer from './components/ASTViewer.vue'
 import ErrorPanel from './components/ErrorPanel.vue'
 import LinkGraphViewer from './components/LinkGraphViewer.vue'
-import ProofReplayPanel from './components/ProofReplayPanel.vue'
 import AnumDenotationPanel from './components/AnumDenotationPanel.vue'
 import SplitPane from './components/SplitPane.vue'
 import {
@@ -30,9 +29,8 @@ import {
   type QuatConversionStep,
 } from './core/quatAnum'
 
-const CANONICAL_ROOT = `// МТС v0.2 — каноническая формальная нотация
-// Теория и machine-readable contracts: netkeep80/anum_docs
-// Этот экран разбирает и визуализирует формулы. Trusted proof replay — mts-proof/v0.4.
+const CANONICAL_ROOT = `// Application notation sample
+// Теория и current semantic authority: exact-pinned @mts/core v0.10 from netkeep80/anum_docs
 
 ∞ : {◁ = ∞, ▷ = ∞}
 () : ♀() ⟼ ()♂
@@ -53,8 +51,6 @@ const ast = ref<MtsFile | null>(null)
 
 const showAST = ref(true)
 const showGraph = ref(false)
-const showProofReplay = ref(false)
-const proofSource = ref('')
 const highlightedLoc = ref<SourceLocation | null>(null)
 const highlightedNodeLoc = ref<SourceLocation | null>(null)
 
@@ -75,7 +71,6 @@ const autosaveInterval = ref<ReturnType<typeof setInterval> | null>(null)
 const handleSplitResize = () => window.dispatchEvent(new Event('resize'))
 const toggleAST = () => (showAST.value = !showAST.value)
 const toggleGraph = () => (showGraph.value = !showGraph.value)
-const toggleProofReplay = () => (showProofReplay.value = !showProofReplay.value)
 
 const handleNodeHover = (loc: SourceLocation | null) => {
   highlightedLoc.value = loc
@@ -220,7 +215,6 @@ const handleKeyDown = (event: KeyboardEvent) => {
     handleNewFile()
   } else if (event.key === 'Escape') {
     showRecentFiles.value = false
-    showProofReplay.value = false
   }
 }
 
@@ -256,7 +250,7 @@ onUnmounted(() => {
         <h1>aprover</h1>
         <span class="version">v{{ appVersion }}</span>
       </div>
-      <p class="subtitle">Визуальный consumer канонической формальной нотации МТС v0.2</p>
+      <p class="subtitle">Визуальный consumer МТС · current semantics: exact @mts/core v0.10</p>
       <div class="header-right">
         <div class="toolbar">
           <button class="toolbar-btn" title="Новый файл (Ctrl+N)" @click="handleNewFile">📄 <span>Новый</span></button>
@@ -276,14 +270,6 @@ onUnmounted(() => {
             </div>
           </div>
           <button class="toolbar-btn" title="Сохранить код (Ctrl+S)" @click="handleSaveCode">💾 <span>Сохранить</span></button>
-          <button
-            class="toolbar-btn proof-replay-toggle"
-            :class="{ active: showProofReplay }"
-            title="Trusted proof replay"
-            @click="toggleProofReplay"
-          >
-            PRF <span>Proof</span>
-          </button>
         </div>
         <div class="view-controls">
           <button
@@ -311,14 +297,8 @@ onUnmounted(() => {
     </header>
 
     <div class="runtime-note">
-      Current trusted proof path: <code>mts-proof/v0.4</code> under <code>mts-contract/v0.6</code>. Search строит только current artifact; acceptance всегда определяется independent replay.
+      Current MTS semantic authority: <code>exact @mts/core v0.10</code> from the immutable consumer lock.
     </div>
-
-    <ProofReplayPanel
-      v-if="showProofReplay"
-      v-model="proofSource"
-      @close="showProofReplay = false"
-    />
 
     <div v-if="showConversion && conversionSteps.length" class="conversion-panel">
       <div v-for="(step, index) in conversionSteps" :key="index" class="conversion-step">

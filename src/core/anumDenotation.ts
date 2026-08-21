@@ -6,8 +6,8 @@ import {
 } from '@mts/core'
 
 /**
- * Historical transport tag kept for presentation/backward compatibility only.
- * Current semantic authority is the exact-pinned accepted @mts/core v0.10 package.
+ * Public ANUM schema tag exposed by the accepted upstream consumer surface.
+ * Semantic authority is the exact-pinned accepted @mts/core v0.10 package.
  */
 export const ANUM_DESERIALIZATION_SCHEMA = 'anum-deserialization/v0.4' as const
 
@@ -39,7 +39,7 @@ export class AnumStreamDeserializationError extends Error {
   }
 }
 
-/** Compatibility helper; semantic construction is owned by @mts/core. */
+/** Presentation helper; semantic Link construction is owned by @mts/core. */
 export function semanticLink(
   start: SemanticLinkExpression,
   end: SemanticLinkExpression
@@ -101,9 +101,9 @@ function asResolvedValues(values: readonly string[]): readonly AnumResolvedValue
 /**
  * Execute raw ANUM through the accepted @mts/core public boundary.
  *
- * aprover only adds presentation fields (`raw`, `maxDepth`) and preserves its
- * historical error shape. Link construction, stack transitions and denotation
- * are not implemented locally.
+ * aprover only adds presentation fields (`raw`, `maxDepth`) and maps upstream
+ * errors to application diagnostics. Link construction, stack transitions and
+ * denotation are not implemented locally.
  */
 export function deserializeAnumStream(raw: string): AnumStreamDenotation {
   try {

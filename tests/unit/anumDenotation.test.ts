@@ -1,5 +1,3 @@
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
 import { StreamError, deserializeStream, symbolicStackAlgebra } from '@mts/core'
 import { describe, expect, it } from 'vitest'
 
@@ -25,32 +23,87 @@ interface InvalidCase {
   error: 'unexpected-close' | 'unclosed-open' | 'non-abit'
 }
 
-interface HistoricalAnumCorpus {
-  valid: ValidCase[]
-  invalid: InvalidCase[]
-}
+const currentValidCases: readonly ValidCase[] = [
+  {
+    id: 'empty-stream-is-root',
+    source: '',
+    expectedDenotation: 'R',
+    expectedOperations: [],
+  },
+  {
+    id: 'single-one-is-L',
+    source: '1',
+    expectedDenotation: 'L',
+    expectedResolvedValues: ['L'],
+    expectedOperations: ['VALUE'],
+  },
+  {
+    id: 'flat-pair-left-fold',
+    source: '10',
+    expectedDenotation: '(L⟼U)',
+    expectedResolvedValues: ['L', 'U'],
+    expectedOperations: ['VALUE', 'VALUE'],
+  },
+  {
+    id: 'empty-group-is-root',
+    source: '[]',
+    expectedDenotation: 'R',
+    expectedResolvedValues: [],
+    expectedOperations: ['OPEN', 'CLOSE'],
+  },
+  {
+    id: 'two-empty-groups-collapse-to-root',
+    source: '[][]',
+    expectedDenotation: 'R',
+    expectedResolvedValues: [],
+    expectedOperations: ['OPEN', 'CLOSE', 'OPEN', 'CLOSE'],
+  },
+  {
+    id: 'nonempty-group-root-wraps-inner-result',
+    source: '[10]',
+    expectedDenotation: '(R⟼(L⟼U))',
+    expectedResolvedValues: ['L', 'U'],
+    expectedOperations: ['OPEN', 'VALUE', 'VALUE', 'CLOSE'],
+  },
+  {
+    id: 'group-result-is-one-parent-value',
+    source: '1[10]',
+    expectedDenotation: '(L⟼(R⟼(L⟼U)))',
+    expectedResolvedValues: ['L', 'L', 'U'],
+    expectedOperations: ['VALUE', 'OPEN', 'VALUE', 'VALUE', 'CLOSE'],
+  },
+  {
+    id: 'nested-root-wrap',
+    source: '[[10]]',
+    expectedDenotation: '(R⟼(R⟼(L⟼U)))',
+    expectedResolvedValues: ['L', 'U'],
+    expectedOperations: ['OPEN', 'OPEN', 'VALUE', 'VALUE', 'CLOSE', 'CLOSE'],
+  },
+  {
+    id: 'repeated-position-reuses-semantic-L',
+    source: '1110',
+    expectedDenotation: '(((L⟼L)⟼L)⟼U)',
+    expectedResolvedValues: ['L', 'L', 'L', 'U'],
+    expectedDistinctRootRefs: ['L', 'U'],
+    expectedOperations: ['VALUE', 'VALUE', 'VALUE', 'VALUE'],
+  },
+]
 
-interface HistoricalConformance {
-  corpora: { anum: HistoricalAnumCorpus }
-}
-
-// v0.6 is retained only as migration evidence: expected observations that the
-// current v0.10 package must still reproduce where the ANUM behavior overlaps.
-const historical = JSON.parse(
-  readFileSync(
-    resolve(process.cwd(), 'contracts/anum_docs-v0.6/mts-conformance-v0.6.json'),
-    'utf8'
-  )
-) as HistoricalConformance
-const corpus = historical.corpora.anum
+const currentInvalidCases: readonly InvalidCase[] = [
+  { id: 'unexpected-close', source: ']', error: 'unexpected-close' },
+  { id: 'close-after-value-without-open', source: '1]', error: 'unexpected-close' },
+  { id: 'unclosed-open', source: '[', error: 'unclosed-open' },
+  { id: 'unclosed-nonempty-group', source: '[1', error: 'unclosed-open' },
+  { id: 'non-abit', source: '2', error: 'non-abit' },
+]
 
 describe('ANUM presentation adapter over exact accepted @mts/core v0.10', () => {
-  it('keeps the v0.4 tag only as historical transport metadata', () => {
+  it('exposes the accepted upstream ANUM schema tag', () => {
     expect(ANUM_DESERIALIZATION_SCHEMA).toBe('anum-deserialization/v0.4')
   })
 
-  for (const testCase of corpus.valid) {
-    it(`replays historical vector ${testCase.id} through current upstream semantics`, () => {
+  for (const testCase of currentValidCases) {
+    it(`matches current upstream semantics: ${testCase.id}`, () => {
       const upstream = deserializeStream(testCase.source, symbolicStackAlgebra)
       const actual = deserializeAnumStream(testCase.source)
 
@@ -70,8 +123,8 @@ describe('ANUM presentation adapter over exact accepted @mts/core v0.10', () => 
     })
   }
 
-  for (const testCase of corpus.invalid) {
-    it(`maps upstream rejection for historical vector ${testCase.id}`, () => {
+  for (const testCase of currentInvalidCases) {
+    it(`maps current upstream rejection: ${testCase.id}`, () => {
       expect(() => deserializeStream(testCase.source, symbolicStackAlgebra)).toThrow(StreamError)
 
       try {

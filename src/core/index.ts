@@ -1,9 +1,12 @@
 /**
- * Публичное ядро aprover.
+ * Публичное application-ядро aprover.
  *
- * `anum_docs` остаётся нормативным источником теории и контрактов МТС. Здесь
- * публикуются только единый parser/runtime, текущие consumers и replay-checker;
- * старые совместимые proof/ANUM API отсутствуют.
+ * `anum_docs` остаётся нормативным источником теории и текущей семантики МТС.
+ * Этот barrel публикует только consumer-only syntax/presentation/I/O adapters и
+ * тонкий ANUM adapter над exact-pinned `@mts/core` v0.10.
+ *
+ * Исторические interpreter/memory/value-bundle/proof replay/search runtimes
+ * отсутствуют в current tree; история хранится в Git, а не compatibility API.
  */
 
 export type {
@@ -82,92 +85,6 @@ export {
   getNormalizationCacheStats,
   getNormalizationCache,
 } from './normalizer'
-
-export type {
-  LinkRef,
-  OccurrencePath,
-  MemoryView,
-  ContextFrame,
-  HoleId,
-  InterpretationSubstitution,
-  InterpretationAlias,
-  InterpretationResult,
-} from './interpreter'
-export { InterpretationError, resolveContextPronoun, interpretConstraints } from './interpreter'
-
-export type { DistinguishedLink } from './memoryView'
-export { ExplicitMemoryView } from './memoryView'
-
-export type {
-  BundleRole,
-  ExpectedBundleRole,
-  BundleRoleAt,
-  BundleElaboration,
-  ResolvedOccurrence,
-  LinkValue,
-  BundleValue,
-  MtsValue,
-  FormResolver,
-  BundleQueryMemory,
-} from './valueBundle'
-export {
-  BundleElaborationError,
-  BundleEvaluationError,
-  elaborateBundles,
-  evaluateFlatValueBundle,
-  valuesEqual,
-  expandBundleQuery,
-  resolveCorpusForm,
-} from './valueBundle'
-
-export type { InterpretationSessionConfig } from './interpretationSession'
-export { InterpretationSession } from './interpretationSession'
-
-export type {
-  InterpretationSubstitutionView,
-  InterpretationAliasView,
-  InterpretationPresentation,
-} from './interpretationPresentation'
-export { formatOccurrencePath, presentInterpretation } from './interpretationPresentation'
-
-export type {
-  DefinitionOpeningPathJudgmentV04,
-  MtsProofJudgmentV04,
-  MtsProofObjectV04,
-} from './proofReplayV04'
-export {
-  MTS_PROOF_SCHEMA_V04,
-  MTS_PROOF_CONTRACT_VERSION_V04,
-  ProofObjectV04ValidationError,
-  parseProofObjectV04,
-  parseProofJsonV04,
-  checkJudgmentV04,
-  checkProofV04,
-  checkProofV04Data,
-  proofObjectV04ToData,
-  canonicalProofV04Json,
-} from './proofReplayV04'
-
-export type {
-  InterpretProofSearchInput,
-  ProvenSearchResult,
-  NotProvenSearchResult,
-  ProofSearchErrorResult,
-  InterpretProofSearchResult,
-} from './proofSearch'
-export { searchInterpretProof } from './proofSearch'
-
-export type {
-  VersionedEmptyProofArtifactView,
-  VersionedInvalidProofArtifactView,
-  ProofContextView,
-  ProofSubstitutionView,
-  ProofAliasView,
-  ProofJudgmentReplayView,
-  ReplayedVersionedProofArtifactView,
-  VersionedProofArtifactView,
-} from './proofArtifactPresentationVersioned'
-export { presentVersionedProofArtifactJson } from './proofArtifactPresentationVersioned'
 
 export type { StringAnumOptions, ConversionStep, StringAnumStats } from './stringAnum'
 export {
