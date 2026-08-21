@@ -22,6 +22,19 @@ jobs:
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
 
+      - name: Setup @mts/core materializer Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install exact accepted @mts/core
+        run: node scripts/verify-mts-core-consumer.mjs --install-current-project
+
+      - name: Restore application Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
       - name: Lint
         run: npm run lint:check
 
