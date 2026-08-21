@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { StreamError, deserializeStream, symbolicStackAlgebra } from '@mts/core'
 import { describe, expect, it } from 'vitest'
 
 import {
@@ -21,70 +22,42 @@ interface ValidCase {
 interface InvalidCase {
   id: string
   source: string
-  error: string
+  error: 'unexpected-close' | 'unclosed-open' | 'non-abit'
 }
 
-interface AnumCorpus {
-  schema: string
-  status: string
-  accepted: boolean
-  contract: string
+interface HistoricalAnumCorpus {
   valid: ValidCase[]
   invalid: InvalidCase[]
-  raw: { stackSemanticsChangedFromV03: boolean }
 }
 
-interface CurrentConformance {
-  corpora: { anum: AnumCorpus }
+interface HistoricalConformance {
+  corpora: { anum: HistoricalAnumCorpus }
 }
 
-interface CurrentContract {
-  surfaces: {
-    anum: {
-      schema: string
-      semanticReset: number
-      alphabet: { abits: string[]; rootIsFifthAbit: boolean }
-      semanticIdentity: {
-        linkIdentity: string
-        samePairCreatesSecondSemanticLink: boolean
-        repeatedSourcePositionCreatesSecondSemanticLink: boolean
-      }
-      transports: { rawChannel: { operation: string } }
-    }
-  }
-}
+// v0.6 is retained only as migration evidence: expected observations that the
+// current v0.10 package must still reproduce where the ANUM behavior overlaps.
+const historical = JSON.parse(
+  readFileSync(
+    resolve(process.cwd(), 'contracts/anum_docs-v0.6/mts-conformance-v0.6.json'),
+    'utf8'
+  )
+) as HistoricalConformance
+const corpus = historical.corpora.anum
 
-const bundleRoot = resolve(process.cwd(), 'contracts/anum_docs-v0.6')
-const current = JSON.parse(
-  readFileSync(resolve(bundleRoot, 'mts-conformance-v0.6.json'), 'utf8')
-) as CurrentConformance
-const contract = JSON.parse(
-  readFileSync(resolve(bundleRoot, 'mts-contract-v0.6.json'), 'utf8')
-) as CurrentContract
-const corpus = current.corpora.anum
-const surface = contract.surfaces.anum
-
-describe('current ANUM raw transport inside deserialization v0.4', () => {
-  it('pins the accepted post-reset raw transport without changing v0.3 stack semantics', () => {
+describe('ANUM presentation adapter over exact accepted @mts/core v0.10', () => {
+  it('keeps the v0.4 tag only as historical transport metadata', () => {
     expect(ANUM_DESERIALIZATION_SCHEMA).toBe('anum-deserialization/v0.4')
-    expect(surface.schema).toBe(ANUM_DESERIALIZATION_SCHEMA)
-    expect(surface.semanticReset).toBe(343)
-    expect(surface.alphabet.abits).toEqual(['[', ']', '1', '0'])
-    expect(surface.alphabet.rootIsFifthAbit).toBe(false)
-    expect(surface.semanticIdentity.linkIdentity).toBe('by ordered semantic poles')
-    expect(surface.semanticIdentity.samePairCreatesSecondSemanticLink).toBe(false)
-    expect(surface.semanticIdentity.repeatedSourcePositionCreatesSecondSemanticLink).toBe(false)
-    expect(surface.transports.rawChannel.operation).toBe('deserialize_stream')
-    expect(corpus.schema).toBe('anum-deserialization-conformance/v0.4')
-    expect(corpus.status).toBe('accepted')
-    expect(corpus.accepted).toBe(true)
-    expect(corpus.contract).toBe('anum-deserialization/v0.4')
-    expect(corpus.raw.stackSemanticsChangedFromV03).toBe(false)
   })
 
   for (const testCase of corpus.valid) {
-    it(`executes ${testCase.id}`, () => {
+    it(`replays historical vector ${testCase.id} through current upstream semantics`, () => {
+      const upstream = deserializeStream(testCase.source, symbolicStackAlgebra)
       const actual = deserializeAnumStream(testCase.source)
+
+      expect(actual.result).toBe(upstream.denotation)
+      expect(actual.operations).toEqual(upstream.operations)
+      expect(actual.resolvedValues).toEqual(upstream.resolvedValues)
+
       expect(actual.result).toBe(testCase.expectedDenotation)
       expect(actual.operations).toEqual(testCase.expectedOperations)
       if (testCase.expectedResolvedValues)
@@ -98,7 +71,9 @@ describe('current ANUM raw transport inside deserialization v0.4', () => {
   }
 
   for (const testCase of corpus.invalid) {
-    it(`rejects ${testCase.id}`, () => {
+    it(`maps upstream rejection for historical vector ${testCase.id}`, () => {
+      expect(() => deserializeStream(testCase.source, symbolicStackAlgebra)).toThrow(StreamError)
+
       try {
         deserializeAnumStream(testCase.source)
         throw new Error('expected deserialization to fail')
@@ -109,17 +84,15 @@ describe('current ANUM raw transport inside deserialization v0.4', () => {
     })
   }
 
-  it('collapses the root self-link instead of creating a second root', () => {
-    expect(semanticLink('R', 'R')).toBe('R')
-    expect(deserializeAnumStream('').result).toBe('R')
-    expect(deserializeAnumStream('[]').result).toBe('R')
-    expect(deserializeAnumStream('[][]').result).toBe('R')
+  it('delegates canonical Link construction to the upstream symbolic algebra', () => {
+    expect(semanticLink('R', 'R')).toBe(symbolicStackAlgebra.link('R', 'R'))
+    expect(semanticLink('O', 'C')).toBe(symbolicStackAlgebra.link('O', 'C'))
+    expect(semanticLink('L', 'U')).toBe(symbolicStackAlgebra.link('L', 'U'))
   })
 
-  it('reuses the same semantic L across repeated source positions', () => {
-    const actual = deserializeAnumStream('1110')
-    expect(actual.resolvedValues).toEqual(['L', 'L', 'L', 'U'])
-    expect(new Set(actual.resolvedValues)).toEqual(new Set(['L', 'U']))
-    expect(actual.result).toBe('(((L⟼L)⟼L)⟼U)')
+  it('preserves presentation-only maximum nesting depth', () => {
+    expect(deserializeAnumStream('').maxDepth).toBe(0)
+    expect(deserializeAnumStream('[]').maxDepth).toBe(1)
+    expect(deserializeAnumStream('[[1]]').maxDepth).toBe(2)
   })
 })
