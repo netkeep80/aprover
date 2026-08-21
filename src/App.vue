@@ -30,9 +30,9 @@ import {
   type QuatConversionStep,
 } from './core/quatAnum'
 
-const CANONICAL_ROOT = `// МТС v0.2 — каноническая формальная нотация
-// Теория и machine-readable contracts: netkeep80/anum_docs
-// Этот экран разбирает и визуализирует формулы. Trusted proof replay — mts-proof/v0.4.
+const CANONICAL_ROOT = `// Historical application notation sample
+// Теория и current semantic authority: exact-pinned @mts/core v0.10 from netkeep80/anum_docs
+// Этот экран разбирает и визуализирует формулы. Локальный mts-proof/v0.4 replay — legacy compatibility path.
 
 ∞ : {◁ = ∞, ▷ = ∞}
 () : ♀() ⟼ ()♂
@@ -256,7 +256,7 @@ onUnmounted(() => {
         <h1>aprover</h1>
         <span class="version">v{{ appVersion }}</span>
       </div>
-      <p class="subtitle">Визуальный consumer канонической формальной нотации МТС v0.2</p>
+      <p class="subtitle">Визуальный consumer МТС · current semantics: exact @mts/core v0.10</p>
       <div class="header-right">
         <div class="toolbar">
           <button class="toolbar-btn" title="Новый файл (Ctrl+N)" @click="handleNewFile">📄 <span>Новый</span></button>
@@ -279,7 +279,7 @@ onUnmounted(() => {
           <button
             class="toolbar-btn proof-replay-toggle"
             :class="{ active: showProofReplay }"
-            title="Trusted proof replay"
+            title="Legacy proof replay"
             @click="toggleProofReplay"
           >
             PRF <span>Proof</span>
@@ -311,7 +311,7 @@ onUnmounted(() => {
     </header>
 
     <div class="runtime-note">
-      Current trusted proof path: <code>mts-proof/v0.4</code> under <code>mts-contract/v0.6</code>. Search строит только current artifact; acceptance всегда определяется independent replay.
+      Current MTS semantic authority: <code>exact @mts/core v0.10</code>. Local <code>mts-proof/v0.4</code> search/replay is historical compatibility evidence, not accepted theorem proof.
     </div>
 
     <ProofReplayPanel
