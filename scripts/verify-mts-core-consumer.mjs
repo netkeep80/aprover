@@ -14,6 +14,9 @@ import { join, resolve } from "node:path";
 const LOCK_PATH = resolve("contracts/mts-core-consumer-lock.json");
 const FULL_SHA = /^[0-9a-f]{40}$/;
 const REPOSITORY = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
+const INSTALL_CURRENT_PROJECT = process.argv.includes("--install-current-project");
+const UNKNOWN_ARGS = process.argv.slice(2).filter((arg) => arg !== "--install-current-project");
+assert.deepEqual(UNKNOWN_ARGS, [], `unknown arguments: ${UNKNOWN_ARGS.join(", ")}`);
 
 function run(command, args, cwd) {
   const result = spawnSync(command, args, {
@@ -129,6 +132,26 @@ try {
     '',
   ].join("\n"), "utf8");
   run(process.execPath, ["smoke.mjs"], consumer);
+
+  if (INSTALL_CURRENT_PROJECT) {
+    const projectRoot = process.cwd();
+    const projectManifest = readJson(join(projectRoot, "package.json"));
+    assert.equal(projectManifest.name, "aprover-app", "install target must be the aprover project root");
+    run(npm, [
+      "install",
+      "--ignore-scripts",
+      "--no-save",
+      "--package-lock=false",
+      "--legacy-peer-deps",
+      "--no-audit",
+      "--no-fund",
+      artifact,
+    ], projectRoot);
+    const installed = readJson(join(projectRoot, "node_modules", "@mts", "core", "package.json"));
+    assert.equal(installed.name, lock.package.name);
+    assert.equal(installed.version, lock.package.version);
+    console.log(`installed ${lock.package.name}@${lock.package.version} into ${projectRoot}`);
+  }
 
   console.log(`verified ${lock.package.name}@${lock.package.version}`);
   console.log(`source=${lock.repository}@${lock.commit}`);
