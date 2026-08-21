@@ -33,27 +33,29 @@ function artifact(link = 10): string {
   })
 }
 
-describe('ProofReplayPanel', () => {
-  it('shows an independently accepted current proof with context/substitution details', () => {
+describe('ProofReplayPanel legacy compatibility path', () => {
+  it('shows a matched historical v0.4 replay with context/substitution details', () => {
     const wrapper = mount(ProofReplayPanel, { props: { modelValue: artifact() } })
 
-    expect(wrapper.text()).toContain('REPLAY ACCEPTED')
+    expect(wrapper.text()).toContain('Legacy proof replay')
+    expect(wrapper.text()).toContain('LEGACY REPLAY MATCHED')
     expect(wrapper.text()).toContain(MTS_PROOF_SCHEMA_V04)
     expect(wrapper.text()).toContain(MTS_PROOF_CONTRACT_VERSION_V04)
     expect(wrapper.text()).toContain('[] = ◁')
     expect(wrapper.text()).toContain('current: ◁=10 · ▷=12')
     expect(wrapper.text()).toContain('parent↑1: ◁=20 · ▷=22')
     expect(wrapper.text()).toContain('[] @ 0 → LinkRef 10')
+    expect(wrapper.text()).not.toContain('Trusted proof replay')
   })
 
-  it('shows a replay rejection separately from validation errors', () => {
+  it('shows a legacy replay rejection separately from validation errors', () => {
     const wrapper = mount(ProofReplayPanel, { props: { modelValue: artifact(12) } })
 
-    expect(wrapper.text()).toContain('REPLAY REJECTED')
+    expect(wrapper.text()).toContain('LEGACY REPLAY REJECTED')
     expect(wrapper.text()).not.toContain('Validation error')
   })
 
-  it('shows validator errors for legacy artifacts instead of compatibility replay', () => {
+  it('shows validator errors for older artifacts instead of compatibility replay', () => {
     const wrapper = mount(ProofReplayPanel, {
       props: {
         modelValue: '{"schema":"mts-proof/v0.2","contractVersion":"mts-contract/v0.2","steps":[]}',
@@ -63,7 +65,13 @@ describe('ProofReplayPanel', () => {
     expect(wrapper.text()).toContain('Validation error')
     expect(wrapper.text()).toContain('$.proofVersion')
     expect(wrapper.text()).toContain('mts-proof/v0.4')
-    expect(wrapper.text()).not.toContain('REPLAY REJECTED')
+    expect(wrapper.text()).not.toContain('LEGACY REPLAY REJECTED')
+  })
+
+  it('states that empty legacy replay is not current MTS v0.10 proof approval', () => {
+    const wrapper = mount(ProofReplayPanel, { props: { modelValue: '' } })
+
+    expect(wrapper.text()).toContain('not accepted MTS v0.10 proof approval')
   })
 
   it('emits proof JSON edits without interpreting them in the component', async () => {
