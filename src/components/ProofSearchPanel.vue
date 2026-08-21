@@ -129,8 +129,8 @@ const openReplay = () => {
   <section class="proof-search-panel" data-testid="proof-search-panel">
     <header class="proof-search-header">
       <div>
-        <strong>Untrusted proof search</strong>
-        <span class="proof-search-subtitle">mts-proof/v0.4 · ContextuallySatisfies</span>
+        <strong>Legacy untrusted proof search</strong>
+        <span class="proof-search-subtitle">historical mts-proof/v0.4 · local compatibility path</span>
       </div>
       <button type="button" class="proof-search-action close" aria-label="Close proof search" @click="emit('close')">
         ×
@@ -172,30 +172,30 @@ const openReplay = () => {
         />
 
         <button type="button" class="proof-search-action primary proof-search-run" @click="runSearch">
-          Run search
+          Run legacy search
         </button>
       </div>
 
       <div class="proof-search-result">
         <div v-if="searchStatus === 'idle'" class="proof-search-empty">
-          Search is untrusted. Any generated current-format artifact is independently replayed before it is shown as accepted.
+          This search and its local v0.4 replay are historical compatibility tooling. They do not constitute accepted MTS v0.10 proof approval.
         </div>
 
         <div v-else class="proof-search-summary">
           <span class="proof-search-status" :class="`status-${searchStatus}`">
-            {{ searchStatus === 'proven' ? 'SEARCH PROVEN' : searchStatus === 'not-proven' ? 'NOT PROVEN' : 'SEARCH ERROR' }}
+            {{ searchStatus === 'proven' ? 'LEGACY CANDIDATE FOUND' : searchStatus === 'not-proven' ? 'LEGACY NOT MATCHED' : 'SEARCH ERROR' }}
           </span>
           <span v-if="searchMessage" class="proof-search-message">{{ searchMessage }}</span>
         </div>
 
         <template v-if="searchStatus === 'proven'">
           <div class="proof-search-replay">
-            <span>Independent replay</span>
+            <span>Legacy v0.4 local replay</span>
             <strong
               class="proof-search-replay-verdict"
               :class="{ accepted: replayAccepted === true, rejected: replayAccepted === false }"
             >
-              {{ replayAccepted ? 'REPLAY ACCEPTED' : 'REPLAY REJECTED' }}
+              {{ replayAccepted ? 'LEGACY REPLAY MATCHED' : 'LEGACY REPLAY REJECTED' }}
             </strong>
           </div>
 
@@ -204,11 +204,11 @@ const openReplay = () => {
             :value="proofSource"
             readonly
             spellcheck="false"
-            aria-label="Generated proof artifact JSON"
+            aria-label="Generated legacy proof artifact JSON"
           />
 
           <button type="button" class="proof-search-action" @click="openReplay">
-            Open in trusted replay
+            Open legacy replay
           </button>
         </template>
       </div>
