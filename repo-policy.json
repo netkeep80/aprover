@@ -1,0 +1,112 @@
+{
+  "policy_format_version": "0.3.0",
+  "repository_kind": "application",
+  "enforcement": {
+    "mode": "blocking"
+  },
+  "integration": {
+    "workflows": [
+      {
+        "id": "project-ci",
+        "kind": "github_actions",
+        "path": ".github/workflows/ci.yml",
+        "role": "ci_gate",
+        "expect": {
+          "events": ["pull_request"],
+          "enforcement": "blocking",
+          "disallow": ["continue_on_error"]
+        }
+      },
+      {
+        "id": "repo-guard-pr",
+        "kind": "github_actions",
+        "path": ".github/workflows/repo-guard.yml",
+        "role": "repo_guard_pr_gate",
+        "expect": {
+          "events": ["pull_request"],
+          "event_types": ["opened", "synchronize", "reopened", "ready_for_review"],
+          "action": {
+            "uses": "netkeep80/repo-guard",
+            "ref": "e95fe766b0e13219d09a16d7f64761e2a8dab872",
+            "ref_pinning": "sha"
+          },
+          "mode": "check-pr",
+          "enforcement": "blocking",
+          "permissions": {
+            "contents": "read",
+            "issues": "read",
+            "pull-requests": "read"
+          },
+          "token_env": ["GH_TOKEN"],
+          "summary": true,
+          "disallow": ["continue_on_error", "manual_clone", "direct_temp_cli_execution"]
+        }
+      }
+    ],
+    "templates": [
+      {
+        "id": "pull-request-change-intent",
+        "kind": "markdown",
+        "path": ".github/PULL_REQUEST_TEMPLATE.md",
+        "requires_change_intent_block": true,
+        "required_block_kind": "repo-guard-yaml",
+        "required_change_intent_fields": [
+          "change_type",
+          "scope",
+          "budgets",
+          "anchors.affects",
+          "anchors.implements",
+          "anchors.verifies",
+          "must_touch",
+          "must_not_touch",
+          "expected_effects"
+        ]
+      },
+      {
+        "id": "issue-change-intent",
+        "kind": "github_issue_form",
+        "path": ".github/ISSUE_TEMPLATE/change-intent.yml",
+        "requires_change_intent_block": true,
+        "required_block_kind": "repo-guard-yaml"
+      }
+    ]
+  },
+  "paths": {
+    "forbidden": ["*.bak", "*.log"],
+    "canonical_docs": ["README.md"],
+    "governance_paths": [
+      "repo-policy.json",
+      ".github/workflows/**",
+      ".github/PULL_REQUEST_TEMPLATE.md",
+      ".github/ISSUE_TEMPLATE/**"
+    ],
+    "operational_paths": []
+  },
+  "diff_rules": {
+    "max_new_docs": 3,
+    "max_new_files": 20,
+    "max_net_added_lines": 1500
+  },
+  "surfaces": {
+    "core": ["src/core/**"],
+    "untrusted_search": ["src/core/proofSearch.ts"],
+    "ui": ["src/components/**", "src/App.vue", "src/style.css"],
+    "unit_tests": ["tests/unit/**"],
+    "e2e_tests": ["tests/e2e/**"],
+    "contracts": ["contracts/**"],
+    "docs": ["README.md", "docs/**"],
+    "governance": [
+      "repo-policy.json",
+      ".github/workflows/**",
+      ".github/PULL_REQUEST_TEMPLATE.md",
+      ".github/ISSUE_TEMPLATE/**"
+    ]
+  },
+  "content_rules": [],
+  "cochange_rules": [
+    {
+      "if_changed": ["src/core/**"],
+      "must_change_any": ["tests/**"]
+    }
+  ]
+}
