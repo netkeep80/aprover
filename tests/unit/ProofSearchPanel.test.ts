@@ -6,14 +6,15 @@ import { describe, expect, it } from 'vitest'
 import ProofSearchPanel from '../../src/components/ProofSearchPanel.vue'
 import { parseProofJsonV04 } from '../../src/core/proofReplayV04'
 
-describe('ProofSearchPanel', () => {
-  it('runs untrusted search and independently replays the generated current artifact', async () => {
+describe('ProofSearchPanel legacy compatibility path', () => {
+  it('runs untrusted legacy search and locally replays the generated historical artifact', async () => {
     const wrapper = mount(ProofSearchPanel)
 
     await wrapper.get('.proof-search-run').trigger('click')
 
-    expect(wrapper.text()).toContain('SEARCH PROVEN')
-    expect(wrapper.text()).toContain('REPLAY ACCEPTED')
+    expect(wrapper.text()).toContain('LEGACY CANDIDATE FOUND')
+    expect(wrapper.text()).toContain('LEGACY REPLAY MATCHED')
+    expect(wrapper.text()).toContain('not accepted MTS v0.10 proof approval')
 
     const source = (wrapper.get('.proof-search-artifact').element as HTMLTextAreaElement).value
     const proof = parseProofJsonV04(source)
@@ -25,12 +26,12 @@ describe('ProofSearchPanel', () => {
     expect(judgment.expected.substitutions).toEqual([{ path: [0], link: 10 }])
   })
 
-  it('shows not-proven separately from errors', async () => {
+  it('shows legacy not-matched separately from errors', async () => {
     const wrapper = mount(ProofSearchPanel)
     await wrapper.get('#proof-search-expression').setValue('◁ = ▷')
     await wrapper.get('.proof-search-run').trigger('click')
 
-    expect(wrapper.text()).toContain('NOT PROVEN')
+    expect(wrapper.text()).toContain('LEGACY NOT MATCHED')
     expect(wrapper.text()).toContain('not-matched')
     expect(wrapper.find('.proof-search-artifact').exists()).toBe(false)
   })
@@ -45,7 +46,7 @@ describe('ProofSearchPanel', () => {
     expect(wrapper.find('.proof-search-artifact').exists()).toBe(false)
   })
 
-  it('accepts explicit symbols, memory and recursive parent context', async () => {
+  it('accepts explicit symbols, memory and recursive parent context for legacy search', async () => {
     const wrapper = mount(ProofSearchPanel)
     await wrapper.get('#proof-search-expression').setValue('30 = [] ⟼ []')
     await wrapper
@@ -55,8 +56,8 @@ describe('ProofSearchPanel', () => {
     await wrapper.get('#proof-search-memory').setValue('[{"id":30,"start":2,"end":3}]')
     await wrapper.get('.proof-search-run').trigger('click')
 
-    expect(wrapper.text()).toContain('SEARCH PROVEN')
-    expect(wrapper.text()).toContain('REPLAY ACCEPTED')
+    expect(wrapper.text()).toContain('LEGACY CANDIDATE FOUND')
+    expect(wrapper.text()).toContain('LEGACY REPLAY MATCHED')
 
     const source = (wrapper.get('.proof-search-artifact').element as HTMLTextAreaElement).value
     const proof = parseProofJsonV04(source)
@@ -67,7 +68,7 @@ describe('ProofSearchPanel', () => {
     expect(judgment.memory).toEqual([{ id: 30, start: 2, end: 3 }])
   })
 
-  it('hands the portable current artifact to the replay workflow', async () => {
+  it('hands the historical artifact to the legacy replay workflow', async () => {
     const wrapper = mount(ProofSearchPanel)
     await wrapper.get('.proof-search-run').trigger('click')
     await wrapper.get('.proof-search-result button').trigger('click')
