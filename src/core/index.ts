@@ -140,6 +140,17 @@ export {
   deserializeAnumStream,
 } from './anumDenotation'
 
+export type {
+  PortableProofTargetSelection,
+  PortableProofApprovalRequest,
+  PortableProofApprovalRejectCode,
+  PortableProofApprovalDigest,
+  PortableProofAcceptance,
+  PortableProofRejection,
+  PortableProofApprovalResult,
+} from './proofApproval'
+export { approvePortableStructuralProof } from './proofApproval'
+
 export type { FileMetadata, SupportedExtension } from './fileIO'
 export {
   SUPPORTED_EXTENSIONS,
