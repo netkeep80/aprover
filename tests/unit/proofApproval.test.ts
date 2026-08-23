@@ -185,7 +185,7 @@ describe('portable proof approval', () => {
     const hostile = { ...VALID_ARTIFACT, callback: 'host-authority' }
     const result = await approvePortableStructuralProof({
       artifact: hostile,
-      provenance: await provenanceFor(hostile),
+      provenance: await provenanceFor(),
       target: TARGET,
     })
     expect(result).toEqual({ verdict: 'REJECT', code: 'proof-rejected' })
