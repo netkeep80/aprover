@@ -23,7 +23,7 @@
     "version": "0.10.0",
     "root": "ts",
     "artifact": "mts-core-0.10.0.tgz",
-    "sha256": "0cd716b65fcdcfb8ca31ec3899f1a812f0b4c9dbfe46bfc1f31899b762cde007",
+    "sha256": "6a768f2cb7562935daccd9d0ca161a2512fba2a9f136ed08183009ef4849d5df",
     "producer": {
       "node": "24.19.0",
       "npm": "11.17.0"
