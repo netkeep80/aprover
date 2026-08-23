@@ -89,6 +89,7 @@
   },
   "surfaces": {
     "core": ["src/core/**"],
+    "trusted_approver": ["src/core/proofApproval.ts"],
     "untrusted_search": ["src/core/proofSearch.ts"],
     "ui": ["src/components/**", "src/App.vue", "src/style.css"],
     "unit_tests": ["tests/unit/**"],
@@ -102,11 +103,51 @@
       ".github/ISSUE_TEMPLATE/**"
     ]
   },
+  "change_profiles": {
+    "feature": {
+      "forbid_surfaces": ["trusted_approver"],
+      "allow_unclassified_surfaces": true
+    },
+    "bugfix": {
+      "forbid_surfaces": ["trusted_approver"],
+      "allow_unclassified_surfaces": true
+    },
+    "refactor": {
+      "forbid_surfaces": ["trusted_approver"],
+      "allow_unclassified_surfaces": true
+    },
+    "docs": {
+      "forbid_surfaces": ["trusted_approver"],
+      "allow_unclassified_surfaces": true
+    },
+    "test": {
+      "forbid_surfaces": ["trusted_approver"],
+      "allow_unclassified_surfaces": true
+    },
+    "migration": {
+      "forbid_surfaces": ["trusted_approver"],
+      "allow_unclassified_surfaces": true
+    },
+    "integration": {
+      "forbid_surfaces": ["trusted_approver"],
+      "allow_unclassified_surfaces": true
+    },
+    "trusted-kernel": {
+      "allow_surfaces": ["core", "trusted_approver", "unit_tests"],
+      "forbid_surfaces": ["untrusted_search", "ui"],
+      "require_surfaces": ["trusted_approver", "unit_tests"],
+      "allow_unclassified_surfaces": false
+    }
+  },
   "content_rules": [],
   "cochange_rules": [
     {
       "if_changed": ["src/core/**"],
       "must_change_any": ["tests/**"]
+    },
+    {
+      "if_changed": ["src/core/proofApproval.ts"],
+      "must_change_any": ["tests/unit/proofApproval.test.ts"]
     }
   ]
 }
