@@ -11,29 +11,19 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          node-version: '24'
           cache: 'npm'
 
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
 
-      - name: Setup @mts/core materializer Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-
       - name: Install exact accepted @mts/core
         run: node scripts/verify-mts-core-consumer.mjs --install-current-project
-
-      - name: Restore application Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
 
       - name: Lint
         run: npm run lint:check
@@ -54,7 +44,7 @@ jobs:
         run: npm run test:e2e
 
       - name: Upload Playwright Report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: ${{ !cancelled() }}
         with:
           name: playwright-report
@@ -67,10 +57,10 @@ jobs:
     timeout-minutes: 15
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup package verification Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '24'
 
