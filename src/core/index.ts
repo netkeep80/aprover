@@ -3,7 +3,8 @@
  *
  * `anum_docs` остаётся нормативным источником теории и текущей семантики МТС.
  * Этот barrel публикует только consumer-only syntax/presentation/I/O adapters и
- * тонкий ANUM adapter над exact-pinned `@mts/core` v0.10.
+ * тонкие ANUM/proof-approval adapters над exact-pinned accepted `@mts/core`;
+ * semantic baseline = MTS v0.11, package manifest remains 0.10.0.
  *
  * Исторические interpreter/memory/value-bundle/proof replay/search runtimes
  * отсутствуют в current tree; история хранится в Git, а не compatibility API.
