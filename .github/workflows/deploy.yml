@@ -35,6 +35,12 @@ jobs:
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
 
+      - name: Install exact accepted @mts/core
+        run: node scripts/verify-mts-core-consumer.mjs --install-current-project
+
+      - name: Install exact accepted @mts/visual
+        run: node scripts/verify-mts-visual-consumer.mjs --install-current-project
+
       - name: Build exact green main SHA
         run: npm run build
 
