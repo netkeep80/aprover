@@ -172,6 +172,8 @@ export {
   openFileDialog,
 } from './fileIO'
 
+export { projectSemanticMemoryToVisualLinkNetwork } from './visualLinkNetwork'
+
 export type {
   LinkGraphNodeType,
   LinkGraphNode,
