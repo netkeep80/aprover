@@ -151,6 +151,21 @@ export type {
 } from './proofApproval'
 export { approvePortableStructuralProof } from './proofApproval'
 
+export type {
+  TheoremRecordConsumerV01,
+  TheoremRecordProofV01,
+  TheoremRecordApprovalV01,
+  TheoremRecordV01,
+  TheoremRecordRejectionCode,
+  TheoremRecordReapproval,
+} from './theoremLibrary'
+export {
+  THEOREM_RECORD_SCHEMA,
+  THEOREM_RECORD_CONSUMER,
+  createTheoremRecord,
+  reapproveTheoremRecord,
+} from './theoremLibrary'
+
 export type { FileMetadata, SupportedExtension } from './fileIO'
 export {
   SUPPORTED_EXTENSIONS,
