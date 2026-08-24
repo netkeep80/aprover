@@ -25,6 +25,9 @@ jobs:
       - name: Install exact accepted @mts/core
         run: node scripts/verify-mts-core-consumer.mjs --install-current-project
 
+      - name: Install exact accepted @mts/visual
+        run: node scripts/verify-mts-visual-consumer.mjs --install-current-project
+
       - name: Lint
         run: npm run lint:check
 
