@@ -9,19 +9,19 @@ import VisualLinkNetworkViewer from '../../src/components/VisualLinkNetworkViewe
 const threeMocks = vi.hoisted(() => ({
   createRenderer: vi.fn(),
   createControls: vi.fn(),
+  destroyControls: vi.fn(),
   destroyRenderer: vi.fn(),
 }))
 
 vi.mock('@mts/visual/three', () => ({
   createVisualThreeLiveRenderer: threeMocks.createRenderer,
   createVisualThreeControlBar: threeMocks.createControls,
+  destroyVisualThreeControlBar: threeMocks.destroyControls,
   destroyVisualThreeRenderer: threeMocks.destroyRenderer,
 }))
 
 const rootNetwork: VisualLinkNetwork = Object.freeze({
-  links: Object.freeze([
-    Object.freeze({ key: 'root', startKey: 'root', endKey: 'root' }),
-  ]),
+  links: Object.freeze([Object.freeze({ key: 'root', startKey: 'root', endKey: 'root' })]),
 })
 
 const extendedNetwork: VisualLinkNetwork = Object.freeze({
@@ -64,11 +64,12 @@ describe('VisualLinkNetworkViewer', () => {
     expect(Number.isFinite(options.springStiffness)).toBe(true)
     expect(options).toEqual({ charge: 1, springStiffness: 0.055 })
 
+    expect(threeMocks.destroyControls).not.toHaveBeenCalled()
     expect(threeMocks.destroyRenderer).not.toHaveBeenCalled()
     wrapper.unmount()
   })
 
-  it('destroys the previous presentation before mounting a replacement network', async () => {
+  it('destroys previous controls and renderer before mounting a replacement network', async () => {
     const wrapper = mount(VisualLinkNetworkViewer, {
       props: { network: rootNetwork },
     })
@@ -78,15 +79,23 @@ describe('VisualLinkNetworkViewer', () => {
     await wrapper.setProps({ network: extendedNetwork })
     await nextTick()
 
+    expect(threeMocks.destroyControls).toHaveBeenCalledTimes(1)
+    expect(threeMocks.destroyControls).toHaveBeenNthCalledWith(1, mountedSurface)
     expect(threeMocks.destroyRenderer).toHaveBeenCalledTimes(1)
     expect(threeMocks.destroyRenderer).toHaveBeenNthCalledWith(1, mountedSurface)
+    expect(threeMocks.destroyControls.mock.invocationCallOrder[0]).toBeLessThan(
+      threeMocks.destroyRenderer.mock.invocationCallOrder[0],
+    )
     expect(threeMocks.createRenderer).toHaveBeenCalledTimes(2)
+    expect(threeMocks.destroyRenderer.mock.invocationCallOrder[0]).toBeLessThan(
+      threeMocks.createRenderer.mock.invocationCallOrder[1],
+    )
     expect(threeMocks.createRenderer.mock.calls[1][1]).toBe(extendedNetwork)
 
     wrapper.unmount()
   })
 
-  it('destroys the active shared renderer exactly once on unmount', async () => {
+  it('destroys active shared controls and renderer exactly once on unmount', async () => {
     const wrapper = mount(VisualLinkNetworkViewer, {
       props: { network: rootNetwork },
     })
@@ -95,6 +104,8 @@ describe('VisualLinkNetworkViewer', () => {
 
     wrapper.unmount()
 
+    expect(threeMocks.destroyControls).toHaveBeenCalledTimes(1)
+    expect(threeMocks.destroyControls).toHaveBeenCalledWith(mountedSurface)
     expect(threeMocks.destroyRenderer).toHaveBeenCalledTimes(1)
     expect(threeMocks.destroyRenderer).toHaveBeenCalledWith(mountedSurface)
   })
