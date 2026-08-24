@@ -1,0 +1,30 @@
+{
+  "schema": "aprover-mts-visual-consumer-lock/v0.1",
+  "channel": "accepted-presentation",
+  "repository": "netkeep80/mts_visual",
+  "commit": "2d76cd29143fa764f4a08d0c0a788ff73c38841c",
+  "package": {
+    "root": ".",
+    "name": "@mts/visual",
+    "version": "0.2.0",
+    "private": true,
+    "manifest": {
+      "path": "package.json",
+      "gitBlobSha": "f17a2e119cd1e98110b5a36baa8535a435a03ac1"
+    },
+    "lockfile": {
+      "path": "package-lock.json",
+      "gitBlobSha": "3446bedebbd0bbc00b676f97050083d17f02107b",
+      "lockfileVersion": 3
+    },
+    "dependencies": {
+      "three": "0.185.1"
+    }
+  },
+  "authority": {
+    "floatingRefAllowed": false,
+    "deepSourceImportAllowed": false,
+    "semanticAcceptanceClaimed": false,
+    "semanticCoreLockIndependent": true
+  }
+}

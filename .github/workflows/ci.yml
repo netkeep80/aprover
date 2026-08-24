@@ -66,3 +66,19 @@ jobs:
 
       - name: Rebuild, digest and consume exact @mts/core artifact
         run: node scripts/verify-mts-core-consumer.mjs
+
+  mts-visual-consumer:
+    name: Verify accepted @mts/visual consumer lock
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup presentation package verification Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
+      - name: Rebuild and consume exact @mts/visual artifact in isolation
+        run: node scripts/verify-mts-visual-consumer.mjs
