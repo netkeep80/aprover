@@ -21,20 +21,18 @@ describe('публикация GitHub Pages', () => {
     expect(workflow).toContain('ref: ${{ github.event.workflow_run.head_sha }}')
   })
 
-  it('materialize-ит exact core и visual artifacts до сборки без floating install', () => {
-    const coreInstall = workflow.indexOf(
-      'node scripts/verify-mts-core-consumer.mjs --install-current-project'
-    )
-    const visualInstall = workflow.indexOf(
-      'node scripts/verify-mts-visual-consumer.mjs --install-current-project'
-    )
+  it('materialize-ит exact core и visual artifacts атомарно до сборки', () => {
+    const coreArtifact =
+      'node scripts/verify-mts-core-consumer.mjs --artifact-output .mts-artifacts/mts-core.tgz'
+    const atomicInstall =
+      'node scripts/verify-mts-visual-consumer.mjs --install-current-project --core-artifact .mts-artifacts/mts-core.tgz'
     const build = workflow.indexOf('npm run build')
 
-    expect(coreInstall).toBeGreaterThan(-1)
-    expect(visualInstall).toBeGreaterThan(-1)
-    expect(build).toBeGreaterThan(-1)
-    expect(coreInstall).toBeLessThan(build)
-    expect(visualInstall).toBeLessThan(build)
+    expect(workflow).toContain(coreArtifact)
+    expect(workflow).toContain(atomicInstall)
+    expect(workflow.indexOf(coreArtifact)).toBeLessThan(workflow.indexOf(atomicInstall))
+    expect(workflow.indexOf(atomicInstall)).toBeLessThan(build)
+    expect(workflow.match(/--install-current-project/g)).toHaveLength(1)
     expect(workflow).not.toMatch(/npm\s+install[^\n]*@mts\//)
   })
 })
