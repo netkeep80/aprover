@@ -12,7 +12,7 @@ import {
   type VisualThreeContainer,
   type VisualThreeControlHost,
 } from '@mts/visual/three'
-import { onMounted, onUnmounted, ref, watch } from 'vue'
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 const props = defineProps<{
   network: VisualLinkNetwork
@@ -64,7 +64,7 @@ watch(
   () => props.network,
   network => mountNetwork(network),
 )
-onUnmounted(teardown)
+onBeforeUnmount(teardown)
 </script>
 
 <template>
