@@ -35,6 +35,12 @@ jobs:
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
 
+      - name: Materialize exact accepted @mts/core artifact
+        run: node scripts/verify-mts-core-consumer.mjs --artifact-output .mts-artifacts/mts-core.tgz
+
+      - name: Install exact accepted @mts/core + @mts/visual
+        run: node scripts/verify-mts-visual-consumer.mjs --install-current-project --core-artifact .mts-artifacts/mts-core.tgz
+
       - name: Build exact green main SHA
         run: npm run build
 

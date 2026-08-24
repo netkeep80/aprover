@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
+  copyFileSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -9,14 +10,35 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 
 const LOCK_PATH = resolve("contracts/mts-core-consumer-lock.json");
 const FULL_SHA = /^[0-9a-f]{40}$/;
 const REPOSITORY = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
-const INSTALL_CURRENT_PROJECT = process.argv.includes("--install-current-project");
-const UNKNOWN_ARGS = process.argv.slice(2).filter((arg) => arg !== "--install-current-project");
-assert.deepEqual(UNKNOWN_ARGS, [], `unknown arguments: ${UNKNOWN_ARGS.join(", ")}`);
+const ARGS = process.argv.slice(2);
+let INSTALL_CURRENT_PROJECT = false;
+let ARTIFACT_OUTPUT = null;
+for (let index = 0; index < ARGS.length; index += 1) {
+  const arg = ARGS[index];
+  if (arg === "--install-current-project") {
+    INSTALL_CURRENT_PROJECT = true;
+    continue;
+  }
+  if (arg === "--artifact-output") {
+    const value = ARGS[index + 1];
+    assert.ok(value && !value.startsWith("--"), "--artifact-output requires a path");
+    assert.equal(ARTIFACT_OUTPUT, null, "--artifact-output may be specified only once");
+    ARTIFACT_OUTPUT = value;
+    index += 1;
+    continue;
+  }
+  assert.fail(`unknown argument: ${arg}`);
+}
+assert.equal(
+  INSTALL_CURRENT_PROJECT && ARTIFACT_OUTPUT !== null,
+  false,
+  "--install-current-project and --artifact-output are mutually exclusive",
+);
 
 function run(command, args, cwd) {
   const result = spawnSync(command, args, {
@@ -147,6 +169,14 @@ try {
     '',
   ].join("\n"), "utf8");
   run(process.execPath, ["smoke.mjs"], consumer);
+
+  if (ARTIFACT_OUTPUT !== null) {
+    const outputPath = resolve(process.cwd(), ARTIFACT_OUTPUT);
+    mkdirSync(dirname(outputPath), { recursive: true });
+    copyFileSync(artifact, outputPath);
+    assert.equal(sha256(outputPath), lock.package.sha256, "emitted @mts/core artifact must match consumer lock");
+    console.log(`artifact-output=${outputPath}`);
+  }
 
   if (INSTALL_CURRENT_PROJECT) {
     const projectRoot = process.cwd();

@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import {
   mkdirSync,
   mkdtempSync,
@@ -12,7 +13,33 @@ import { join, resolve } from 'node:path'
 
 const projectRoot = resolve(process.cwd())
 const lockPath = join(projectRoot, 'contracts/mts-visual-consumer-lock.json')
+const coreLockPath = join(projectRoot, 'contracts/mts-core-consumer-lock.json')
 const lock = JSON.parse(readFileSync(lockPath, 'utf8'))
+const coreLock = JSON.parse(readFileSync(coreLockPath, 'utf8'))
+const args = process.argv.slice(2)
+let installCurrentProject = false
+let coreArtifactArg = null
+for (let index = 0; index < args.length; index += 1) {
+  const arg = args[index]
+  if (arg === '--install-current-project') {
+    installCurrentProject = true
+    continue
+  }
+  if (arg === '--core-artifact') {
+    const value = args[index + 1]
+    assert.ok(value && !value.startsWith('--'), '--core-artifact requires a path')
+    assert.equal(coreArtifactArg, null, '--core-artifact may be specified only once')
+    coreArtifactArg = value
+    index += 1
+    continue
+  }
+  assert.fail(`unknown argument: ${arg}`)
+}
+assert.equal(
+  installCurrentProject,
+  coreArtifactArg !== null,
+  '--install-current-project and --core-artifact must be supplied together',
+)
 
 const expectedLock = {
   schema: 'aprover-mts-visual-consumer-lock/v0.1',
@@ -45,8 +72,16 @@ const expectedLock = {
   },
 }
 assert.deepEqual(lock, expectedLock, 'visual consumer lock must match accepted authority exactly')
+assert.equal(coreLock.schema, 'aprover-mts-core-consumer-lock/v0.1')
+assert.equal(coreLock.package.name, '@mts/core')
+assert.match(coreLock.package.sha256, /^[0-9a-f]{64}$/)
+assert.equal(coreLock.authority.floatingRefAllowed, false)
 
-const projectManifest = JSON.parse(readFileSync(join(projectRoot, 'package.json'), 'utf8'))
+const projectManifestPath = join(projectRoot, 'package.json')
+const projectLockPath = join(projectRoot, 'package-lock.json')
+const projectManifestText = readFileSync(projectManifestPath, 'utf8')
+const projectLockText = readFileSync(projectLockPath, 'utf8')
+const projectManifest = JSON.parse(projectManifestText)
 const projectDependencies = {
   ...(projectManifest.dependencies ?? {}),
   ...(projectManifest.devDependencies ?? {}),
@@ -56,7 +91,12 @@ const projectDependencies = {
 assert.equal(
   Object.hasOwn(projectDependencies, '@mts/visual'),
   false,
-  '@mts/visual must remain absent from aprover application dependencies in A1',
+  '@mts/visual must remain absent from aprover application dependencies',
+)
+assert.equal(
+  Object.hasOwn(projectDependencies, '@mts/core'),
+  false,
+  '@mts/core must remain absent from aprover application dependencies',
 )
 
 function run(command, args, cwd) {
@@ -65,6 +105,10 @@ function run(command, args, cwd) {
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],
   }).trim()
+}
+
+function sha256(path) {
+  return createHash('sha256').update(readFileSync(path)).digest('hex')
 }
 
 const scratch = mkdtempSync(join(tmpdir(), 'aprover-mts-visual-'))
@@ -164,6 +208,49 @@ try {
     'utf8',
   )
   run(process.execPath, ['smoke.mjs'], consumer)
+
+  if (installCurrentProject) {
+    assert.equal(projectManifest.name, 'aprover-app', 'install target must be aprover project root')
+    const coreArtifact = resolve(projectRoot, coreArtifactArg)
+    assert.equal(
+      sha256(coreArtifact),
+      coreLock.package.sha256,
+      '@mts/core artifact SHA256 must match semantic consumer lock before atomic install',
+    )
+    run(
+      npm,
+      [
+        'install',
+        '--ignore-scripts',
+        '--no-save',
+        '--package-lock=false',
+        '--legacy-peer-deps',
+        '--no-audit',
+        '--no-fund',
+        coreArtifact,
+        artifact,
+      ],
+      projectRoot,
+    )
+    const installedCoreManifest = JSON.parse(
+      readFileSync(join(projectRoot, 'node_modules', '@mts', 'core', 'package.json'), 'utf8'),
+    )
+    const installedVisualManifest = JSON.parse(
+      readFileSync(join(projectRoot, 'node_modules', '@mts', 'visual', 'package.json'), 'utf8'),
+    )
+    assert.equal(installedCoreManifest.name, coreLock.package.name)
+    assert.equal(installedCoreManifest.version, coreLock.package.version)
+    assert.equal(installedVisualManifest.name, lock.package.name)
+    assert.equal(installedVisualManifest.version, lock.package.version)
+    assert.equal(readFileSync(projectManifestPath, 'utf8'), projectManifestText)
+    assert.equal(readFileSync(projectLockPath, 'utf8'), projectLockText)
+    console.log(
+      `installed ${coreLock.package.name}@${coreLock.package.version} + ${lock.package.name}@${lock.package.version} into ${projectRoot}`,
+    )
+  }
+
+  console.log(`verified ${lock.package.name}@${lock.package.version}`)
+  console.log(`source=${lock.repository}@${lock.commit}`)
 } finally {
   rmSync(scratch, { recursive: true, force: true })
 }
