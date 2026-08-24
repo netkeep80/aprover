@@ -43,9 +43,10 @@ const SOURCE = {
 const PRODUCER = { id: 'mts-proof-importer', version: '0.1.0' } as const
 
 async function request() {
+  const artifact = structuredClone(ARTIFACT)
   return {
-    artifact: ARTIFACT,
-    provenance: await createPortableStructuralDerivationProvenanceClaim(ARTIFACT, SOURCE, PRODUCER),
+    artifact,
+    provenance: await createPortableStructuralDerivationProvenanceClaim(artifact, SOURCE, PRODUCER),
     target: TARGET,
   }
 }
@@ -76,8 +77,8 @@ describe('theorem library record v0.1', () => {
     expect(record.approval).toMatchObject({ semanticBase: 'mts-contract/v0.11', occurrenceCount: 1 })
     expect(record.approval.provenanceDigest.value).toMatch(/^[0-9a-f]{64}$/)
 
-    ;(input as any).artifact.theoryCoordinate = 0
-    expect(record.proof.artifact).toEqual(ARTIFACT)
+    ;(input.artifact as { theoryCoordinate: number }).theoryCoordinate = 0
+    expect((record.proof.artifact as { theoryCoordinate: number }).theoryCoordinate).toBe(6)
     expect(Object.isFrozen(record)).toBe(true)
   })
 
