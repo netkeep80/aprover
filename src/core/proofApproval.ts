@@ -2,11 +2,14 @@ import {
   PORTABLE_MTS_SEMANTIC_BASE,
   PORTABLE_STRUCTURAL_DERIVATION_PROVENANCE_SCHEMA,
   PORTABLE_STRUCTURAL_DERIVATION_WITH_ASSUMPTIONS_PROVENANCE_SCHEMA,
+  PORTABLE_STRUCTURAL_DERIVATION_WITH_THEOREMS_PROVENANCE_SCHEMA,
   computePortableStructuralDerivationProvenanceDigest,
   computePortableStructuralDerivationWithAssumptionsProvenanceDigest,
+  computePortableStructuralDerivationWithTheoremsProvenanceDigest,
   replayPortableStructuralProof,
   verifyPortableStructuralDerivationProvenanceClaim,
   verifyPortableStructuralDerivationWithAssumptionsProvenanceClaim,
+  verifyPortableStructuralDerivationWithTheoremsProvenanceClaim,
   verifyPortableStructuralProofTheoryRevision,
 } from '@mts/core'
 
@@ -182,6 +185,15 @@ async function verifyProvenance(
       )
       return Object.freeze(
         await computePortableStructuralDerivationWithAssumptionsProvenanceDigest(claim),
+      )
+    }
+    if (envelope.schema === PORTABLE_STRUCTURAL_DERIVATION_WITH_THEOREMS_PROVENANCE_SCHEMA) {
+      const claim = await verifyPortableStructuralDerivationWithTheoremsProvenanceClaim(
+        artifact,
+        provenance,
+      )
+      return Object.freeze(
+        await computePortableStructuralDerivationWithTheoremsProvenanceDigest(claim),
       )
     }
   } catch {
