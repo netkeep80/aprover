@@ -1,10 +1,16 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  Memory,
   computePortableStructuralTheoryRevision,
   createPortableStructuralDerivationProvenanceClaim,
+  createPortableStructuralDerivationWithTheoremsProvenanceClaim,
+  createStructuralProofProducer,
+  ensureRootBasis,
+  exportPortableStructuralDerivationWithTheorems,
   exportPortableStructuralTheory,
   replayPortableStructuralProof,
+  type LinkHandle,
 } from '@mts/core'
 
 import { approvePortableStructuralProof } from '../../src/core/proofApproval'
@@ -100,7 +106,8 @@ async function provenanceFor(artifact: unknown = VALID_ARTIFACT) {
 
 async function expectedTheoryFor(artifact: unknown = VALID_ARTIFACT) {
   const replayed = replayPortableStructuralProof(artifact)
-  const theory = 'theory' in replayed.evidence ? replayed.evidence.theory : replayed.evidence.derivation.theory
+  const theory =
+    'theory' in replayed.evidence ? replayed.evidence.theory : replayed.evidence.derivation.theory
   const theoryArtifact = exportPortableStructuralTheory(replayed.memory, theory)
   return Object.freeze({
     artifact: theoryArtifact,
@@ -118,6 +125,96 @@ async function approvalRequest(
     provenance: provenance ?? (await provenanceFor(artifact)),
     target,
     expectedTheory: await expectedTheoryFor(),
+  }
+}
+
+async function theoremApprovalRequest() {
+  const memory = new Memory()
+  const { R, U } = ensureRootBasis(memory)
+  let cursor = U
+  const fresh = (): LinkHandle => (cursor = memory.ensure(cursor, R))
+  const dictionary = fresh()
+  const grammar = fresh()
+  const theory = fresh()
+  const role = fresh()
+  const lemmaClaim = fresh()
+  const producer = createStructuralProofProducer(memory)
+  const expectedInterpreter = { dictionary, grammar, theory }
+  const interpreter = producer.defineInterpreter(dictionary, grammar, theory)
+  const roleDictionary = producer.defineRoleDictionary([role])
+
+  const make = (
+    body: LinkHandle,
+    claim: LinkHandle,
+    premiseTemplates: readonly LinkHandle[],
+    premiseOccurrences: readonly LinkHandle[],
+  ) => {
+    const rule = producer.defineRule(roleDictionary, body)
+    const context = producer.defineContext(fresh(), fresh())
+    const act = producer.defineAct(interpreter, roleDictionary, context)
+    producer.defineActField(act, role, lemmaClaim)
+    const occurrence = producer.defineProofOccurrence(act, claim)
+    const derivationRule = producer.defineDerivationRule(rule, premiseTemplates)
+    return {
+      occurrence,
+      node: {
+        occurrence,
+        judgment: {
+          application: {
+            act,
+            rule,
+            ruleAdmission: producer.admitRule(theory, rule),
+            claimedBody: claim,
+            expectedInterpreter,
+            expectedAfterContext: context,
+          },
+          judgment: { theory, context, claim },
+        },
+        derivationRule,
+        derivationRuleAdmission: producer.admitDerivationRule(theory, derivationRule),
+        premiseOccurrenceSequence: producer.definePremiseOccurrenceSequence(premiseOccurrences),
+      },
+    }
+  }
+
+  const lemma = make(role, lemmaClaim, [], [])
+  const targetClaim = memory.ensure(lemmaClaim, lemmaClaim)
+  const target = make(
+    memory.ensure(role, role),
+    targetClaim,
+    [role, role],
+    [lemma.occurrence, lemma.occurrence],
+  )
+  const artifact = exportPortableStructuralDerivationWithTheorems(memory, {
+    derivation: { theory, targetOccurrence: target.occurrence, nodes: [target.node] },
+    theorems: [
+      {
+        theorem: producer.defineTheorem(lemmaClaim, theory),
+        proof: { theory, targetOccurrence: lemma.occurrence, nodes: [lemma.node] },
+      },
+    ],
+  })
+  const theoryArtifact = exportPortableStructuralTheory(memory, theory)
+  const revision = await computePortableStructuralTheoryRevision(theoryArtifact)
+  const provenance = await createPortableStructuralDerivationWithTheoremsProvenanceClaim(
+    artifact,
+    SOURCE,
+    PRODUCER,
+  )
+  const targetNode = artifact.nodes.find(
+    node => node.occurrence === artifact.targetOccurrenceCoordinate,
+  )
+  if (targetNode === undefined) throw new Error('theorem target node must exist')
+
+  return {
+    artifact,
+    provenance,
+    expectedTheory: { artifact: theoryArtifact, revision },
+    target: {
+      theoryCoordinate: artifact.theoryCoordinate,
+      targetOccurrenceCoordinate: artifact.targetOccurrenceCoordinate,
+      claimCoordinate: targetNode.judgment.judgment.claim,
+    },
   }
 }
 
@@ -186,12 +283,22 @@ describe('portable proof approval', () => {
     expect(result).toEqual({ verdict: 'REJECT', code: 'theory-rejected' })
   })
 
+  it('reapproves theorem-reuse transport through the same trusted boundary', async () => {
+    const result = await approvePortableStructuralProof(await theoremApprovalRequest())
+    expect(result).toMatchObject({
+      verdict: 'ACCEPT',
+      semanticBase: 'mts-contract/v0.11',
+    })
+  })
+
   it.each([
     ['theory', { ...TARGET, theoryCoordinate: 5 }],
     ['occurrence', { ...TARGET, targetOccurrenceCoordinate: 25 }],
     ['claim', { ...TARGET, claimCoordinate: 14 }],
   ])('rejects a wrong selected %s without changing proof semantics', async (_label, target) => {
-    const result = await approvePortableStructuralProof(await approvalRequest(VALID_ARTIFACT, target))
+    const result = await approvePortableStructuralProof(
+      await approvalRequest(VALID_ARTIFACT, target),
+    )
     expect(result).toEqual({ verdict: 'REJECT', code: 'target-mismatch' })
   })
 
