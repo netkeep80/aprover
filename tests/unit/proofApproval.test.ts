@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  computePortableStructuralTheoryRevision,
   createPortableStructuralDerivationProvenanceClaim,
+  exportPortableStructuralTheory,
   replayPortableStructuralProof,
 } from '@mts/core'
 
@@ -96,6 +98,29 @@ async function provenanceFor(artifact: unknown = VALID_ARTIFACT) {
   return createPortableStructuralDerivationProvenanceClaim(artifact, SOURCE, PRODUCER)
 }
 
+async function expectedTheoryFor(artifact: unknown = VALID_ARTIFACT) {
+  const replayed = replayPortableStructuralProof(artifact)
+  const theory = 'theory' in replayed.evidence ? replayed.evidence.theory : replayed.evidence.derivation.theory
+  const theoryArtifact = exportPortableStructuralTheory(replayed.memory, theory)
+  return Object.freeze({
+    artifact: theoryArtifact,
+    revision: await computePortableStructuralTheoryRevision(theoryArtifact),
+  })
+}
+
+async function approvalRequest(
+  artifact: unknown = VALID_ARTIFACT,
+  target = TARGET,
+  provenance: unknown = await provenanceFor(artifact),
+) {
+  return {
+    artifact,
+    provenance,
+    target,
+    expectedTheory: await expectedTheoryFor(),
+  }
+}
+
 describe('portable proof approval', () => {
   it('uses an exact accepted package-root portable proof as the positive fixture', () => {
     const replayed = replayPortableStructuralProof(VALID_ARTIFACT)
@@ -106,13 +131,9 @@ describe('portable proof approval', () => {
     expect(replayed.memory.linkCount).toBe(VALID_ARTIFACT.topology.links.length)
   })
 
-  it('accepts a replayed proof only with matching provenance and exact selected target', async () => {
-    const provenance = await provenanceFor()
-    const accepted = await approvePortableStructuralProof({
-      artifact: VALID_ARTIFACT,
-      provenance,
-      target: TARGET,
-    })
+  it('accepts a replayed proof only with matching expected Theory, provenance and exact target', async () => {
+    const request = await approvalRequest()
+    const accepted = await approvePortableStructuralProof(request)
 
     expect(accepted).toMatchObject({
       verdict: 'ACCEPT',
@@ -122,11 +143,7 @@ describe('portable proof approval', () => {
     })
     if (accepted.verdict === 'ACCEPT') {
       expect(accepted.provenanceDigest.value).toMatch(/^[0-9a-f]{64}$/)
-      const repeated = await approvePortableStructuralProof({
-        artifact: VALID_ARTIFACT,
-        provenance,
-        target: TARGET,
-      })
+      const repeated = await approvePortableStructuralProof(request)
       expect(repeated.verdict).toBe('ACCEPT')
       if (repeated.verdict === 'ACCEPT') {
         expect(repeated.provenanceDigest).toEqual(accepted.provenanceDigest)
@@ -134,27 +151,56 @@ describe('portable proof approval', () => {
     }
   })
 
+  it('requires an externally selected Theory instead of trusting the proof-local coordinate', async () => {
+    const result = await approvePortableStructuralProof({
+      artifact: VALID_ARTIFACT,
+      provenance: await provenanceFor(),
+      target: TARGET,
+    })
+    expect(result).toEqual({ verdict: 'REJECT', code: 'invalid-request' })
+  })
+
+  it('rejects a forged expected Theory revision before application acceptance', async () => {
+    const request = await approvalRequest()
+    const result = await approvePortableStructuralProof({
+      ...request,
+      expectedTheory: {
+        ...request.expectedTheory,
+        revision: { ...request.expectedTheory.revision, value: '0'.repeat(64) },
+      },
+    })
+    expect(result).toEqual({ verdict: 'REJECT', code: 'theory-rejected' })
+  })
+
+  it('rejects a different valid Theory even when its own revision is exact', async () => {
+    const replayed = replayPortableStructuralProof(VALID_ARTIFACT)
+    const otherTheoryArtifact = exportPortableStructuralTheory(replayed.memory, replayed.memory.root)
+    const request = await approvalRequest()
+    const result = await approvePortableStructuralProof({
+      ...request,
+      expectedTheory: {
+        artifact: otherTheoryArtifact,
+        revision: await computePortableStructuralTheoryRevision(otherTheoryArtifact),
+      },
+    })
+    expect(result).toEqual({ verdict: 'REJECT', code: 'theory-rejected' })
+  })
+
   it.each([
     ['theory', { ...TARGET, theoryCoordinate: 5 }],
     ['occurrence', { ...TARGET, targetOccurrenceCoordinate: 25 }],
     ['claim', { ...TARGET, claimCoordinate: 14 }],
   ])('rejects a wrong selected %s without changing proof semantics', async (_label, target) => {
-    const result = await approvePortableStructuralProof({
-      artifact: VALID_ARTIFACT,
-      provenance: await provenanceFor(),
-      target,
-    })
+    const result = await approvePortableStructuralProof(await approvalRequest(VALID_ARTIFACT, target))
     expect(result).toEqual({ verdict: 'REJECT', code: 'target-mismatch' })
   })
 
   it('rejects a structurally forged proof even when provenance freshly matches the forgery', async () => {
     const forged = { ...VALID_ARTIFACT, theoryCoordinate: 0 }
-    const result = await approvePortableStructuralProof({
-      artifact: forged,
-      provenance: await provenanceFor(forged),
-      target: TARGET,
-    })
-    expect(result).toEqual({ verdict: 'REJECT', code: 'proof-rejected' })
+    const result = await approvePortableStructuralProof(
+      await approvalRequest(forged, TARGET, await provenanceFor(forged)),
+    )
+    expect(result).toEqual({ verdict: 'REJECT', code: 'theory-rejected' })
   })
 
   it('rejects provenance that no longer binds the accepted artifact', async () => {
@@ -163,43 +209,37 @@ describe('portable proof approval', () => {
       ...provenance,
       contentDigest: { ...provenance.contentDigest, value: '0'.repeat(64) },
     }
-    const result = await approvePortableStructuralProof({
-      artifact: VALID_ARTIFACT,
-      provenance: tampered,
-      target: TARGET,
-    })
+    const result = await approvePortableStructuralProof(
+      await approvalRequest(VALID_ARTIFACT, TARGET, tampered),
+    )
     expect(result).toEqual({ verdict: 'REJECT', code: 'provenance-rejected' })
   })
 
   it('rejects unknown provenance transport instead of inventing authority', async () => {
     const provenance = await provenanceFor()
-    const result = await approvePortableStructuralProof({
-      artifact: VALID_ARTIFACT,
-      provenance: { ...provenance, schema: 'aprover-trusted-proof/v999' },
-      target: TARGET,
-    })
+    const result = await approvePortableStructuralProof(
+      await approvalRequest(VALID_ARTIFACT, TARGET, {
+        ...provenance,
+        schema: 'aprover-trusted-proof/v999',
+      }),
+    )
     expect(result).toEqual({ verdict: 'REJECT', code: 'provenance-rejected' })
   })
 
   it('rejects host callback vocabulary before provenance can matter', async () => {
     const hostile = { ...VALID_ARTIFACT, callback: 'host-authority' }
-    const result = await approvePortableStructuralProof({
-      artifact: hostile,
-      provenance: await provenanceFor(),
-      target: TARGET,
-    })
-    expect(result).toEqual({ verdict: 'REJECT', code: 'proof-rejected' })
+    const result = await approvePortableStructuralProof(
+      await approvalRequest(hostile, TARGET, await provenanceFor()),
+    )
+    expect(result).toEqual({ verdict: 'REJECT', code: 'theory-rejected' })
   })
 
   it.each([
     { ...TARGET, claimCoordinate: -1 },
     { ...TARGET, theoryCoordinate: 1.5 },
-  ])('rejects malformed target coordinates before replay', async (target) => {
-    const result = await approvePortableStructuralProof({
-      artifact: VALID_ARTIFACT,
-      provenance: await provenanceFor(),
-      target,
-    })
+  ])('rejects malformed target coordinates before replay', async target => {
+    const request = await approvalRequest()
+    const result = await approvePortableStructuralProof({ ...request, target })
     expect(result).toEqual({ verdict: 'REJECT', code: 'invalid-request' })
   })
 
@@ -210,11 +250,9 @@ describe('portable proof approval', () => {
       { ...SOURCE, subject: 'Mathlib.Example.other' },
       { ...PRODUCER, version: '0.2.0' },
     )
-    const result = await approvePortableStructuralProof({
-      artifact: forged,
-      provenance,
-      target: TARGET,
-    })
-    expect(result).toEqual({ verdict: 'REJECT', code: 'proof-rejected' })
+    const result = await approvePortableStructuralProof(
+      await approvalRequest(forged, TARGET, provenance),
+    )
+    expect(result).toEqual({ verdict: 'REJECT', code: 'theory-rejected' })
   })
 })
