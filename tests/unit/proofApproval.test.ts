@@ -111,11 +111,11 @@ async function expectedTheoryFor(artifact: unknown = VALID_ARTIFACT) {
 async function approvalRequest(
   artifact: unknown = VALID_ARTIFACT,
   target = TARGET,
-  provenance: unknown = await provenanceFor(artifact),
+  provenance?: unknown,
 ) {
   return {
     artifact,
-    provenance,
+    provenance: provenance ?? (await provenanceFor(artifact)),
     target,
     expectedTheory: await expectedTheoryFor(),
   }
