@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { createPortableStructuralDerivationProvenanceClaim } from '@mts/core'
+import {
+  computePortableStructuralTheoryRevision,
+  createPortableStructuralDerivationProvenanceClaim,
+  exportPortableStructuralTheory,
+  replayPortableStructuralProof,
+} from '@mts/core'
 import consumerLock from '../../contracts/mts-core-consumer-lock.json'
 import {
   createTheoremRecord,
@@ -42,12 +47,24 @@ const SOURCE = {
 } as const
 const PRODUCER = { id: 'mts-proof-importer', version: '0.1.0' } as const
 
+async function expectedTheoryFor(artifact: unknown = ARTIFACT) {
+  const replayed = replayPortableStructuralProof(artifact)
+  const theory =
+    'theory' in replayed.evidence ? replayed.evidence.theory : replayed.evidence.derivation.theory
+  const theoryArtifact = exportPortableStructuralTheory(replayed.memory, theory)
+  return Object.freeze({
+    artifact: theoryArtifact,
+    revision: await computePortableStructuralTheoryRevision(theoryArtifact),
+  })
+}
+
 async function request() {
   const artifact = structuredClone(ARTIFACT)
   return {
     artifact,
     provenance: await createPortableStructuralDerivationProvenanceClaim(artifact, SOURCE, PRODUCER),
     target: TARGET,
+    expectedTheory: await expectedTheoryFor(artifact),
   }
 }
 
@@ -74,6 +91,7 @@ describe('theorem library record v0.1', () => {
     expect(record.schema).toBe(THEOREM_RECORD_SCHEMA)
     expect(record.consumer).toEqual(THEOREM_RECORD_CONSUMER)
     expect(record.proof.target).toEqual(TARGET)
+    expect(record.proof.expectedTheory).toEqual(input.expectedTheory)
     expect(record.approval).toMatchObject({ semanticBase: 'mts-contract/v0.11', occurrenceCount: 1 })
     expect(record.approval.provenanceDigest.value).toMatch(/^[0-9a-f]{64}$/)
 
@@ -105,6 +123,20 @@ describe('theorem library record v0.1', () => {
     ['stored approval digest', (r: any) => ({ ...r, approval: { ...r.approval, provenanceDigest: { ...r.approval.provenanceDigest, value: '0'.repeat(64) } } })],
     ['nested trust field', (r: any) => ({ ...r, approval: { ...r.approval, trusted: true } })],
     ['forged target', (r: any) => ({ ...r, proof: { ...r.proof, target: { ...r.proof.target, claimCoordinate: 14 } } })],
+    ['missing expected Theory', (r: any) => {
+      const { expectedTheory: _expectedTheory, ...proof } = r.proof
+      return { ...r, proof }
+    }],
+    ['forged expected Theory revision', (r: any) => ({
+      ...r,
+      proof: {
+        ...r.proof,
+        expectedTheory: {
+          ...r.proof.expectedTheory,
+          revision: { ...r.proof.expectedTheory.revision, value: '0'.repeat(64) },
+        },
+      },
+    })],
   ])('fails closed for %s', async (_name, mutate) => {
     const record = await createTheoremRecord(await request())
     expect((await reapproveTheoremRecord(mutate(clone(record)))).verdict).toBe('REJECT')
