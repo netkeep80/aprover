@@ -60,7 +60,7 @@ describe("standalone @mts/visual consumer lock", () => {
 
     const core = readJson(CORE_LOCK_PATH);
     expect(core.repository).toBe("netkeep80/anum_docs");
-    expect(core.commit).toBe("c91a1674ee4c4a422282b2045a8b399f2c706f61");
+    expect(core.commit).toBe("ca4ecc7245c5a5562837881bef6d7e9da2fa1833");
     expect(core.package.name).toBe("@mts/core");
     expect(core.package.version).toBe("0.10.0");
   });

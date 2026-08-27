@@ -2,11 +2,15 @@ import {
   PORTABLE_MTS_SEMANTIC_BASE,
   PORTABLE_STRUCTURAL_DERIVATION_PROVENANCE_SCHEMA,
   PORTABLE_STRUCTURAL_DERIVATION_WITH_ASSUMPTIONS_PROVENANCE_SCHEMA,
+  PORTABLE_STRUCTURAL_DERIVATION_WITH_THEOREMS_PROVENANCE_SCHEMA,
   computePortableStructuralDerivationProvenanceDigest,
   computePortableStructuralDerivationWithAssumptionsProvenanceDigest,
+  computePortableStructuralDerivationWithTheoremsProvenanceDigest,
   replayPortableStructuralProof,
   verifyPortableStructuralDerivationProvenanceClaim,
   verifyPortableStructuralDerivationWithAssumptionsProvenanceClaim,
+  verifyPortableStructuralDerivationWithTheoremsProvenanceClaim,
+  verifyPortableStructuralProofTheoryRevision,
 } from '@mts/core'
 
 export interface PortableProofTargetSelection {
@@ -15,14 +19,21 @@ export interface PortableProofTargetSelection {
   readonly claimCoordinate: number
 }
 
+export interface PortableProofExpectedTheory {
+  readonly artifact: unknown
+  readonly revision: unknown
+}
+
 export interface PortableProofApprovalRequest {
   readonly artifact: unknown
   readonly provenance: unknown
   readonly target: PortableProofTargetSelection
+  readonly expectedTheory: PortableProofExpectedTheory
 }
 
 export type PortableProofApprovalRejectCode =
   | 'invalid-request'
+  | 'theory-rejected'
   | 'proof-rejected'
   | 'provenance-rejected'
   | 'target-mismatch'
@@ -91,16 +102,28 @@ function parseTarget(value: unknown): PortableProofTargetSelection | undefined {
   return Object.freeze({ theoryCoordinate, targetOccurrenceCoordinate, claimCoordinate })
 }
 
+function parseExpectedTheory(value: unknown): PortableProofExpectedTheory | undefined {
+  const expectedTheory = exactRecord(value, ['artifact', 'revision'])
+  if (expectedTheory === undefined) return undefined
+
+  return Object.freeze({
+    artifact: expectedTheory.artifact,
+    revision: expectedTheory.revision,
+  })
+}
+
 function parseRequest(value: unknown): PortableProofApprovalRequest | undefined {
-  const request = exactRecord(value, ['artifact', 'provenance', 'target'])
+  const request = exactRecord(value, ['artifact', 'provenance', 'target', 'expectedTheory'])
   if (request === undefined) return undefined
   const target = parseTarget(request.target)
-  if (target === undefined) return undefined
+  const expectedTheory = parseExpectedTheory(request.expectedTheory)
+  if (target === undefined || expectedTheory === undefined) return undefined
 
   return Object.freeze({
     artifact: request.artifact,
     provenance: request.provenance,
     target,
+    expectedTheory,
   })
 }
 
@@ -164,6 +187,15 @@ async function verifyProvenance(
         await computePortableStructuralDerivationWithAssumptionsProvenanceDigest(claim),
       )
     }
+    if (envelope.schema === PORTABLE_STRUCTURAL_DERIVATION_WITH_THEOREMS_PROVENANCE_SCHEMA) {
+      const claim = await verifyPortableStructuralDerivationWithTheoremsProvenanceClaim(
+        artifact,
+        provenance,
+      )
+      return Object.freeze(
+        await computePortableStructuralDerivationWithTheoremsProvenanceDigest(claim),
+      )
+    }
   } catch {
     return undefined
   }
@@ -186,6 +218,16 @@ export async function approvePortableStructuralProof(
 ): Promise<PortableProofApprovalResult> {
   const request = parseRequest(input)
   if (request === undefined) return reject('invalid-request')
+
+  try {
+    await verifyPortableStructuralProofTheoryRevision(
+      request.artifact,
+      request.expectedTheory.artifact,
+      request.expectedTheory.revision,
+    )
+  } catch {
+    return reject('theory-rejected')
+  }
 
   let replay: ReturnType<typeof replayPortableStructuralProof>
   try {
