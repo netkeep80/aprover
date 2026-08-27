@@ -199,6 +199,14 @@ describe('R3 adversarial readiness through untrusted search', () => {
         },
       ],
       [
+        'forged intermediate conclusion',
+        async candidate => {
+          const mutated = structuredClone(candidate) as any
+          mutated.artifact.nodes[0].judgment.judgment.claim = 0
+          return withFreshProvenance(mutated)
+        },
+      ],
+      [
         'forged rule admission',
         async candidate => {
           const mutated = structuredClone(candidate) as any
