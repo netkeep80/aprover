@@ -215,6 +215,15 @@ describe('R3 adversarial readiness through untrusted search', () => {
         },
       ],
       [
+        'changed role binding/substitution',
+        async candidate => {
+          const mutated = structuredClone(candidate) as any
+          mutated.artifact.nodes[1].judgment.application.claimedBody =
+            mutated.artifact.nodes[1].occurrence
+          return withFreshProvenance(mutated)
+        },
+      ],
+      [
         'forged judgment context',
         async candidate => {
           const mutated = structuredClone(candidate) as any
