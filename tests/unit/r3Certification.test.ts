@@ -106,8 +106,10 @@ async function plainRequest(
   evidence: StructuralDerivationEvidence,
 ): Promise<PortableProofApprovalRequest> {
   const artifact = exportPortableStructuralDerivation(memory, evidence)
-  const target = evidence.nodes.find(candidate => candidate.occurrence === evidence.targetOccurrence)
-  if (target === undefined) throw new Error('target occurrence missing from evidence')
+  const target = artifact.nodes.find(
+    candidate => candidate.occurrence === artifact.targetOccurrenceCoordinate,
+  )
+  if (target === undefined) throw new Error('target occurrence missing from portable artifact')
   return {
     artifact,
     provenance: await createPortableStructuralDerivationProvenanceClaim(artifact, SOURCE, PRODUCER),
@@ -256,6 +258,10 @@ describe('R3.4 C1-C3 structural certification corpus', () => {
       theorems: [{ theorem, proof }],
     }
     const artifact = exportPortableStructuralDerivationWithTheorems(memory, evidence)
+    const portableTarget = artifact.nodes.find(
+      candidate => candidate.occurrence === artifact.targetOccurrenceCoordinate,
+    )
+    if (portableTarget === undefined) throw new Error('C3 target missing from portable artifact')
     const request: PortableProofApprovalRequest = {
       artifact,
       provenance: await createPortableStructuralDerivationWithTheoremsProvenanceClaim(
@@ -266,7 +272,7 @@ describe('R3.4 C1-C3 structural certification corpus', () => {
       target: {
         theoryCoordinate: artifact.theoryCoordinate,
         targetOccurrenceCoordinate: artifact.targetOccurrenceCoordinate,
-        claimCoordinate: targetClaim,
+        claimCoordinate: portableTarget.judgment.judgment.claim,
       },
       expectedTheory: await expectedTheory(memory, theory),
     }
