@@ -152,6 +152,17 @@ export type {
 export { approvePortableStructuralProof } from './proofApproval'
 
 export type {
+  PortableProofSearchBounds,
+  PortableProofSearchMetrics,
+  PortableProofSearchExpand,
+  PortableProofSearchRequest,
+  PortableProofSearchFound,
+  PortableProofSearchNotFound,
+  PortableProofSearchResult,
+} from './proofSearch'
+export { searchPortableStructuralProof } from './proofSearch'
+
+export type {
   TheoremRecordConsumerV01,
   TheoremRecordProofV01,
   TheoremRecordApprovalV01,
