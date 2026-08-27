@@ -189,6 +189,16 @@ describe('R3 adversarial readiness through untrusted search', () => {
         }),
       ],
       [
+        'unknown/noncanonical evidence schema',
+        async candidate => ({
+          ...candidate,
+          provenance: {
+            ...candidate.provenance,
+            schema: 'aprover-unknown-proof-evidence/v999',
+          } as typeof candidate.provenance,
+        }),
+      ],
+      [
         'missing dependency node',
         async candidate => {
           const mutated = structuredClone(candidate) as PortableProofApprovalRequest & {
