@@ -176,9 +176,7 @@ describe('R3.4 C1-C3 structural certification corpus', () => {
     expect(result.approval.occurrenceCount).toBe(4)
 
     const missingBranch = structuredClone(request) as any
-    missingBranch.artifact.nodes = missingBranch.artifact.nodes.filter(
-      (candidate: any) => candidate.occurrence !== right.occurrence,
-    )
+    missingBranch.artifact.nodes.splice(2, 1)
     const rejected = await searchPortableStructuralProof({
       seeds: [missingBranch],
       expand: () => [],
