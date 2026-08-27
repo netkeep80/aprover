@@ -209,6 +209,15 @@ describe('R3 adversarial readiness through untrusted search', () => {
         },
       ],
       [
+        'removed premise occurrence',
+        async candidate => {
+          const mutated = structuredClone(candidate) as any
+          mutated.artifact.nodes[1].premiseOccurrenceSequence =
+            mutated.artifact.nodes[0].premiseOccurrenceSequence
+          return withFreshProvenance(mutated)
+        },
+      ],
+      [
         'forged intermediate conclusion',
         async candidate => {
           const mutated = structuredClone(candidate) as any
