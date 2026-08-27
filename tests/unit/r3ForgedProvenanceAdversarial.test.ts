@@ -75,7 +75,7 @@ describe('R3 forged theorem provenance has no proof authority', () => {
     expect(forged.approval).toEqual(cachedApproval)
     expect(await reapproveTheoremRecord(forged)).toEqual({
       verdict: 'REJECT',
-      code: 'provenance-rejected',
+      code: 'proof-rejected',
     })
   })
 })
