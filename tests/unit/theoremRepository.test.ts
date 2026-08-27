@@ -80,6 +80,36 @@ describe('non-authoritative theorem repository', () => {
     expect(repository.dependents('unknown')).toEqual([])
   })
 
+  it('rejects direct and transitive theorem dependency cycles before indexing them', () => {
+    const repository = new InMemoryTheoremRepository()
+
+    expect(() => repository.put({
+      id: 'self',
+      record: record({ scheme: 'sha256', value: 'rev' }, 1, 'a'),
+      dependencies: ['self'],
+    })).toThrow('theorem dependency cycle: self -> self')
+
+    repository.put({
+      id: 'L1',
+      record: record({ scheme: 'sha256', value: 'rev' }, 2, 'b'),
+      dependencies: ['L2'],
+    })
+    repository.put({
+      id: 'L2',
+      record: record({ scheme: 'sha256', value: 'rev' }, 3, 'c'),
+      dependencies: ['L3'],
+    })
+
+    expect(() => repository.put({
+      id: 'L3',
+      record: record({ scheme: 'sha256', value: 'rev' }, 4, 'd'),
+      dependencies: ['L1'],
+    })).toThrow('theorem dependency cycle: L3 -> L1')
+
+    expect(repository.get('L3')).toBeUndefined()
+    expect(repository.dependents('L1')).toEqual([])
+  })
+
   it('fails closed when semantic use reapproves forged stored evidence', async () => {
     const repository = new InMemoryTheoremRepository()
     repository.put({
