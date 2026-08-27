@@ -106,6 +106,22 @@ describe('theorem library record v0.1', () => {
     expect(await reapproveTheoremRecord(record)).toEqual({ verdict: 'ACCEPT', record })
   })
 
+  it('rejects theorem reuse under another exact @mts/core consumer lock', async () => {
+    const record = await createTheoremRecord(await request())
+    expect((await reapproveTheoremRecord(record)).verdict).toBe('ACCEPT')
+
+    const underAnotherConsumerLock: any = clone(record)
+    underAnotherConsumerLock.consumer = {
+      ...underAnotherConsumerLock.consumer,
+      upstreamCommit: '1'.repeat(40),
+      packageVersion: '0.10.1',
+      artifactSha256: '2'.repeat(64),
+    }
+
+    expect(await reapproveTheoremRecord(underAnotherConsumerLock))
+      .toEqual({ verdict: 'REJECT', code: 'consumer-mismatch' })
+  })
+
   it('does not create a record from rejected proof evidence', async () => {
     const input = await request()
     await expect(createTheoremRecord({ ...input, target: { ...TARGET, claimCoordinate: 14 } }))
