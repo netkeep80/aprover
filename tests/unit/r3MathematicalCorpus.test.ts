@@ -25,12 +25,10 @@ const PRODUCER = { id: 'aprover-r3-mathematical-corpus', version: '0.1.0' } as c
 interface StructuralFixture {
   readonly memory: Memory
   readonly theory: LinkHandle
-  readonly role: LinkHandle
   readonly producer: ReturnType<typeof createStructuralProofProducer>
   readonly interpreter: LinkHandle
   readonly dictionary: LinkHandle
   readonly grammar: LinkHandle
-  readonly roleDictionary: LinkHandle
   readonly fresh: () => LinkHandle
 }
 
@@ -42,11 +40,9 @@ function fixture(): StructuralFixture {
   const dictionary = fresh()
   const grammar = fresh()
   const theory = fresh()
-  const role = fresh()
   const producer = createStructuralProofProducer(memory)
   const interpreter = producer.defineInterpreter(dictionary, grammar, theory)
-  const roleDictionary = producer.defineRoleDictionary([role])
-  return { memory, theory, role, producer, interpreter, dictionary, grammar, roleDictionary, fresh }
+  return { memory, theory, producer, interpreter, dictionary, grammar, fresh }
 }
 
 function node(
@@ -55,9 +51,11 @@ function node(
   premiseOccurrences: readonly LinkHandle[],
 ): StructuralDerivationNodeEvidence {
   const context = fx.producer.defineContext(fx.fresh(), fx.fresh())
-  const rule = fx.producer.defineRule(fx.roleDictionary, fx.role)
-  const act = fx.producer.defineAct(fx.interpreter, fx.roleDictionary, context)
-  fx.producer.defineActField(act, fx.role, claim)
+  const role = fx.fresh()
+  const roleDictionary = fx.producer.defineRoleDictionary([role])
+  const rule = fx.producer.defineRule(roleDictionary, role)
+  const act = fx.producer.defineAct(fx.interpreter, roleDictionary, context)
+  fx.producer.defineActField(act, role, claim)
   const occurrence = fx.producer.defineProofOccurrence(act, claim)
   const derivationRule = fx.producer.defineDerivationRule(
     rule,
