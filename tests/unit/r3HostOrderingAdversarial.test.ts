@@ -105,7 +105,7 @@ async function search(candidate: PortableProofApprovalRequest) {
 }
 
 describe('R3 accidental host ordering is not proof authority', () => {
-  it('rejects a host-reordered derivation even with fresh provenance', async () => {
+  it('fails closed before acceptance when host node ordering is altered', async () => {
     const baseline = await validRequest()
     expect((await search(baseline)).status).toBe('FOUND')
 
@@ -113,19 +113,9 @@ describe('R3 accidental host ordering is not proof authority', () => {
       artifact: { nodes: unknown[] }
     }
     reordered.artifact.nodes = [...reordered.artifact.nodes].reverse()
-    const candidate: PortableProofApprovalRequest = {
-      ...reordered,
-      provenance: await createPortableStructuralDerivationProvenanceClaim(
-        reordered.artifact,
-        SOURCE,
-        PRODUCER,
-      ),
-    }
 
-    const result = await search(candidate)
-    expect(result.status).toBe('NOT_FOUND_WITHIN_BOUNDS')
-    if (result.status === 'NOT_FOUND_WITHIN_BOUNDS') {
-      expect(result.metrics.candidateFound).toBe(false)
-    }
+    await expect(
+      createPortableStructuralDerivationProvenanceClaim(reordered.artifact, SOURCE, PRODUCER),
+    ).rejects.toMatchObject({ code: 'noncanonical-node-order' })
   })
 })
