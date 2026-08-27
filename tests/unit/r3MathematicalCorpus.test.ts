@@ -61,7 +61,7 @@ function node(
   const occurrence = fx.producer.defineProofOccurrence(act, claim)
   const derivationRule = fx.producer.defineDerivationRule(
     rule,
-    premiseOccurrences.map(() => fx.role),
+    premiseOccurrences.map(premise => fx.memory.poles(premise).start),
   )
   return {
     occurrence,
