@@ -54,6 +54,24 @@ function normalizedDependencies(values: readonly string[] | undefined): readonly
   return Object.freeze([...new Set(values)].sort())
 }
 
+function assertAcyclicDependencyInsert(
+  entries: ReadonlyMap<string, TheoremRepositoryEntry>,
+  id: string,
+  dependencies: readonly string[],
+): void {
+  for (const dependency of dependencies) {
+    const pending = [dependency]
+    const visited = new Set<string>()
+    while (pending.length > 0) {
+      const current = pending.pop()
+      if (current === undefined || visited.has(current)) continue
+      if (current === id) throw new Error(`theorem dependency cycle: ${id} -> ${dependency}`)
+      visited.add(current)
+      pending.push(...(entries.get(current)?.dependencies ?? []))
+    }
+  }
+}
+
 function addIndex(index: Map<string, Set<string>>, key: string, id: string): void {
   const ids = index.get(key)
   if (ids === undefined) index.set(key, new Set([id]))
@@ -81,6 +99,7 @@ export class InMemoryTheoremRepository {
     if (this.entries.has(input.id)) throw new Error(`theorem id already exists: ${input.id}`)
 
     const dependencies = normalizedDependencies(input.dependencies)
+    assertAcyclicDependencyInsert(this.entries, input.id, dependencies)
     const entry = snapshot({ id: input.id, record: input.record, dependencies })
     const revisionKey = canonicalKey(entry.record.proof.expectedTheory.revision)
 
