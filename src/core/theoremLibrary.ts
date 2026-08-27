@@ -2,6 +2,7 @@ import {
   approvePortableStructuralProof,
   type PortableProofApprovalDigest,
   type PortableProofApprovalRequest,
+  type PortableProofExpectedTheory,
   type PortableProofTargetSelection,
 } from './proofApproval'
 
@@ -9,11 +10,11 @@ export const THEOREM_RECORD_SCHEMA = 'aprover-theorem-record/v0.1' as const
 
 export const THEOREM_RECORD_CONSUMER = Object.freeze({
   repository: 'netkeep80/anum_docs',
-  upstreamCommit: 'c91a1674ee4c4a422282b2045a8b399f2c706f61',
+  upstreamCommit: 'ca4ecc7245c5a5562837881bef6d7e9da2fa1833',
   semanticBase: 'mts-contract/v0.11',
   packageName: '@mts/core',
   packageVersion: '0.10.0',
-  artifactSha256: '6a768f2cb7562935daccd9d0ca161a2512fba2a9f136ed08183009ef4849d5df',
+  artifactSha256: 'd4536964667711c6e59cf6b7d073dc09a4603a9dbbc76af05089dd4fa04b57e5',
 })
 
 export interface TheoremRecordConsumerV01 {
@@ -25,7 +26,7 @@ export interface TheoremRecordConsumerV01 {
   readonly artifactSha256: string
 }
 
-export interface TheoremRecordProofV01 extends PortableProofApprovalRequest {}
+export type TheoremRecordProofV01 = PortableProofApprovalRequest
 
 export interface TheoremRecordApprovalV01 {
   readonly semanticBase: string
@@ -88,6 +89,12 @@ function parseTarget(value: unknown): PortableProofTargetSelection | undefined {
   return { theoryCoordinate, targetOccurrenceCoordinate, claimCoordinate }
 }
 
+function parseExpectedTheory(value: unknown): PortableProofExpectedTheory | undefined {
+  const expectedTheory = exactRecord(value, ['artifact', 'revision'])
+  if (expectedTheory === undefined) return undefined
+  return { artifact: expectedTheory.artifact, revision: expectedTheory.revision }
+}
+
 function parseConsumer(value: unknown): TheoremRecordConsumerV01 | undefined {
   const consumer = exactRecord(value, [
     'repository', 'upstreamCommit', 'semanticBase', 'packageName', 'packageVersion', 'artifactSha256',
@@ -118,20 +125,27 @@ function parseRecord(value: unknown): TheoremRecordV01 | undefined {
   const root = exactRecord(value, ['schema', 'consumer', 'proof', 'approval'])
   if (root === undefined || root.schema !== THEOREM_RECORD_SCHEMA) return undefined
   const consumer = parseConsumer(root.consumer)
-  const proof = exactRecord(root.proof, ['artifact', 'provenance', 'target'])
+  const proof = exactRecord(root.proof, ['artifact', 'provenance', 'target', 'expectedTheory'])
   const approval = exactRecord(root.approval, ['semanticBase', 'occurrenceCount', 'provenanceDigest'])
   if (consumer === undefined || proof === undefined || approval === undefined) return undefined
   const target = parseTarget(proof.target)
+  const expectedTheory = parseExpectedTheory(proof.expectedTheory)
   const semanticBase = exactString(approval.semanticBase)
   const occurrenceCount = nonNegativeInteger(approval.occurrenceCount)
   const provenanceDigest = parseDigest(approval.provenanceDigest)
-  if (target === undefined || semanticBase === undefined || occurrenceCount === undefined || provenanceDigest === undefined) {
+  if (
+    target === undefined ||
+    expectedTheory === undefined ||
+    semanticBase === undefined ||
+    occurrenceCount === undefined ||
+    provenanceDigest === undefined
+  ) {
     return undefined
   }
   return {
     schema: THEOREM_RECORD_SCHEMA,
     consumer,
-    proof: { artifact: proof.artifact, provenance: proof.provenance, target },
+    proof: { artifact: proof.artifact, provenance: proof.provenance, target, expectedTheory },
     approval: { semanticBase, occurrenceCount, provenanceDigest },
   }
 }
