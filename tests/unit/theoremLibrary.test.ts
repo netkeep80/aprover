@@ -124,7 +124,8 @@ describe('theorem library record v0.1', () => {
     ['nested trust field', (r: any) => ({ ...r, approval: { ...r.approval, trusted: true } })],
     ['forged target', (r: any) => ({ ...r, proof: { ...r.proof, target: { ...r.proof.target, claimCoordinate: 14 } } })],
     ['missing expected Theory', (r: any) => {
-      const { expectedTheory: _expectedTheory, ...proof } = r.proof
+      const proof = { ...r.proof }
+      delete proof.expectedTheory
       return { ...r, proof }
     }],
     ['forged expected Theory revision', (r: any) => ({
