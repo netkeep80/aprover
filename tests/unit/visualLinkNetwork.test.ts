@@ -1,7 +1,10 @@
 import { Memory, ensureRootBasis } from '@mts/core'
 import { validateVisualLinkNetwork } from '@mts/visual'
 import { describe, expect, it } from 'vitest'
-import { projectSemanticMemoryToVisualLinkNetwork } from '../../src/core/visualLinkNetwork'
+import {
+  projectRootedLinkClosureToVisualLinkNetwork,
+  projectSemanticMemoryToVisualLinkNetwork,
+} from '../../src/core/visualLinkNetwork'
 
 function linksByKey(network: ReturnType<typeof projectSemanticMemoryToVisualLinkNetwork>) {
   return new Map(network.links.map(link => [link.key, link]))
@@ -105,5 +108,76 @@ describe('semantic Memory -> VisualLinkNetwork', () => {
       expect(polesAfter.start).toBe(polesBefore[index].start)
       expect(polesAfter.end).toBe(polesBefore[index].end)
     }
+  })
+})
+
+describe('rooted Link closure -> VisualLinkNetwork', () => {
+  it('projects recursive root exactly once with resolvable endpoints', () => {
+    const memory = new Memory()
+    const root = memory.allLinks()[0]
+
+    const network = projectRootedLinkClosureToVisualLinkNetwork(memory, root)
+
+    expect(network.links).toEqual([
+      {
+        key: 'memory-link:0',
+        startKey: 'memory-link:0',
+        endKey: 'memory-link:0',
+      },
+    ])
+    expect(() => validateVisualLinkNetwork(network)).not.toThrow()
+  })
+
+  it('projects only the transitive pole closure and excludes unreachable links', () => {
+    const memory = new Memory()
+    const basis = ensureRootBasis(memory)
+    const nested = memory.ensure(basis.L, basis.U)
+    const root = memory.ensure(nested, basis.C)
+    const unreachable = memory.ensure(basis.O, basis.L)
+    const unreachablePoles = memory.poles(unreachable)
+
+    const network = projectRootedLinkClosureToVisualLinkNetwork(memory, root)
+    const encodedPoles = network.links.map(link => `${link.startKey}->${link.endKey}`)
+
+    expect(network.links).toHaveLength(6)
+    expect(new Set(network.links.map(link => link.key)).size).toBe(network.links.length)
+    expect(encodedPoles).not.toContain(
+      `memory-link:${memory.allLinks().indexOf(unreachablePoles.start)}->memory-link:${memory.allLinks().indexOf(unreachablePoles.end)}`,
+    )
+    expect(() => validateVisualLinkNetwork(network)).not.toThrow()
+  })
+
+  it('terminates on self-start and self-end topology and preserves links-of-links', () => {
+    const memory = new Memory()
+    const basis = ensureRootBasis(memory)
+    const bridge = memory.ensure(basis.L, basis.U)
+    const startSelfClosed = memory.ensureStartSelfClosed(bridge)
+    const endSelfClosed = memory.ensureEndSelfClosed(bridge)
+    const root = memory.ensure(startSelfClosed, endSelfClosed)
+
+    const network = projectRootedLinkClosureToVisualLinkNetwork(memory, root)
+
+    expect(new Set(network.links.map(link => link.key)).size).toBe(network.links.length)
+    expect(network.links).toHaveLength(9)
+    expect(() => validateVisualLinkNetwork(network)).not.toThrow()
+  })
+
+  it('is deterministic and leaves Memory unchanged', () => {
+    const memory = new Memory()
+    const basis = ensureRootBasis(memory)
+    const root = memory.ensure(basis.L, basis.U)
+    const handlesBefore = memory.allLinks()
+    const polesBefore = handlesBefore.map(link => memory.poles(link))
+    const countBefore = memory.linkCount
+
+    const first = projectRootedLinkClosureToVisualLinkNetwork(memory, root)
+    const second = projectRootedLinkClosureToVisualLinkNetwork(memory, root)
+
+    expect(second).toEqual(first)
+    expect(memory.linkCount).toBe(countBefore)
+    expect(memory.allLinks()).toEqual(handlesBefore)
+    handlesBefore.forEach((link, index) => {
+      expect(memory.poles(link)).toEqual(polesBefore[index])
+    })
   })
 })
