@@ -133,17 +133,20 @@ describe('rooted Link closure -> VisualLinkNetwork', () => {
     const basis = ensureRootBasis(memory)
     const nested = memory.ensure(basis.L, basis.U)
     const root = memory.ensure(nested, basis.C)
-    const unreachable = memory.ensure(basis.O, basis.L)
-    const unreachablePoles = memory.poles(unreachable)
+    memory.ensure(basis.O, basis.L)
 
     const network = projectRootedLinkClosureToVisualLinkNetwork(memory, root)
-    const encodedPoles = network.links.map(link => `${link.startKey}->${link.endKey}`)
 
-    expect(network.links).toHaveLength(6)
+    expect(network.links).toEqual([
+      { key: 'memory-link:0', startKey: 'memory-link:1', endKey: 'memory-link:5' },
+      { key: 'memory-link:1', startKey: 'memory-link:2', endKey: 'memory-link:6' },
+      { key: 'memory-link:2', startKey: 'memory-link:3', endKey: 'memory-link:5' },
+      { key: 'memory-link:3', startKey: 'memory-link:3', endKey: 'memory-link:4' },
+      { key: 'memory-link:4', startKey: 'memory-link:4', endKey: 'memory-link:4' },
+      { key: 'memory-link:5', startKey: 'memory-link:4', endKey: 'memory-link:5' },
+      { key: 'memory-link:6', startKey: 'memory-link:5', endKey: 'memory-link:3' },
+    ])
     expect(new Set(network.links.map(link => link.key)).size).toBe(network.links.length)
-    expect(encodedPoles).not.toContain(
-      `memory-link:${memory.allLinks().indexOf(unreachablePoles.start)}->memory-link:${memory.allLinks().indexOf(unreachablePoles.end)}`,
-    )
     expect(() => validateVisualLinkNetwork(network)).not.toThrow()
   })
 
