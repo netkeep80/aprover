@@ -58,3 +58,43 @@ export function projectSemanticMemoryToVisualLinkNetwork(
     }),
   })
 }
+
+/**
+ * Projects only the transitive pole closure reachable from one explicit Link root.
+ *
+ * Root-first start/end traversal gives the same presentation ordering for the same rooted
+ * topology without consulting whole-Memory enumeration. LinkHandle identity is used only for
+ * cycle/duplicate suppression inside this read-only traversal; generated VisualKeys remain
+ * presentation references only.
+ */
+export function projectRootedLinkClosureToVisualLinkNetwork(
+  memory: Pick<Memory, 'poles'>,
+  root: LinkHandle,
+): VisualLinkNetwork {
+  const links: LinkHandle[] = []
+  const keyByLink = new Map<LinkHandle, VisualKey>()
+
+  const visit = (link: LinkHandle): void => {
+    if (keyByLink.has(link)) return
+
+    keyByLink.set(link, presentationKey(links.length))
+    links.push(link)
+
+    const { start, end } = memory.poles(link)
+    visit(start)
+    visit(end)
+  }
+
+  visit(root)
+
+  return normalizeVisualLinkNetwork({
+    links: links.map(link => {
+      const { start, end } = memory.poles(link)
+      return {
+        key: requirePresentationKey(keyByLink, link, 'link'),
+        startKey: requirePresentationKey(keyByLink, start, 'start'),
+        endKey: requirePresentationKey(keyByLink, end, 'end'),
+      }
+    }),
+  })
+}
