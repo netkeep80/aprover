@@ -1,7 +1,15 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref, watch } from 'vue'
-import { parseWithRecovery, ParseError } from './core/parser'
-import type { File as MtsFile, SourceLocation } from './core/ast'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { parseSyntaxAset, parseWithRecovery, ParseError } from './core/parser'
+import { LexerError } from './core/lexer'
+import type { File as MtsFile } from './core/ast'
+import type { SourceLocation } from './core/sourceProvenance'
+import type { SyntaxAsetParseResult } from './core/syntaxAsetDirectEmitter'
+import {
+  countSyntaxStatements,
+  selectSyntaxOccurrenceAtOffset,
+  selectSyntaxOccurrenceBySourceSpan,
+} from './core/syntaxSourceMap'
 import Editor from './components/Editor.vue'
 import ASTViewer from './components/ASTViewer.vue'
 import ErrorPanel from './components/ErrorPanel.vue'
@@ -47,7 +55,9 @@ const CANONICAL_ROOT = `// Application notation sample
 const input = ref(CANONICAL_ROOT)
 const error = ref<string | null>(null)
 const errorLocation = ref<SourceLocation | null>(null)
-const ast = ref<MtsFile | null>(null)
+const canonicalSyntax = ref<SyntaxAsetParseResult | null>(null)
+/** Temporary A4/A5/A8 sidecar for ASTViewer/LinkGraphViewer only. */
+const legacyViewerAst = ref<MtsFile | null>(null)
 
 const showAST = ref(true)
 const showGraph = ref(false)
@@ -67,40 +77,61 @@ const anumRawLines = ref<string[]>([])
 const appVersion = __APP_VERSION__
 const splitPaneRef = ref<InstanceType<typeof SplitPane> | null>(null)
 const autosaveInterval = ref<ReturnType<typeof setInterval> | null>(null)
+const parsedStatementCount = computed(() =>
+  canonicalSyntax.value === null ? 0 : countSyntaxStatements(canonicalSyntax.value)
+)
 
 const handleSplitResize = () => window.dispatchEvent(new Event('resize'))
 const toggleAST = () => (showAST.value = !showAST.value)
 const toggleGraph = () => (showGraph.value = !showGraph.value)
 
 const handleNodeHover = (loc: SourceLocation | null) => {
-  highlightedLoc.value = loc
+  if (loc === null || canonicalSyntax.value === null) {
+    highlightedLoc.value = null
+    return
+  }
+  highlightedLoc.value =
+    selectSyntaxOccurrenceBySourceSpan(canonicalSyntax.value, loc)?.location ?? null
 }
 
 const handleCursorPosition = (loc: SourceLocation | null) => {
-  highlightedNodeLoc.value = loc
+  if (loc === null || canonicalSyntax.value === null) {
+    highlightedNodeLoc.value = null
+    return
+  }
+  highlightedNodeLoc.value =
+    selectSyntaxOccurrenceAtOffset(canonicalSyntax.value, loc.start.offset)?.location ?? null
 }
 
 const parseInput = () => {
   error.value = null
   errorLocation.value = null
-  ast.value = null
+  canonicalSyntax.value = null
+  legacyViewerAst.value = null
+  highlightedLoc.value = null
+  highlightedNodeLoc.value = null
 
   try {
-    const result = parseWithRecovery(input.value)
-    if (result.error) {
-      error.value = result.error.message
-      errorLocation.value = result.errorLocation ?? null
-    }
-    ast.value = result.file
+    canonicalSyntax.value = parseSyntaxAset(input.value)
   } catch (cause) {
     if (cause instanceof ParseError) {
       error.value = cause.message
       errorLocation.value = cause.token.loc
+    } else if (cause instanceof LexerError) {
+      error.value = cause.message
+      errorLocation.value = cause.loc
     } else if (cause instanceof Error) {
       error.value = cause.message
     } else {
       error.value = 'Unknown error'
     }
+  }
+
+  // Temporary A4/A5/A8 viewer sidecar. It never supplies canonical diagnostics.
+  try {
+    legacyViewerAst.value = parseWithRecovery(input.value).file
+  } catch {
+    legacyViewerAst.value = null
   }
 }
 
@@ -286,7 +317,7 @@ onUnmounted(() => {
           <button
             class="toggle-btn graph-btn-toggle"
             :class="{ active: showGraph }"
-            :disabled="!ast || ast.statements.length === 0"
+            :disabled="!legacyViewerAst || parsedStatementCount === 0"
             @click="toggleGraph"
           >
             {{ showGraph ? 'Hide Graph' : 'Graph' }}
@@ -345,11 +376,11 @@ onUnmounted(() => {
         </template>
         <template #pane-1>
           <div class="panel ast-panel">
-            <ASTViewer :ast="ast" :error="error" :highlighted-node-loc="highlightedNodeLoc" @node-hover="handleNodeHover" />
+            <ASTViewer :ast="legacyViewerAst" :error="error" :highlighted-node-loc="highlightedNodeLoc" @node-hover="handleNodeHover" />
           </div>
         </template>
         <template #pane-2>
-          <div class="panel graph-panel"><LinkGraphViewer :ast="ast" /></div>
+          <div class="panel graph-panel"><LinkGraphViewer :ast="legacyViewerAst" /></div>
         </template>
       </SplitPane>
 
@@ -376,7 +407,7 @@ onUnmounted(() => {
         </template>
         <template #pane-1>
           <div class="panel ast-panel">
-            <ASTViewer :ast="ast" :error="error" :highlighted-node-loc="highlightedNodeLoc" @node-hover="handleNodeHover" />
+            <ASTViewer :ast="legacyViewerAst" :error="error" :highlighted-node-loc="highlightedNodeLoc" @node-hover="handleNodeHover" />
           </div>
         </template>
       </SplitPane>
@@ -403,7 +434,7 @@ onUnmounted(() => {
           </div>
         </template>
         <template #pane-1>
-          <div class="panel graph-panel"><LinkGraphViewer :ast="ast" /></div>
+          <div class="panel graph-panel"><LinkGraphViewer :ast="legacyViewerAst" /></div>
         </template>
       </SplitPane>
 
@@ -420,7 +451,7 @@ onUnmounted(() => {
     </main>
 
     <footer class="app-footer">
-      <span>{{ ast?.statements.length ?? 0 }} statements parsed</span>
+      <span>{{ parsedStatementCount }} statements parsed</span>
       <span class="footer-separator">|</span>
       <span>МТС theory: anum_docs</span>
       <span class="footer-separator">|</span>

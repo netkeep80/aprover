@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { defineEmits, defineProps, ref, watch, computed } from 'vue'
-import type { SourceLocation } from '../core/ast'
+import type { SourceLocation } from '../core/sourceProvenance'
 
 const props = defineProps<{
   modelValue: string
