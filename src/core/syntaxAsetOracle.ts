@@ -24,12 +24,12 @@ import type {
   RoundExpr,
   SequenceExpr,
   SetExpr,
-  SourceLocation,
   SquareExpr,
   Statement,
   StringLitExpr,
 } from './ast'
 import { parse } from './parser'
+import type { SourceLocation } from './sourceProvenance'
 
 export interface SyntaxAsetOracleResult {
   readonly memory: Memory

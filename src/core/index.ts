@@ -9,8 +9,9 @@
  * отсутствуют в current tree; история хранится в Git, а не compatibility API.
  */
 
+export type { SourceLocation } from './sourceProvenance'
+
 export type {
-  SourceLocation,
   ASTNode,
   LinkExpr,
   DefExpr,

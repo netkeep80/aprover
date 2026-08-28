@@ -24,11 +24,11 @@ import type {
   RoundExpr,
   SequenceExpr,
   SetExpr,
-  SourceLocation,
   SquareExpr,
   Statement,
   StringLitExpr,
 } from './ast'
+import type { SourceLocation } from './sourceProvenance'
 
 export interface SyntaxAsetParseResult {
   readonly memory: Memory

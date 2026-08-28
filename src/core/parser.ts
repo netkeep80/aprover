@@ -33,8 +33,8 @@ import type {
   RoundExpr,
   SquareExpr,
   ContextPronounExpr,
-  SourceLocation,
 } from './ast'
+import type { SourceLocation } from './sourceProvenance'
 
 export class ParseError extends Error {
   constructor(
