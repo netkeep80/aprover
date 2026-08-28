@@ -5,10 +5,14 @@
  * occurrences. Compatibility-only prover-era nodes are intentionally absent.
  */
 
-export interface SourceLocation {
-  start: { line: number; column: number; offset: number }
-  end: { line: number; column: number; offset: number }
-}
+import type { SourceLocation } from './sourceProvenance'
+
+/**
+ * Transitional compatibility export for current AST/UI consumers.
+ * Source provenance is owned by sourceProvenance.ts; remove this re-export
+ * when the remaining A4/A8 legacy AST surfaces stop importing it from here.
+ */
+export type { SourceLocation } from './sourceProvenance'
 
 export interface ASTNode {
   type: string

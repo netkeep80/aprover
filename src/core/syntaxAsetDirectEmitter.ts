@@ -24,11 +24,11 @@ import type {
   RoundExpr,
   SequenceExpr,
   SetExpr,
-  SourceLocation,
   SquareExpr,
   Statement,
   StringLitExpr,
 } from './ast'
+import type { SourceLocation } from './sourceProvenance'
 
 export interface SyntaxAsetParseResult {
   readonly memory: Memory
@@ -113,7 +113,7 @@ export class SyntaxAsetDirectEmitter {
         this.add(
           node,
           this.vocabulary.kinds.File,
-          file.statements.map((statement) => ({
+          file.statements.map(statement => ({
             role: this.vocabulary.roles.item,
             value: this.child(statement),
           }))
@@ -164,7 +164,7 @@ export class SyntaxAsetDirectEmitter {
         this.add(
           node,
           this.vocabulary.kinds.Sequence,
-          sequence.items.map((item) => ({
+          sequence.items.map(item => ({
             role: this.vocabulary.roles.item,
             value: this.child(item),
           }))
@@ -176,7 +176,7 @@ export class SyntaxAsetDirectEmitter {
         this.add(
           node,
           this.vocabulary.kinds.Set,
-          set.elements.map((item) => ({
+          set.elements.map(item => ({
             role: this.vocabulary.roles.item,
             value: this.child(item),
           }))

@@ -5,7 +5,7 @@
  * `¬=`, `≠` and `^` are not part of the accepted upstream language.
  */
 
-import type { SourceLocation } from './ast'
+import type { SourceLocation } from './sourceProvenance'
 
 export type TokenType =
   | 'ARROW'
