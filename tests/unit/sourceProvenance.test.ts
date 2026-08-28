@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs'
-import { fileURLToPath } from 'node:url'
+import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import type { SourceLocation } from '../../src/core/sourceProvenance'
 import { ParseError, parseSyntaxAset } from '../../src/core/parser'
@@ -11,13 +11,10 @@ function span(loc: SourceLocation | undefined): string | null {
 
 describe('syntax source provenance boundary', () => {
   it('owns source coordinates outside the legacy AST module', () => {
-    const provenancePath = fileURLToPath(
-      new URL('../../src/core/sourceProvenance.ts', import.meta.url)
-    )
+    const provenancePath = resolve(process.cwd(), 'src/core/sourceProvenance.ts')
     expect(existsSync(provenancePath)).toBe(true)
 
-    const astPath = fileURLToPath(new URL('../../src/core/ast.ts', import.meta.url))
-    const astSource = readFileSync(astPath, 'utf8')
+    const astSource = readFileSync(resolve(process.cwd(), 'src/core/ast.ts'), 'utf8')
     expect(astSource).not.toContain('export interface SourceLocation')
   })
 
