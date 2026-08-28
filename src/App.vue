@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { parseSyntaxAset, parseWithRecovery, ParseError } from './core/parser'
+import { projectRootedLinkClosureToVisualLinkNetwork } from './core/visualLinkNetwork'
 import { LexerError } from './core/lexer'
 import type { File as MtsFile } from './core/ast'
 import type { SourceLocation } from './core/sourceProvenance'
@@ -13,7 +14,7 @@ import {
 import Editor from './components/Editor.vue'
 import ASTViewer from './components/ASTViewer.vue'
 import ErrorPanel from './components/ErrorPanel.vue'
-import LinkGraphViewer from './components/LinkGraphViewer.vue'
+import VisualLinkNetworkViewer from './components/VisualLinkNetworkViewer.vue'
 import AnumDenotationPanel from './components/AnumDenotationPanel.vue'
 import SplitPane from './components/SplitPane.vue'
 import {
@@ -56,7 +57,7 @@ const input = ref(CANONICAL_ROOT)
 const error = ref<string | null>(null)
 const errorLocation = ref<SourceLocation | null>(null)
 const canonicalSyntax = ref<SyntaxAsetParseResult | null>(null)
-/** Temporary A4/A5/A8 sidecar for ASTViewer/LinkGraphViewer only. */
+/** Temporary A4/A5/A8 sidecar for ASTViewer only. */
 const legacyViewerAst = ref<MtsFile | null>(null)
 
 const showAST = ref(true)
@@ -80,6 +81,11 @@ const autosaveInterval = ref<ReturnType<typeof setInterval> | null>(null)
 const parsedStatementCount = computed(() =>
   canonicalSyntax.value === null ? 0 : countSyntaxStatements(canonicalSyntax.value)
 )
+const graphNetwork = computed(() => {
+  const syntax = canonicalSyntax.value
+  if (syntax === null || parsedStatementCount.value === 0) return null
+  return projectRootedLinkClosureToVisualLinkNetwork(syntax.memory, syntax.aset)
+})
 
 const handleSplitResize = () => window.dispatchEvent(new Event('resize'))
 const toggleAST = () => (showAST.value = !showAST.value)
@@ -317,7 +323,7 @@ onUnmounted(() => {
           <button
             class="toggle-btn graph-btn-toggle"
             :class="{ active: showGraph }"
-            :disabled="!legacyViewerAst || parsedStatementCount === 0"
+            :disabled="graphNetwork === null"
             @click="toggleGraph"
           >
             {{ showGraph ? 'Hide Graph' : 'Graph' }}
@@ -380,7 +386,7 @@ onUnmounted(() => {
           </div>
         </template>
         <template #pane-2>
-          <div class="panel graph-panel"><LinkGraphViewer :ast="legacyViewerAst" /></div>
+          <div class="panel graph-panel"><VisualLinkNetworkViewer v-if="graphNetwork" :network="graphNetwork" /></div>
         </template>
       </SplitPane>
 
@@ -434,7 +440,7 @@ onUnmounted(() => {
           </div>
         </template>
         <template #pane-1>
-          <div class="panel graph-panel"><LinkGraphViewer :ast="legacyViewerAst" /></div>
+          <div class="panel graph-panel"><VisualLinkNetworkViewer v-if="graphNetwork" :network="graphNetwork" /></div>
         </template>
       </SplitPane>
 
