@@ -1,7 +1,7 @@
 {
   "schema": "aprover-mts-core-consumer-lock/v0.1",
   "repository": "netkeep80/anum_docs",
-  "commit": "ca4ecc7245c5a5562837881bef6d7e9da2fa1833",
+  "commit": "1bc6de1f5c06f46858100807b5fe9191d057c6a2",
   "accepted": {
     "contract": {
       "path": "contracts/mts-contract-v0.11.json",
@@ -23,7 +23,7 @@
     "version": "0.10.0",
     "root": "ts",
     "artifact": "mts-core-0.10.0.tgz",
-    "sha256": "d4536964667711c6e59cf6b7d073dc09a4603a9dbbc76af05089dd4fa04b57e5",
+    "sha256": "22a4d3dc2da7ec90a23734b814bb71b3ebdb87714f946af3ef31a5644c73e808",
     "producer": {
       "node": "24.19.0",
       "npm": "11.17.0"
