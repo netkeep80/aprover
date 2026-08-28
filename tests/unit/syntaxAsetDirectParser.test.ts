@@ -49,7 +49,7 @@ describe('direct parser -> SyntaxAset', () => {
       'a ⟼ b.',
       'x : ¬(a ⟼ b).',
       '♀a a♂.',
-      'a = b.\na ≠ b.',
+      'a = b.\na != b.',
       '{a,b} a.',
       '[a] (⟼).',
       'a a.',
@@ -69,7 +69,7 @@ describe('direct parser -> SyntaxAset', () => {
   it('preserves equal-looking occurrences as distinct direct syntax occurrences', () => {
     const result = directParser()('a a.')
     const literals = result.read.occurrences.filter(
-      (occurrence) => occurrence.kind === result.vocabulary.kinds.Literal
+      occurrence => occurrence.kind === result.vocabulary.kinds.Literal
     )
 
     expect(literals).toHaveLength(2)
