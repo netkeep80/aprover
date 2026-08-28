@@ -1,3 +1,5 @@
+import { existsSync, readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import type { SourceLocation } from '../../src/core/sourceProvenance'
 import { ParseError, parseSyntaxAset } from '../../src/core/parser'
@@ -8,6 +10,17 @@ function span(loc: SourceLocation | undefined): string | null {
 }
 
 describe('syntax source provenance boundary', () => {
+  it('owns source coordinates outside the legacy AST module', () => {
+    const provenancePath = fileURLToPath(
+      new URL('../../src/core/sourceProvenance.ts', import.meta.url)
+    )
+    expect(existsSync(provenancePath)).toBe(true)
+
+    const astPath = fileURLToPath(new URL('../../src/core/ast.ts', import.meta.url))
+    const astSource = readFileSync(astPath, 'utf8')
+    expect(astSource).not.toContain('export interface SourceLocation')
+  })
+
   it('is independent of AST identity and preserves repeated occurrence spans', () => {
     const result = parseSyntaxAset('a a.')
     const literals = result.read.occurrences.filter(
