@@ -1,14 +1,17 @@
 /** Unit tests for the structural МТС v0.2 normalizer. */
 
 import { beforeEach, describe, expect, it } from 'vitest'
-import { parseExpr } from '../../src/core/parser'
+import { parseExpr, parseSyntaxAset } from '../../src/core/parser'
 import {
   NormalizationError,
+  SyntaxAsetNormalizationError,
   astEqual,
   clearNormalizationCache,
   getNormalizationCacheStats,
   normalize,
+  normalizeSyntaxAset,
   setNormalizationCacheEnabled,
+  syntaxAsetEqual,
   toCanonicalString,
 } from '../../src/core/normalizer'
 
@@ -82,6 +85,57 @@ describe('Normalizer', () => {
     it('preserves square and context forms', () => {
       expect(canonical('[1]')).toBe('[1]')
       expect(canonical('↑◁')).toBe('↑◁')
+    })
+  })
+
+  describe('SyntaxAset-native normalization migration', () => {
+    const asetCanonical = (input: string) => normalizeSyntaxAset(parseSyntaxAset(input)).canonical
+
+    it.each([
+      'a ⟼ b',
+      '(a ⟼ b)',
+      'x : y',
+      'a = b',
+      'a != b',
+      '¬♀x♂',
+      '{x,y,x}',
+      'a{b,c}',
+      '[↑◁]',
+      "'['",
+      '"hello"',
+      '42',
+      '∞',
+    ])('matches the accepted AST migration oracle for %s', (input) => {
+      expect(asetCanonical(input)).toBe(canonical(input))
+    })
+
+    it('keeps non-empty round grouping transparent and empty round atomic', () => {
+      expect(asetCanonical('(a)')).toBe(asetCanonical('a'))
+      expect(asetCanonical('()')).toBe('()')
+    })
+
+    it('preserves the external occurrence provenance map while lowering', () => {
+      const parsed = parseSyntaxAset('(a ⟼ b)')
+      const normalized = normalizeSyntaxAset(parsed)
+      expect(normalized.provenance).toBe(parsed.provenance)
+      expect(normalized.provenance.size).toBeGreaterThan(0)
+    })
+
+    it('provides Aset-native structural equality without new semantic equivalences', () => {
+      expect(syntaxAsetEqual(parseSyntaxAset('(a ⟼ b)'), parseSyntaxAset('a ⟼ b'))).toBe(true)
+      expect(syntaxAsetEqual(parseSyntaxAset('a ⟼ b'), parseSyntaxAset('b ⟼ a'))).toBe(false)
+      expect(syntaxAsetEqual(parseSyntaxAset('¬¬x'), parseSyntaxAset('x'))).toBe(false)
+      expect(syntaxAsetEqual(parseSyntaxAset('{x,y}'), parseSyntaxAset('{y,x}'))).toBe(false)
+    })
+
+    it('applies the guarded-recursion rule directly to SyntaxAset structure', () => {
+      expect(() => normalizeSyntaxAset(parseSyntaxAset('abc : abc ⟼ x'))).not.toThrow()
+      expect(() => normalizeSyntaxAset(parseSyntaxAset('x : x'))).toThrow(
+        SyntaxAsetNormalizationError
+      )
+      expect(() => normalizeSyntaxAset(parseSyntaxAset('myvar : myvar♂'))).toThrow(
+        SyntaxAsetNormalizationError
+      )
     })
   })
 
