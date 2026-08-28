@@ -95,7 +95,7 @@ export function buildSyntaxAsetOracle(source: string): SyntaxAsetOracleResult {
         const fileNode = node as File
         return add(
           vocabulary.kinds.File,
-          fileNode.statements.map(statement => ({
+          fileNode.statements.map((statement) => ({
             role: vocabulary.roles.item,
             value: visit(statement),
           })),
@@ -166,7 +166,7 @@ export function buildSyntaxAsetOracle(source: string): SyntaxAsetOracleResult {
         const sequence = node as SequenceExpr
         return add(
           vocabulary.kinds.Sequence,
-          sequence.items.map(item => ({ role: vocabulary.roles.item, value: visit(item) })),
+          sequence.items.map((item) => ({ role: vocabulary.roles.item, value: visit(item) })),
           node.loc
         )
       }
@@ -174,7 +174,7 @@ export function buildSyntaxAsetOracle(source: string): SyntaxAsetOracleResult {
         const set = node as SetExpr
         return add(
           vocabulary.kinds.Set,
-          set.elements.map(item => ({ role: vocabulary.roles.item, value: visit(item) })),
+          set.elements.map((item) => ({ role: vocabulary.roles.item, value: visit(item) })),
           node.loc
         )
       }

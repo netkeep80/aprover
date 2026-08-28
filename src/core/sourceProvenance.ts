@@ -5,13 +5,7 @@
  * in SyntaxAset occurrence identity, semantic Link identity, proof identity,
  * or accepted MTS semantics.
  */
-export interface SourcePoint {
-  line: number
-  column: number
-  offset: number
-}
-
 export interface SourceLocation {
-  start: SourcePoint
-  end: SourcePoint
+  start: { line: number; column: number; offset: number }
+  end: { line: number; column: number; offset: number }
 }

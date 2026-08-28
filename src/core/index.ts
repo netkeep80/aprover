@@ -9,7 +9,7 @@
  * отсутствуют в current tree; история хранится в Git, а не compatibility API.
  */
 
-export type { SourcePoint, SourceLocation } from './sourceProvenance'
+export type { SourceLocation } from './sourceProvenance'
 
 export type {
   ASTNode,
