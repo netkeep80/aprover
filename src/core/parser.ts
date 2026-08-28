@@ -7,6 +7,10 @@
 
 import type { Token, TokenType } from './lexer'
 import { Lexer } from './lexer'
+import {
+  SyntaxAsetDirectEmitter,
+  type SyntaxAsetParseResult,
+} from './syntaxAsetDirectEmitter'
 import type {
   ASTNode,
   File,
@@ -81,8 +85,20 @@ export class Parser {
   private tokens: Token[]
   private pos = 0
 
-  constructor(tokens: Token[]) {
+  constructor(
+    tokens: Token[],
+    private readonly syntaxEmitter: SyntaxAsetDirectEmitter | null = null
+  ) {
     this.tokens = tokens
+  }
+
+  /**
+   * Emit the just-reduced production online. The AST object remains temporary
+   * parser host state; there is no completed-AST traversal on the A2 path.
+   */
+  private reduced<T extends ASTNode>(node: T): T {
+    this.syntaxEmitter?.emit(node)
+    return node
   }
 
   private current(): Token {
@@ -122,11 +138,11 @@ export class Parser {
     const statements: Statement[] = []
     const startLoc = this.current().loc
     while (!this.check('EOF')) statements.push(this.parseStatement())
-    return {
+    return this.reduced({
       type: 'File',
       statements,
       loc: this.mergeLoc(startLoc, this.current().loc),
-    }
+    })
   }
 
   parseFileWithRecovery(): ParseResult {
@@ -164,11 +180,11 @@ export class Parser {
     const expr = this.parseExpr()
     let endLoc = expr.loc!
     if (this.checkAny('COMMA', 'DOT')) endLoc = this.advance().loc
-    return {
+    return this.reduced({
       type: 'Statement',
       expr,
       loc: this.mergeLoc(expr.loc!, endLoc),
-    }
+    })
   }
 
   private parseExpr(): ASTNode {
@@ -179,34 +195,34 @@ export class Parser {
       // `:` is the weakest canonical infix operator and is right-associative:
       // `a : b = c` => Definition(a, Equality(b,c)); `a : b : c` => a : (b : c).
       const right = this.parseExpr()
-      return {
+      return this.reduced({
         type: 'Definition',
         name: left,
         form: right,
         loc: this.mergeLoc(left.loc!, right.loc!),
-      } as DefExpr
+      } as DefExpr)
     }
 
     if (this.check('EQUAL')) {
       this.advance()
       const right = this.parseTerm()
-      return {
+      return this.reduced({
         type: 'Equality',
         left,
         right,
         loc: this.mergeLoc(left.loc!, right.loc!),
-      } as EqExpr
+      } as EqExpr)
     }
 
     if (this.check('NOT_EQUAL')) {
       this.advance()
       const right = this.parseTerm()
-      return {
+      return this.reduced({
         type: 'Inequality',
         left,
         right,
         loc: this.mergeLoc(left.loc!, right.loc!),
-      } as NeqExpr
+      } as NeqExpr)
     }
 
     return left
@@ -223,12 +239,12 @@ export class Parser {
     while (this.check('ARROW')) {
       this.advance()
       const right = this.parseSequence()
-      left = {
+      left = this.reduced({
         type: 'Link',
         left,
         right,
         loc: this.mergeLoc(left.loc!, right.loc!),
-      } as LinkExpr
+      } as LinkExpr)
     }
 
     return left
@@ -253,11 +269,11 @@ export class Parser {
 
     if (items.length === 1) return first
     const last = items[items.length - 1]
-    return {
+    return this.reduced({
       type: 'Sequence',
       items,
       loc: this.mergeLoc(first.loc!, last.loc!),
-    } as SequenceExpr
+    } as SequenceExpr)
   }
 
   /** Канонические префиксные операторы: инверсия `¬` и проекция начала `♀`. */
@@ -275,17 +291,17 @@ export class Parser {
     for (let i = prefixes.length - 1; i >= 0; i--) {
       const prefix = prefixes[i]
       if (prefix.type === 'NOT') {
-        node = {
+        node = this.reduced({
           type: 'Not',
           operand: node,
           loc: this.mergeLoc(prefix.loc, node.loc!),
-        } as NotExpr
+        } as NotExpr)
       } else {
-        node = {
+        node = this.reduced({
           type: 'Female',
           operand: node,
           loc: this.mergeLoc(prefix.loc, node.loc!),
-        } as FemaleExpr
+        } as FemaleExpr)
       }
     }
 
@@ -298,11 +314,11 @@ export class Parser {
 
     while (this.check('MALE')) {
       const loc = this.advance().loc
-      node = {
+      node = this.reduced({
         type: 'Male',
         operand: node,
         loc: this.mergeLoc(node.loc!, loc),
-      } as MaleExpr
+      } as MaleExpr)
     }
 
     return node
@@ -313,34 +329,50 @@ export class Parser {
 
     if (this.check('INFINITY')) {
       this.advance()
-      return { type: 'Infinity', loc: token.loc } as InfinityExpr
+      return this.reduced({ type: 'Infinity', loc: token.loc } as InfinityExpr)
     }
     if (this.check('ZERO')) {
       this.advance()
-      return { type: 'Num', value: 0, loc: token.loc } as NumExpr
+      return this.reduced({ type: 'Num', value: 0, loc: token.loc } as NumExpr)
     }
     if (this.check('ONE')) {
       this.advance()
-      return { type: 'Num', value: 1, loc: token.loc } as NumExpr
+      return this.reduced({ type: 'Num', value: 1, loc: token.loc } as NumExpr)
     }
     if (this.checkAny('CONTEXT_START', 'CONTEXT_END', 'CONTEXT_UP')) {
       return this.parseContextPronoun()
     }
     if (this.check('ID')) {
       this.advance()
-      return { type: 'Identifier', name: token.value, loc: token.loc } as IdentExpr
+      return this.reduced({
+        type: 'Identifier',
+        name: token.value,
+        loc: token.loc,
+      } as IdentExpr)
     }
     if (this.check('NAT')) {
       this.advance()
-      return { type: 'Identifier', name: token.value, loc: token.loc } as IdentExpr
+      return this.reduced({
+        type: 'Identifier',
+        name: token.value,
+        loc: token.loc,
+      } as IdentExpr)
     }
     if (this.check('ABIT_LIT')) {
       this.advance()
-      return { type: 'AbitLit', value: token.value, loc: token.loc } as AbitLitExpr
+      return this.reduced({
+        type: 'AbitLit',
+        value: token.value,
+        loc: token.loc,
+      } as AbitLitExpr)
     }
     if (this.check('STRING_LIT')) {
       this.advance()
-      return { type: 'StringLit', value: token.value, loc: token.loc } as StringLitExpr
+      return this.reduced({
+        type: 'StringLit',
+        value: token.value,
+        loc: token.loc,
+      } as StringLitExpr)
     }
     if (this.check('LBRACE')) return this.parseSet()
     if (this.check('LPAREN')) return this.parseRound()
@@ -363,55 +395,67 @@ export class Parser {
     }
     this.advance()
 
-    return {
+    return this.reduced({
       type: 'ContextPronoun',
       pole: pole.type === 'CONTEXT_START' ? 'start' : 'end',
       up,
       loc: this.mergeLoc(first.loc, pole.loc),
-    } as ContextPronounExpr
+    } as ContextPronounExpr)
   }
 
   private parseRound(): RoundExpr {
     const opening = this.expect('LPAREN')
     if (this.check('RPAREN')) {
       const closing = this.advance()
-      return { type: 'Round', content: null, loc: this.mergeLoc(opening.loc, closing.loc) }
+      return this.reduced({
+        type: 'Round',
+        content: null,
+        loc: this.mergeLoc(opening.loc, closing.loc),
+      })
     }
 
     if (ROUND_LITERALS.has(this.current().type) && this.peek().type === 'RPAREN') {
       const literalToken = this.advance()
       const closing = this.expect('RPAREN')
-      const literal: LiteralExpr = {
+      const literal: LiteralExpr = this.reduced({
         type: 'Literal',
         value: literalToken.value,
         loc: literalToken.loc,
-      }
-      return {
+      })
+      return this.reduced({
         type: 'Round',
         content: literal,
         loc: this.mergeLoc(opening.loc, closing.loc),
-      }
+      })
     }
 
     const content = this.parseExpr()
     const closing = this.expect('RPAREN')
-    return { type: 'Round', content, loc: this.mergeLoc(opening.loc, closing.loc) }
+    return this.reduced({
+      type: 'Round',
+      content,
+      loc: this.mergeLoc(opening.loc, closing.loc),
+    })
   }
 
   private parseSquare(): SquareExpr {
     const opening = this.expect('LBRACKET')
     if (this.check('RBRACKET')) {
       const closing = this.advance()
-      return {
+      return this.reduced({
         type: 'Square',
         content: null,
         loc: this.mergeLoc(opening.loc, closing.loc),
-      }
+      })
     }
 
     const content = this.parseExpr()
     const closing = this.expect('RBRACKET')
-    return { type: 'Square', content, loc: this.mergeLoc(opening.loc, closing.loc) }
+    return this.reduced({
+      type: 'Square',
+      content,
+      loc: this.mergeLoc(opening.loc, closing.loc),
+    })
   }
 
   private parseSet(): SetExpr {
@@ -427,11 +471,11 @@ export class Parser {
     }
 
     const rbrace = this.expect('RBRACE')
-    return {
+    return this.reduced({
       type: 'Set',
       elements,
       loc: this.mergeLoc(lbrace.loc, rbrace.loc),
-    }
+    })
   }
 }
 
@@ -453,4 +497,12 @@ export function parseExpr(input: string): ASTNode {
     throw new ParseError('Expected single expression', tokens[0])
   }
   return file.statements[0].expr
+}
+
+/** Canonical A2 path: the existing grammar emits SyntaxAset online. */
+export function parseSyntaxAset(input: string): SyntaxAsetParseResult {
+  const lexer = new Lexer(input)
+  const emitter = new SyntaxAsetDirectEmitter()
+  const file = new Parser(lexer.tokenize(), emitter).parseFile()
+  return emitter.finish(file)
 }
