@@ -25,7 +25,6 @@ test.describe('aprover current MTS consumer UI', () => {
   test('parses canonical source and updates the AST without a proof verdict', async ({ page }) => {
     const editor = page.locator('.code-input')
     await editor.fill('[] = ◁')
-
     await expect(page.locator('.tree-root')).toBeVisible()
     await expect(page.locator('.app-footer')).toContainText('1 statements parsed')
     await expect(page.locator('.result-item')).toHaveCount(0)
@@ -51,11 +50,9 @@ test.describe('aprover current MTS consumer UI', () => {
     await editor.fill('[] = ◁')
     await expect(page.locator('.ast-panel')).toBeVisible()
     await expect(page.locator('.tree-root')).toBeVisible()
-
     const squareNode = page.locator('.tree-node-content').filter({ hasText: 'Square' }).first()
     await squareNode.hover()
     await expect(page.locator('.ast-highlight')).toBeVisible()
-
     await page.locator('.app-header').hover()
     await expect(page.locator('.ast-highlight')).not.toBeVisible()
   })
@@ -69,12 +66,20 @@ test.describe('aprover current MTS consumer UI', () => {
     await expect(page.locator('.ast-panel')).toBeVisible()
   })
 
-  test('opens the occurrence-safe graph for parsed source', async ({ page }) => {
-    await page.locator('.code-input').fill('[] = ◁')
+  test('opens the canonical SyntaxAset graph through the shared visual surface', async ({ page }) => {
+    const editor = page.locator('.code-input')
+    await editor.fill('[] = ◁')
     const graphToggle = page.locator('.graph-btn-toggle')
     await expect(graphToggle).toBeEnabled()
     await graphToggle.click()
     await expect(page.locator('.graph-panel')).toBeVisible()
+    await expect(page.locator('[data-visual-link-network-surface]')).toBeVisible()
+    await expect(page.locator('.cytoscape-container')).toHaveCount(0)
+
+    await editor.fill('↑ = []')
+    await expect(page.locator('.error-panel')).toBeVisible()
+    await expect(graphToggle).toBeDisabled()
+    await expect(page.locator('[data-visual-link-network-surface]')).toHaveCount(0)
   })
 
   test('supports the basic file toolbar without proof-result export or replay', async ({ page }) => {
@@ -86,18 +91,11 @@ test.describe('aprover current MTS consumer UI', () => {
     await expect(page.locator('.toolbar-btn[title*="Результаты"]')).toHaveCount(0)
   })
 
-  test('shows current read-only Anum stream deserialization for an opened .anum file', async ({
-    page,
-  }) => {
+  test('shows current read-only Anum stream deserialization for an opened .anum file', async ({ page }) => {
     const chooserPromise = page.waitForEvent('filechooser')
     await page.locator('.toolbar-btn[title*="Открыть"]').click()
     const chooser = await chooserPromise
-    await chooser.setFiles({
-      name: 'sample.anum',
-      mimeType: 'text/plain',
-      buffer: Buffer.from('10\n[]\n'),
-    })
-
+    await chooser.setFiles({ name: 'sample.anum', mimeType: 'text/plain', buffer: Buffer.from('10\n[]\n') })
     const panel = page.getByLabel('Anum raw transport deserialization v0.4')
     await expect(panel).toBeVisible()
     await expect(panel.locator('.entry')).toHaveCount(2)
