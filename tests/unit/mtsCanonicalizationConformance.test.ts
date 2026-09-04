@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
-import { parseExpr } from '../../src/core/parser'
-import { toMtsSource } from '../../src/core/mtsSource'
+import { normalizeSyntaxAset } from '../../src/core/normalizer'
+import { parseSyntaxAset } from '../../src/core/parser'
+
+const canonical = (source: string): string => normalizeSyntaxAset(parseSyntaxAset(source)).canonical
 
 const regressionCases = [
   {
@@ -12,24 +14,24 @@ const regressionCases = [
   {
     id: 'canonical-equality-definition',
     source: '(=):{♀◁=♀▷,◁♂=▷♂}',
-    canonical: '(=) : {♀◁ = ♀▷, ◁♂ = ▷♂}',
+    canonical: '(=:{(♀◁=♀▷),(◁♂=▷♂)})',
   },
   {
     id: 'canonical-aroot-definition',
     source: '∞:{◁=∞,▷=∞}',
-    canonical: '∞ : {◁ = ∞, ▷ = ∞}',
+    canonical: '(∞:{(◁=∞),(▷=∞)})',
   },
 ] as const
 
 describe('current MTS canonicalization regressions', () => {
   for (const testCase of regressionCases) {
     it(testCase.id, () => {
-      expect(toMtsSource(parseExpr(testCase.source))).toBe(testCase.canonical)
+      expect(canonical(testCase.source)).toBe(testCase.canonical)
     })
   }
 
-  it('preserves canonical projection fixity during parse/serialize round-trip', () => {
-    const canonical = '(=) : {♀◁ = ♀▷, ◁♂ = ▷♂}'
-    expect(toMtsSource(parseExpr(canonical))).toBe(canonical)
+  it('preserves canonical projection fixity during parse/normalize round-trip', () => {
+    const source = '(=) : {♀◁ = ♀▷, ◁♂ = ▷♂}'
+    expect(canonical(source)).toBe('(=:{(♀◁=♀▷),(◁♂=▷♂)})')
   })
 })

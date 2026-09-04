@@ -6,28 +6,6 @@ import {
   type SyntaxAsetRead,
   type SyntaxAsetToolingVocabulary,
 } from '@mts/core/tooling/syntax-aset'
-import type {
-  ASTNode,
-  AbitLitExpr,
-  ContextPronounExpr,
-  DefExpr,
-  EqExpr,
-  File,
-  IdentExpr,
-  LinkExpr,
-  LiteralExpr,
-  MaleExpr,
-  FemaleExpr,
-  NeqExpr,
-  NotExpr,
-  NumExpr,
-  RoundExpr,
-  SequenceExpr,
-  SetExpr,
-  SquareExpr,
-  Statement,
-  StringLitExpr,
-} from './ast'
 import type { SourceLocation } from './sourceProvenance'
 
 export interface SyntaxAsetParseResult {
@@ -39,9 +17,24 @@ export interface SyntaxAsetParseResult {
 }
 
 /**
- * Online A2 emitter used by the existing parser while grammar productions are
- * reduced. It never walks a completed AST: child occurrences are emitted by
- * the grammar before their parent and are looked up only to wire parent roles.
+ * Temporary parser/emitter plumbing only. This reference is deliberately
+ * opaque: it carries no syntax kind, child graph, semantic identity or proof
+ * identity beyond the occurrence handle needed to wire the parent production.
+ */
+export interface SyntaxAsetReductionRef {
+  readonly occurrence: LinkHandle
+  readonly loc: SourceLocation
+}
+
+type UnaryProduction = 'Not' | 'Female' | 'Male'
+type BinaryProduction = 'Link' | 'Definition' | 'Equality' | 'Inequality'
+type ContainerProduction = 'Round' | 'Square'
+type LiteralTag = 'Infinity' | 'Num' | 'Identifier' | 'AbitLit' | 'StringLit' | 'Literal'
+
+/**
+ * Online A2 emitter used by the parser while grammar productions are reduced.
+ * Parent occurrences consume only already-emitted child occurrence handles;
+ * no completed syntax-domain object graph is constructed or retained.
  */
 export class SyntaxAsetDirectEmitter {
   readonly memory = new Memory()
@@ -49,7 +42,6 @@ export class SyntaxAsetDirectEmitter {
   readonly provenance = new Map<LinkHandle, SourceLocation>()
 
   private readonly builder: SyntaxAsetBuilder
-  private readonly occurrences = new WeakMap<ASTNode, LinkHandle>()
   private readonly carrierScope: LinkHandle
   private readonly zero: LinkHandle
   private readonly one: LinkHandle
@@ -81,183 +73,177 @@ export class SyntaxAsetDirectEmitter {
     return this.memory.ensureStartSelfClosed(cursor)
   }
 
-  private child(node: ASTNode): LinkHandle {
-    const occurrence = this.occurrences.get(node)
-    if (occurrence === undefined) throw new Error(`SyntaxAset child not emitted: ${node.type}`)
-    return occurrence
-  }
-
   private add(
-    node: ASTNode,
     kind: LinkHandle,
-    fields: readonly { role: LinkHandle; value: LinkHandle }[]
-  ): void {
+    fields: readonly { role: LinkHandle; value: LinkHandle }[],
+    loc: SourceLocation
+  ): SyntaxAsetReductionRef {
     const occurrence = this.builder.addOccurrence(kind, fields)
-    this.occurrences.set(node, occurrence)
-    if (node.loc !== undefined) this.provenance.set(occurrence, node.loc)
+    this.provenance.set(occurrence, loc)
+    return Object.freeze({ occurrence, loc })
   }
 
-  private literal(node: ASTNode, tag: string, value: string): void {
-    this.add(node, this.vocabulary.kinds.Literal, [
-      {
-        role: this.vocabulary.roles.value,
-        value: this.encodeTextCarrier(`${tag}\u0000${value}`),
-      },
-    ])
+  emitLiteral(
+    tag: LiteralTag,
+    value: string,
+    loc: SourceLocation
+  ): SyntaxAsetReductionRef {
+    return this.add(
+      this.vocabulary.kinds.Literal,
+      [
+        {
+          role: this.vocabulary.roles.value,
+          value: this.encodeTextCarrier(`${tag}\u0000${value}`),
+        },
+      ],
+      loc
+    )
   }
 
-  emit(node: ASTNode): void {
-    switch (node.type) {
-      case 'File': {
-        const file = node as File
-        this.add(
-          node,
-          this.vocabulary.kinds.File,
-          file.statements.map((statement) => ({
-            role: this.vocabulary.roles.item,
-            value: this.child(statement),
-          }))
-        )
-        return
-      }
-      case 'Statement': {
-        const statement = node as Statement
-        this.add(node, this.vocabulary.kinds.Statement, [
-          { role: this.vocabulary.roles.expression, value: this.child(statement.expr) },
-        ])
-        return
-      }
-      case 'Link': {
-        const link = node as LinkExpr
-        this.add(node, this.vocabulary.kinds.Link, [
-          { role: this.vocabulary.roles.start, value: this.child(link.left) },
-          { role: this.vocabulary.roles.end, value: this.child(link.right) },
-        ])
-        return
-      }
-      case 'Definition': {
-        const definition = node as DefExpr
-        this.add(node, this.vocabulary.kinds.Definition, [
-          { role: this.vocabulary.roles.name, value: this.child(definition.name) },
-          { role: this.vocabulary.roles.body, value: this.child(definition.form) },
-        ])
-        return
-      }
-      case 'Equality': {
-        const equality = node as EqExpr
-        this.add(node, this.vocabulary.kinds.Equality, [
-          { role: this.vocabulary.roles.left, value: this.child(equality.left) },
-          { role: this.vocabulary.roles.right, value: this.child(equality.right) },
-        ])
-        return
-      }
-      case 'Inequality': {
-        const inequality = node as NeqExpr
-        this.add(node, this.vocabulary.kinds.Inequality, [
-          { role: this.vocabulary.roles.left, value: this.child(inequality.left) },
-          { role: this.vocabulary.roles.right, value: this.child(inequality.right) },
-        ])
-        return
-      }
-      case 'Sequence': {
-        const sequence = node as SequenceExpr
-        this.add(
-          node,
-          this.vocabulary.kinds.Sequence,
-          sequence.items.map((item) => ({
-            role: this.vocabulary.roles.item,
-            value: this.child(item),
-          }))
-        )
-        return
-      }
-      case 'Set': {
-        const set = node as SetExpr
-        this.add(
-          node,
-          this.vocabulary.kinds.Set,
-          set.elements.map((item) => ({
-            role: this.vocabulary.roles.item,
-            value: this.child(item),
-          }))
-        )
-        return
-      }
-      case 'Round': {
-        const round = node as RoundExpr
-        this.add(
-          node,
-          this.vocabulary.kinds.Round,
-          round.content === null
-            ? []
-            : [{ role: this.vocabulary.roles.expression, value: this.child(round.content) }]
-        )
-        return
-      }
-      case 'Square': {
-        const square = node as SquareExpr
-        this.add(
-          node,
-          this.vocabulary.kinds.Square,
-          square.content === null
-            ? []
-            : [{ role: this.vocabulary.roles.expression, value: this.child(square.content) }]
-        )
-        return
-      }
-      case 'Not':
-      case 'Female':
-      case 'Male': {
-        const unary = node as NotExpr | FemaleExpr | MaleExpr
-        const kind =
-          node.type === 'Not'
-            ? this.vocabulary.kinds.Not
-            : node.type === 'Female'
-              ? this.vocabulary.kinds.Female
-              : this.vocabulary.kinds.Male
-        this.add(node, kind, [
-          { role: this.vocabulary.roles.operand, value: this.child(unary.operand) },
-        ])
-        return
-      }
-      case 'ContextPronoun': {
-        const pronoun = node as ContextPronounExpr
-        this.add(node, this.vocabulary.kinds.ContextPronoun, [
-          {
-            role: this.vocabulary.roles.value,
-            value: this.encodeTextCarrier(
-              `ContextPronoun\u0000${pronoun.pole}\u0000${pronoun.up}`
-            ),
-          },
-        ])
-        return
-      }
-      case 'Infinity':
-        this.literal(node, 'Infinity', '∞')
-        return
-      case 'Num':
-        this.literal(node, 'Num', String((node as NumExpr).value))
-        return
-      case 'Identifier':
-        this.literal(node, 'Identifier', (node as IdentExpr).name)
-        return
-      case 'AbitLit':
-        this.literal(node, 'AbitLit', (node as AbitLitExpr).value)
-        return
-      case 'StringLit':
-        this.literal(node, 'StringLit', (node as StringLitExpr).value)
-        return
-      case 'Literal':
-        this.literal(node, 'Literal', (node as LiteralExpr).value)
-        return
-      default:
-        throw new Error(`Unsupported parser node in direct SyntaxAset emitter: ${node.type}`)
+  emitContextPronoun(
+    pole: 'start' | 'end',
+    up: number,
+    loc: SourceLocation
+  ): SyntaxAsetReductionRef {
+    return this.add(
+      this.vocabulary.kinds.ContextPronoun,
+      [
+        {
+          role: this.vocabulary.roles.value,
+          value: this.encodeTextCarrier(`ContextPronoun\u0000${pole}\u0000${up}`),
+        },
+      ],
+      loc
+    )
+  }
+
+  emitUnary(
+    production: UnaryProduction,
+    operand: SyntaxAsetReductionRef,
+    loc: SourceLocation
+  ): SyntaxAsetReductionRef {
+    const kind =
+      production === 'Not'
+        ? this.vocabulary.kinds.Not
+        : production === 'Female'
+          ? this.vocabulary.kinds.Female
+          : this.vocabulary.kinds.Male
+
+    return this.add(
+      kind,
+      [{ role: this.vocabulary.roles.operand, value: operand.occurrence }],
+      loc
+    )
+  }
+
+  emitBinary(
+    production: BinaryProduction,
+    left: SyntaxAsetReductionRef,
+    right: SyntaxAsetReductionRef,
+    loc: SourceLocation
+  ): SyntaxAsetReductionRef {
+    const kinds = this.vocabulary.kinds
+    const roles = this.vocabulary.roles
+
+    if (production === 'Link') {
+      return this.add(
+        kinds.Link,
+        [
+          { role: roles.start, value: left.occurrence },
+          { role: roles.end, value: right.occurrence },
+        ],
+        loc
+      )
     }
+
+    if (production === 'Definition') {
+      return this.add(
+        kinds.Definition,
+        [
+          { role: roles.name, value: left.occurrence },
+          { role: roles.body, value: right.occurrence },
+        ],
+        loc
+      )
+    }
+
+    const kind = production === 'Equality' ? kinds.Equality : kinds.Inequality
+    return this.add(
+      kind,
+      [
+        { role: roles.left, value: left.occurrence },
+        { role: roles.right, value: right.occurrence },
+      ],
+      loc
+    )
   }
 
-  finish(file: File): SyntaxAsetParseResult {
-    const root = this.child(file)
-    const aset = this.builder.finish(root)
+  emitSequence(
+    items: readonly SyntaxAsetReductionRef[],
+    loc: SourceLocation
+  ): SyntaxAsetReductionRef {
+    return this.add(
+      this.vocabulary.kinds.Sequence,
+      items.map((item) => ({
+        role: this.vocabulary.roles.item,
+        value: item.occurrence,
+      })),
+      loc
+    )
+  }
+
+  emitSet(
+    items: readonly SyntaxAsetReductionRef[],
+    loc: SourceLocation
+  ): SyntaxAsetReductionRef {
+    return this.add(
+      this.vocabulary.kinds.Set,
+      items.map((item) => ({
+        role: this.vocabulary.roles.item,
+        value: item.occurrence,
+      })),
+      loc
+    )
+  }
+
+  emitContainer(
+    production: ContainerProduction,
+    content: SyntaxAsetReductionRef | null,
+    loc: SourceLocation
+  ): SyntaxAsetReductionRef {
+    return this.add(
+      production === 'Round' ? this.vocabulary.kinds.Round : this.vocabulary.kinds.Square,
+      content === null
+        ? []
+        : [{ role: this.vocabulary.roles.expression, value: content.occurrence }],
+      loc
+    )
+  }
+
+  emitStatement(
+    expression: SyntaxAsetReductionRef,
+    loc: SourceLocation
+  ): SyntaxAsetReductionRef {
+    return this.add(
+      this.vocabulary.kinds.Statement,
+      [{ role: this.vocabulary.roles.expression, value: expression.occurrence }],
+      loc
+    )
+  }
+
+  finish(
+    statements: readonly SyntaxAsetReductionRef[],
+    fileLoc: SourceLocation
+  ): SyntaxAsetParseResult {
+    const file = this.add(
+      this.vocabulary.kinds.File,
+      statements.map((statement) => ({
+        role: this.vocabulary.roles.item,
+        value: statement.occurrence,
+      })),
+      fileLoc
+    )
+    const aset = this.builder.finish(file.occurrence)
     const read = readSyntaxAset(this.memory, aset, this.vocabulary)
     return Object.freeze({
       memory: this.memory,
