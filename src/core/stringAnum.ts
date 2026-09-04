@@ -2,13 +2,11 @@
  * String data adapter for aprover.
  *
  * `.astr` is an application input format, not an alternative MTS grammar.
- * Its projection into MTS source therefore emits only the canonical v0.2
- * link glyph `⟼` and reuses the shared AST.
+ * Its projection into MTS source emits only the canonical v0.2 link glyph `⟼`.
+ * The adapter stays source-oriented and does not expose a completed AST product.
  */
 
-import type { ASTNode, File } from './ast'
-import { makeLoc, makeInfinity, makeLink, makeStringLit, extractLinkChain } from './astHelpers'
-import { parseFileLines, fileToMtl } from './utils'
+import { fileToMtl } from './utils'
 
 export class StringAnumError extends Error {
   constructor(
@@ -31,68 +29,6 @@ const defaultOptions: StringAnumOptions = {
   lineAsStatement: true,
   skipEmptyLines: true,
   skipComments: true,
-}
-
-export function parseStringAnumLine(
-  line: string,
-  lineNumber = 1,
-  startOffset = 0
-): ASTNode {
-  if (line.length === 0) {
-    const loc = makeLoc(lineNumber, 1, startOffset, lineNumber, 1, startOffset)
-    return makeInfinity(loc)
-  }
-
-  const infLoc = makeLoc(lineNumber, 1, startOffset, lineNumber, 1, startOffset)
-  const inf = makeInfinity(infLoc)
-  const strLoc = makeLoc(
-    lineNumber,
-    1,
-    startOffset,
-    lineNumber,
-    line.length + 1,
-    startOffset + line.length
-  )
-  const strNode = makeStringLit(line, strLoc)
-  const linkLoc = makeLoc(
-    lineNumber,
-    1,
-    startOffset,
-    lineNumber,
-    line.length + 1,
-    startOffset + line.length
-  )
-
-  return makeLink(inf, strNode, linkLoc)
-}
-
-export function parseStringAnum(content: string, options: StringAnumOptions = {}): File {
-  const opts = { ...defaultOptions, ...options }
-
-  return parseFileLines(
-    content,
-    { skipComments: opts.skipComments, skipEmptyLines: opts.skipEmptyLines },
-    (_line, trimmed) => trimmed.length === 0,
-    (line, trimmed, lineNumber, offset) => {
-      const text = opts.lineAsStatement ? trimmed : line
-      return {
-        expr: parseStringAnumLine(text, lineNumber, offset),
-        length: text.length,
-      }
-    }
-  )
-}
-
-export function parseStringAnumExpr(content: string): ASTNode {
-  return parseStringAnumLine(content, 1, 0)
-}
-
-export function toStringAnum(node: ASTNode): string | null {
-  return extractLinkChain(node, 'StringLit')
-}
-
-export function isStringAnumExpr(node: ASTNode): boolean {
-  return toStringAnum(node) !== null
 }
 
 export function stringAnumToFormal(str: string): string {

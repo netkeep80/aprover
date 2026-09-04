@@ -1,14 +1,14 @@
 import {
   deserializeAnumStream,
-  parseExpr,
+  normalizeSyntaxAset,
+  parseSyntaxAset,
   semanticLink,
-  toCanonicalString,
 } from '../src/core/index'
 
-// Parser/normalizer are application/editor surfaces; successful parsing is not
-// theorem acceptance and does not define normative MTS semantics.
-const expression = parseExpr('[] = ◁')
-console.log(toCanonicalString(expression))
+// SyntaxAset is the current structured-source product. Successful parsing or
+// normalization is application behavior, not theorem acceptance or MTS authority.
+const syntax = parseSyntaxAset('[] = ◁')
+console.log(normalizeSyntaxAset(syntax).canonical)
 
 // Current ANUM semantic execution is delegated by aprover to the exact-pinned
 // accepted @mts/core v0.10 consumer boundary.

@@ -13,24 +13,23 @@ package          = @mts/core@0.10.0
 
 ## Public application entry point
 
-`src/core/index.ts` публикует consumer-only syntax/presentation/I/O/visualization API и тонкий ANUM adapter над exact `@mts/core` v0.10.
+`src/core/index.ts` публикует canonical SyntaxAset structured-source boundary, consumer-only presentation/I/O/visualization API и тонкий ANUM adapter над exact `@mts/core` v0.10.
 
-Current tree не содержит legacy local interpreter/memory/value-bundle/proof replay/search API.
+Current tree не содержит legacy local interpreter/memory/value-bundle/proof replay/search API. Completed AST также не публикуется как current compatibility API.
 
 ## Syntax and canonical presentation
 
 ```ts
-import { parse, parseExpr, parseWithRecovery, toCanonicalString } from '../src/core/index'
+import { normalizeSyntaxAset, parseSyntaxAset } from '../src/core/index'
 
-const file = parse('∞ : {◁ = ∞, ▷ = ∞}')
-const expression = parseExpr('[] = ◁')
-console.log(toCanonicalString(expression))
-
-const recovered = parseWithRecovery('[] = ◁')
-console.log(recovered.file, recovered.error)
+const syntax = parseSyntaxAset('∞ : {◁ = ∞, ▷ = ∞}')
+const normalized = normalizeSyntaxAset(syntax)
+console.log(normalized.canonical)
 ```
 
-Parser/AST/normalizer являются application/editor/import boundary. Успешный parse или normalize не является доказательством и не задаёт нормативную семантику МТС.
+`parseSyntaxAset()` возвращает текущий structured-source product вместе с external source provenance. `normalizeSyntaxAset()` читает канонический SyntaxAset напрямую. Временные parser reduction objects являются private host state и не current public compatibility API.
+
+Успешный parse или normalize не является доказательством и не задаёт нормативную семантику МТС.
 
 ## `.anum`: transport presentation vs semantic execution
 
@@ -119,7 +118,10 @@ CURRENT ACCEPTED MTS SEMANTICS
   exact anum_docs@957c818d82bd3211f2a59547fff28e8ed0ec4331
 
 CONSUMER-ONLY
-  syntax / presentation / file I/O / visualization / ANUM diagnostics
+  SyntaxAset syntax/provenance / presentation / file I/O / visualization / ANUM diagnostics
+
+NOT A CURRENT PUBLIC COMPATIBILITY API
+  completed AST product / AST parser result / AST normalizer facade
 
 NOT PRESENT IN CURRENT TREE
   local legacy interpreter/memory/value-bundle semantics
