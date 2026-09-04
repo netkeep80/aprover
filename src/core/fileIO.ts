@@ -5,9 +5,6 @@
  * the separate mts-proof/v0.2 replay boundary.
  */
 
-import { toCanonicalString } from './normalizer'
-import type { ASTNode } from './ast'
-
 export const SUPPORTED_EXTENSIONS = ['.mtl', '.astr', '.anum'] as const
 export type SupportedExtension = (typeof SUPPORTED_EXTENSIONS)[number]
 
@@ -125,65 +122,6 @@ export function clearAutosave(): void {
   } catch {
     console.warn('Failed to clear autosave from localStorage')
   }
-}
-
-export function formatAstForExport(ast: ASTNode, indent = 0): string {
-  const pad = '  '.repeat(indent)
-  const lines = [`${pad}${ast.type}`]
-
-  if ('name' in ast && typeof ast.name === 'string') lines.push(`${pad}  name: ${ast.name}`)
-  if ('name' in ast && typeof ast.name === 'object' && ast.name !== null) {
-    lines.push(`${pad}  name:`)
-    lines.push(formatAstForExport(ast.name, indent + 2))
-  }
-  if ('value' in ast) lines.push(`${pad}  value: ${ast.value}`)
-  if ('side' in ast) lines.push(`${pad}  side: ${ast.side}`)
-  if ('left' in ast && ast.left) {
-    lines.push(`${pad}  left:`)
-    lines.push(formatAstForExport(ast.left, indent + 2))
-  }
-  if ('right' in ast && ast.right) {
-    lines.push(`${pad}  right:`)
-    lines.push(formatAstForExport(ast.right, indent + 2))
-  }
-  if ('operand' in ast && ast.operand) {
-    lines.push(`${pad}  operand:`)
-    lines.push(formatAstForExport(ast.operand, indent + 2))
-  }
-  if ('form' in ast && ast.form) {
-    lines.push(`${pad}  form:`)
-    lines.push(formatAstForExport(ast.form, indent + 2))
-  }
-  if ('inner' in ast && ast.inner) {
-    lines.push(`${pad}  inner:`)
-    lines.push(formatAstForExport(ast.inner, indent + 2))
-  }
-  if ('content' in ast && ast.content) {
-    lines.push(`${pad}  content:`)
-    lines.push(formatAstForExport(ast.content, indent + 2))
-  }
-  if ('elements' in ast && Array.isArray(ast.elements)) {
-    lines.push(`${pad}  elements:`)
-    for (const element of ast.elements) lines.push(formatAstForExport(element, indent + 2))
-  }
-  if ('statements' in ast && Array.isArray(ast.statements)) {
-    lines.push(`${pad}  statements:`)
-    for (const statement of ast.statements) lines.push(formatAstForExport(statement, indent + 2))
-  }
-  if ('expr' in ast && ast.expr) {
-    lines.push(`${pad}  expr:`)
-    lines.push(formatAstForExport(ast.expr, indent + 2))
-  }
-
-  return lines.join('\n')
-}
-
-export function generateMtlFromAst(ast: ASTNode): string {
-  if ('statements' in ast && Array.isArray(ast.statements)) {
-    return ast.statements.map(statement => generateMtlFromAst(statement)).join('\n')
-  }
-  if ('expr' in ast && ast.expr) return `${toCanonicalString(ast.expr)}.`
-  return toCanonicalString(ast)
 }
 
 export function downloadFile(content: string, filename: string, mimeType = 'text/plain'): void {

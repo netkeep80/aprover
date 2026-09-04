@@ -1,37 +1,22 @@
 import { describe, expect, it } from 'vitest'
 
-import type { LinkExpr, StringLitExpr } from '../../src/core/ast'
+import { parseSyntaxAset } from '../../src/core/parser'
 import {
   getStringAnumStats,
-  isStringAnumExpr,
-  parseStringAnum,
-  parseStringAnumExpr,
-  parseStringAnumLine,
   stringAnumFileToMtl,
   stringAnumToFormal,
-  toStringAnum,
   visualizeConversion,
 } from '../../src/core/stringAnum'
-import { parseExpr } from '../../src/core/parser'
 
 describe('string application adapter', () => {
-  it('uses the shared structural AST rather than a second parser grammar', () => {
-    const ast = parseStringAnumLine('hello') as LinkExpr
-    expect(ast.type).toBe('Link')
-    expect(ast.left.type).toBe('Infinity')
-    expect(ast.right).toMatchObject({ type: 'StringLit', value: 'hello' })
-    expect((ast.right as StringLitExpr).value).toBe('hello')
-  })
-
   it('maps the empty value to akorern', () => {
-    expect(parseStringAnumLine('').type).toBe('Infinity')
     expect(stringAnumToFormal('')).toBe('∞')
   })
 
-  it('emits only the canonical link glyph', () => {
+  it('emits only the canonical link glyph and canonical parseable source', () => {
     expect(stringAnumToFormal('ab')).toBe('(∞ ⟼ "ab")')
     expect(stringAnumToFormal('ab')).not.toContain('->')
-    expect(() => parseExpr(stringAnumToFormal('ab'))).not.toThrow()
+    expect(() => parseSyntaxAset(`${stringAnumToFormal('ab')}.`)).not.toThrow()
   })
 
   it('escapes string content without changing MTS syntax', () => {
@@ -39,19 +24,10 @@ describe('string application adapter', () => {
     expect(stringAnumToFormal('a\\b')).toBe('(∞ ⟼ "a\\\\b")')
   })
 
-  it('round-trips UTF-8 application values through the shared AST', () => {
+  it('projects UTF-8 application values into canonical parseable source', () => {
     for (const value of ['hello', 'мир', '🎉🌍', 'Hello, 世界!', 'αβγδ', 'a b c', '']) {
-      expect(toStringAnum(parseStringAnumExpr(value))).toBe(value)
-      expect(isStringAnumExpr(parseStringAnumExpr(value))).toBe(true)
+      expect(() => parseSyntaxAset(`${stringAnumToFormal(value)}.`), value).not.toThrow()
     }
-  })
-
-  it('parses line-oriented application data without changing source locations', () => {
-    const ast = parseStringAnumLine('ab', 5, 100)
-    expect(ast.loc?.start).toMatchObject({ line: 5, offset: 100 })
-
-    const file = parseStringAnum('// comment\nhello\n\nworld')
-    expect(file.statements).toHaveLength(2)
   })
 
   it('projects .astr files into canonical parseable MTS source', () => {
@@ -59,6 +35,7 @@ describe('string application adapter', () => {
     expect(source).toContain('(∞ ⟼ "hello").')
     expect(source).toContain('(∞ ⟼ "world").')
     expect(source).not.toContain('->')
+    expect(() => parseSyntaxAset(source)).not.toThrow()
   })
 
   it('shows canonical source in conversion presentation', () => {

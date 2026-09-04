@@ -24,14 +24,14 @@ accepted anum_docs / @mts/core v0.10
                 │ exact immutable consumer lock
                 ▼
              aprover
-   ├── lexer / parser / AST
-   ├── canonical presentation
+   ├── lexer / direct SyntaxAset parser + source provenance
+   ├── Aset-native normalization / canonical presentation
    ├── file and transport adapters
    ├── ANUM presentation adapter
    └── visualization
 ```
 
-Parser, AST, display labels, source positions и graph IDs не являются theorem authority.
+Parser host state, display labels, source positions и graph IDs не являются theorem authority. Канонический structured-source product приложения — SyntaxAset; completed AST не является current public compatibility surface.
 
 ## Current-only policy
 
@@ -96,7 +96,9 @@ R = R ⟼ R
 
 ## Public application core
 
-`src/core/index.ts` экспортирует только consumer-only syntax/presentation/I/O/visualization surfaces и тонкий ANUM adapter над `@mts/core`.
+`src/core/index.ts` экспортирует canonical `parseSyntaxAset()` / `normalizeSyntaxAset()` boundary, consumer-only presentation/I/O/visualization surfaces и тонкий ANUM adapter над `@mts/core`.
+
+Completed AST больше не публикуется как current compatibility API. Временные AST-shaped reduction objects внутри parser/emitter остаются implementation detail до отдельного A8.3b cutover и не являются долговременной domain authority.
 
 Если нужной semantic capability нет в public `@mts/core` facade, это `UPSTREAM_GAP`: её следует исправлять в `anum_docs`, а не закрывать deep import или локальной копией MTS semantics.
 
