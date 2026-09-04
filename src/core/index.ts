@@ -200,17 +200,3 @@ export {
 } from './fileIO'
 
 export { projectSemanticMemoryToVisualLinkNetwork } from './visualLinkNetwork'
-
-export type {
-  LinkGraphNodeType,
-  LinkGraphNode,
-  LinkGraphEdgeType,
-  LinkGraphEdge,
-  LinkGraph,
-} from './linkGraph'
-export {
-  projectToGraph,
-  projectStatementsToGraph,
-  toCytoscapeElements,
-  linkGraphToDOT,
-} from './linkGraph'

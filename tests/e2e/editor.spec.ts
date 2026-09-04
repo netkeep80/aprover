@@ -22,11 +22,12 @@ test.describe('aprover current MTS consumer UI', () => {
     expect(source).not.toContain('v♂ = v♂')
   })
 
-  test('parses canonical source and updates the AST without a proof verdict', async ({ page }) => {
+  test('parses canonical source without a legacy AST sidecar or proof verdict', async ({ page }) => {
     const editor = page.locator('.code-input')
     await editor.fill('[] = ◁')
-    await expect(page.locator('.tree-root')).toBeVisible()
     await expect(page.locator('.app-footer')).toContainText('1 statements parsed')
+    await expect(page.locator('.ast-panel')).toHaveCount(0)
+    await expect(page.locator('.tree-root')).toHaveCount(0)
     await expect(page.locator('.result-item')).toHaveCount(0)
   })
 
@@ -35,35 +36,17 @@ test.describe('aprover current MTS consumer UI', () => {
     await expect(page.locator('.error-panel')).toBeVisible()
   })
 
-  test('does not expose legacy interpretation or proof controls', async ({ page }) => {
+  test('does not expose legacy interpretation, AST, LinkGraph, or proof controls', async ({ page }) => {
     await expect(page.locator('.result-item')).toHaveCount(0)
+    await expect(page.locator('button').filter({ hasText: 'AST' })).toHaveCount(0)
+    await expect(page.locator('.ast-panel')).toHaveCount(0)
+    await expect(page.locator('.cytoscape-container')).toHaveCount(0)
     await expect(page.locator('button').filter({ hasText: 'INT' })).toHaveCount(0)
     await expect(page.locator('button').filter({ hasText: 'Результаты' })).toHaveCount(0)
     await expect(page.locator('.proof-replay-toggle')).toHaveCount(0)
     await expect(page.getByTestId('proof-replay-panel')).toHaveCount(0)
     await expect(page.getByTestId('proof-search-panel')).toHaveCount(0)
     await expect(page.locator('text=statements verified')).toHaveCount(0)
-  })
-
-  test('keeps AST inspection and source highlighting', async ({ page }) => {
-    const editor = page.locator('.code-input')
-    await editor.fill('[] = ◁')
-    await expect(page.locator('.ast-panel')).toBeVisible()
-    await expect(page.locator('.tree-root')).toBeVisible()
-    const squareNode = page.locator('.tree-node-content').filter({ hasText: 'Square' }).first()
-    await squareNode.hover()
-    await expect(page.locator('.ast-highlight')).toBeVisible()
-    await page.locator('.app-header').hover()
-    await expect(page.locator('.ast-highlight')).not.toBeVisible()
-  })
-
-  test('toggles AST visibility', async ({ page }) => {
-    const toggle = page.locator('.toggle-btn').filter({ hasText: /AST/ })
-    await expect(page.locator('.ast-panel')).toBeVisible()
-    await toggle.click()
-    await expect(page.locator('.ast-panel')).not.toBeVisible()
-    await toggle.click()
-    await expect(page.locator('.ast-panel')).toBeVisible()
   })
 
   test('opens the canonical SyntaxAset graph through the shared visual surface', async ({ page }) => {
