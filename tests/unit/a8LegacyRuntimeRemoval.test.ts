@@ -1,21 +1,51 @@
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const root = process.cwd()
 const read = (path: string) => readFileSync(resolve(root, path), 'utf8')
 
-describe('A8 legacy runtime removal boundary', () => {
-  it('removes the AST viewer sidecar from the current application runtime', () => {
-    const app = read('src/App.vue')
-
-    expect(app).not.toContain('legacyViewerAst')
-    expect(app).not.toContain('ASTViewer')
-    expect(app).not.toContain('parseWithRecovery')
-    expect(app).not.toContain('showAST')
+const productionSources = (directory = 'src'): string[] =>
+  readdirSync(resolve(root, directory), { withFileTypes: true }).flatMap(entry => {
+    const path = `${directory}/${entry.name}`
+    if (entry.isDirectory()) return productionSources(path)
+    return /\.(?:ts|vue)$/.test(entry.name) ? [path] : []
   })
 
-  it('removes the ordinary LinkGraph and Cytoscape runtime surface', () => {
+describe('A8 legacy runtime removal boundary', () => {
+  it('blocks retired AST, LinkGraph and Cytoscape authority across production source', () => {
+    const forbidden: readonly (readonly [string, RegExp])[] = [
+      ['AST viewer', /\bASTViewer\b/],
+      ['LinkGraph viewer', /\bLinkGraphViewer\b/],
+      ['legacy AST sidecar', /\blegacyViewerAst\b/],
+      ['ordinary LinkGraph authority', /\bLinkGraph(?:Node|Edge)?\b/],
+      ['ordinary linkGraph module', /['"][^'"]*linkGraph['"]/],
+      ['Cytoscape runtime', /\bcytoscape\b/i],
+      ['Cytoscape adapter', /\btoCytoscapeElements\b/],
+      ['completed AST identity', /\bASTNode\b/],
+      ['completed AST module', /['"][^'"]*\/ast(?:Helpers)?['"]/],
+      ['legacy parser recovery', /\bparseWithRecovery\b/],
+    ]
+
+    for (const path of productionSources()) {
+      const source = read(path)
+      for (const [label, pattern] of forbidden) {
+        expect(source, `${path}: ${label}`).not.toMatch(pattern)
+      }
+    }
+  })
+
+  it('pins the application to the canonical SyntaxAset and rooted VisualLinkNetwork path', () => {
+    const app = read('src/App.vue')
+
+    expect(app).toContain('parseSyntaxAset')
+    expect(app).toContain('canonicalSyntax.value = parseSyntaxAset(input.value)')
+    expect(app).toContain('projectRootedLinkClosureToVisualLinkNetwork')
+    expect(app).toContain('projectRootedLinkClosureToVisualLinkNetwork(syntax.memory, syntax.aset)')
+    expect(app).toContain('VisualLinkNetworkViewer')
+  })
+
+  it('keeps the retired runtime files and Cytoscape packages absent', () => {
     for (const path of [
       'src/core/linkGraph.ts',
       'src/components/LinkGraphViewer.vue',
