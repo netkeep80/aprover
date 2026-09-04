@@ -10,30 +10,8 @@ import { Lexer } from './lexer'
 import {
   SyntaxAsetDirectEmitter,
   type SyntaxAsetParseResult,
+  type SyntaxAsetReductionRef,
 } from './syntaxAsetDirectEmitter'
-import type {
-  ASTNode,
-  File,
-  Statement,
-  LinkExpr,
-  DefExpr,
-  EqExpr,
-  NeqExpr,
-  MaleExpr,
-  FemaleExpr,
-  NotExpr,
-  SetExpr,
-  SequenceExpr,
-  InfinityExpr,
-  NumExpr,
-  IdentExpr,
-  AbitLitExpr,
-  StringLitExpr,
-  LiteralExpr,
-  RoundExpr,
-  SquareExpr,
-  ContextPronounExpr,
-} from './ast'
 import type { SourceLocation } from './sourceProvenance'
 
 export class ParseError extends Error {
@@ -44,12 +22,6 @@ export class ParseError extends Error {
     super(`Parse error at ${token.loc.start.line}:${token.loc.start.column}: ${message}`)
     this.name = 'ParseError'
   }
-}
-
-export interface ParseResult {
-  file: File | null
-  error: ParseError | null
-  errorLocation?: SourceLocation
 }
 
 const ROUND_LITERALS = new Set<TokenType>([
@@ -82,24 +54,12 @@ const FORM_STARTS = new Set<TokenType>([
 ])
 
 export class Parser {
-  private tokens: Token[]
   private pos = 0
 
   constructor(
-    tokens: Token[],
-    private readonly syntaxEmitter: SyntaxAsetDirectEmitter | null = null
-  ) {
-    this.tokens = tokens
-  }
-
-  /**
-   * Emit the just-reduced production online. The AST object remains temporary
-   * parser host state; there is no completed-AST traversal on the A2 path.
-   */
-  private reduced<T extends ASTNode>(node: T): T {
-    this.syntaxEmitter?.emit(node)
-    return node
-  }
+    private readonly tokens: Token[],
+    private readonly syntaxEmitter: SyntaxAsetDirectEmitter
+  ) {}
 
   private current(): Token {
     return this.tokens[this.pos]
@@ -134,60 +94,24 @@ export class Parser {
     return { start: start.start, end: end.end }
   }
 
-  parseFile(): File {
-    const statements: Statement[] = []
+  parseFile(): SyntaxAsetParseResult {
+    const statements: SyntaxAsetReductionRef[] = []
     const startLoc = this.current().loc
     while (!this.check('EOF')) statements.push(this.parseStatement())
-    return this.reduced({
-      type: 'File',
+    return this.syntaxEmitter.finish(
       statements,
-      loc: this.mergeLoc(startLoc, this.current().loc),
-    })
+      this.mergeLoc(startLoc, this.current().loc)
+    )
   }
 
-  parseFileWithRecovery(): ParseResult {
-    const statements: Statement[] = []
-    const startLoc = this.current().loc
-    let error: ParseError | null = null
-    let errorLocation: SourceLocation | undefined
-
-    while (!this.check('EOF')) {
-      try {
-        statements.push(this.parseStatement())
-      } catch (e) {
-        if (e instanceof ParseError) {
-          error = e
-          errorLocation = e.token.loc
-          break
-        }
-        throw e
-      }
-    }
-
-    const file: File | null =
-      statements.length > 0
-        ? {
-            type: 'File',
-            statements,
-            loc: this.mergeLoc(startLoc, this.current().loc),
-          }
-        : null
-
-    return { file, error, errorLocation }
-  }
-
-  private parseStatement(): Statement {
+  private parseStatement(): SyntaxAsetReductionRef {
     const expr = this.parseExpr()
-    let endLoc = expr.loc!
+    let endLoc = expr.loc
     if (this.checkAny('COMMA', 'DOT')) endLoc = this.advance().loc
-    return this.reduced({
-      type: 'Statement',
-      expr,
-      loc: this.mergeLoc(expr.loc!, endLoc),
-    })
+    return this.syntaxEmitter.emitStatement(expr, this.mergeLoc(expr.loc, endLoc))
   }
 
-  private parseExpr(): ASTNode {
+  private parseExpr(): SyntaxAsetReductionRef {
     const left = this.parseTerm()
 
     if (this.check('DEFINE')) {
@@ -195,56 +119,56 @@ export class Parser {
       // `:` is the weakest canonical infix operator and is right-associative:
       // `a : b = c` => Definition(a, Equality(b,c)); `a : b : c` => a : (b : c).
       const right = this.parseExpr()
-      return this.reduced({
-        type: 'Definition',
-        name: left,
-        form: right,
-        loc: this.mergeLoc(left.loc!, right.loc!),
-      } as DefExpr)
+      return this.syntaxEmitter.emitBinary(
+        'Definition',
+        left,
+        right,
+        this.mergeLoc(left.loc, right.loc)
+      )
     }
 
     if (this.check('EQUAL')) {
       this.advance()
       const right = this.parseTerm()
-      return this.reduced({
-        type: 'Equality',
+      return this.syntaxEmitter.emitBinary(
+        'Equality',
         left,
         right,
-        loc: this.mergeLoc(left.loc!, right.loc!),
-      } as EqExpr)
+        this.mergeLoc(left.loc, right.loc)
+      )
     }
 
     if (this.check('NOT_EQUAL')) {
       this.advance()
       const right = this.parseTerm()
-      return this.reduced({
-        type: 'Inequality',
+      return this.syntaxEmitter.emitBinary(
+        'Inequality',
         left,
         right,
-        loc: this.mergeLoc(left.loc!, right.loc!),
-      } as NeqExpr)
+        this.mergeLoc(left.loc, right.loc)
+      )
     }
 
     return left
   }
 
-  private parseTerm(): ASTNode {
+  private parseTerm(): SyntaxAsetReductionRef {
     return this.parseChain()
   }
 
   /** `⟼` имеет меньший приоритет, чем соположение форм. */
-  private parseChain(): ASTNode {
+  private parseChain(): SyntaxAsetReductionRef {
     let left = this.parseSequence()
 
     while (this.check('ARROW')) {
       this.advance()
       const right = this.parseSequence()
-      left = this.reduced({
-        type: 'Link',
+      left = this.syntaxEmitter.emitBinary(
+        'Link',
         left,
         right,
-        loc: this.mergeLoc(left.loc!, right.loc!),
-      } as LinkExpr)
+        this.mergeLoc(left.loc, right.loc)
+      )
     }
 
     return left
@@ -254,30 +178,26 @@ export class Parser {
    * Каноническое соположение внутри одной строки: a{b,c}, {}b, {}{}, [][], ...
    *
    * В файловом/editor workflow aprover перевод строки остаётся границей формул.
-   * Это application-boundary: сам L2 AST не получает отдельного newline-оператора.
+   * Это application-boundary: перевод строки не становится отдельным оператором.
    */
-  private parseSequence(): ASTNode {
+  private parseSequence(): SyntaxAsetReductionRef {
     const first = this.parsePref()
-    const items: ASTNode[] = [first]
+    const items: SyntaxAsetReductionRef[] = [first]
 
     while (
       FORM_STARTS.has(this.current().type) &&
-      this.current().loc.start.line === items[items.length - 1].loc!.end.line
+      this.current().loc.start.line === items[items.length - 1].loc.end.line
     ) {
       items.push(this.parsePref())
     }
 
     if (items.length === 1) return first
     const last = items[items.length - 1]
-    return this.reduced({
-      type: 'Sequence',
-      items,
-      loc: this.mergeLoc(first.loc!, last.loc!),
-    } as SequenceExpr)
+    return this.syntaxEmitter.emitSequence(items, this.mergeLoc(first.loc, last.loc))
   }
 
   /** Канонические префиксные операторы: инверсия `¬` и проекция начала `♀`. */
-  private parsePref(): ASTNode {
+  private parsePref(): SyntaxAsetReductionRef {
     const prefixes: { type: 'NOT' | 'FEMALE'; loc: SourceLocation }[] = []
 
     while (this.checkAny('NOT', 'FEMALE')) {
@@ -286,93 +206,65 @@ export class Parser {
       this.advance()
     }
 
-    let node = this.parsePost()
+    let result = this.parsePost()
 
     for (let i = prefixes.length - 1; i >= 0; i--) {
       const prefix = prefixes[i]
-      if (prefix.type === 'NOT') {
-        node = this.reduced({
-          type: 'Not',
-          operand: node,
-          loc: this.mergeLoc(prefix.loc, node.loc!),
-        } as NotExpr)
-      } else {
-        node = this.reduced({
-          type: 'Female',
-          operand: node,
-          loc: this.mergeLoc(prefix.loc, node.loc!),
-        } as FemaleExpr)
-      }
+      result = this.syntaxEmitter.emitUnary(
+        prefix.type === 'NOT' ? 'Not' : 'Female',
+        result,
+        this.mergeLoc(prefix.loc, result.loc)
+      )
     }
 
-    return node
+    return result
   }
 
   /** Канонический постфиксный оператор: проекция конца `F♂`. */
-  private parsePost(): ASTNode {
-    let node = this.parseAtom()
+  private parsePost(): SyntaxAsetReductionRef {
+    let result = this.parseAtom()
 
     while (this.check('MALE')) {
       const loc = this.advance().loc
-      node = this.reduced({
-        type: 'Male',
-        operand: node,
-        loc: this.mergeLoc(node.loc!, loc),
-      } as MaleExpr)
+      result = this.syntaxEmitter.emitUnary(
+        'Male',
+        result,
+        this.mergeLoc(result.loc, loc)
+      )
     }
 
-    return node
+    return result
   }
 
-  private parseAtom(): ASTNode {
+  private parseAtom(): SyntaxAsetReductionRef {
     const token = this.current()
 
     if (this.check('INFINITY')) {
       this.advance()
-      return this.reduced({ type: 'Infinity', loc: token.loc } as InfinityExpr)
+      return this.syntaxEmitter.emitLiteral('Infinity', '∞', token.loc)
     }
     if (this.check('ZERO')) {
       this.advance()
-      return this.reduced({ type: 'Num', value: 0, loc: token.loc } as NumExpr)
+      return this.syntaxEmitter.emitLiteral('Num', '0', token.loc)
     }
     if (this.check('ONE')) {
       this.advance()
-      return this.reduced({ type: 'Num', value: 1, loc: token.loc } as NumExpr)
+      return this.syntaxEmitter.emitLiteral('Num', '1', token.loc)
     }
     if (this.checkAny('CONTEXT_START', 'CONTEXT_END', 'CONTEXT_UP')) {
       return this.parseContextPronoun()
     }
-    if (this.check('ID')) {
+    if (this.check('ID') || this.check('NAT')) {
       this.advance()
-      return this.reduced({
-        type: 'Identifier',
-        name: token.value,
-        loc: token.loc,
-      } as IdentExpr)
-    }
-    if (this.check('NAT')) {
-      this.advance()
-      return this.reduced({
-        type: 'Identifier',
-        name: token.value,
-        loc: token.loc,
-      } as IdentExpr)
+      return this.syntaxEmitter.emitLiteral('Identifier', token.value, token.loc)
     }
     if (this.check('ABIT_LIT')) {
       this.advance()
-      return this.reduced({
-        type: 'AbitLit',
-        value: token.value,
-        loc: token.loc,
-      } as AbitLitExpr)
+      return this.syntaxEmitter.emitLiteral('AbitLit', token.value, token.loc)
     }
     if (this.check('STRING_LIT')) {
       this.advance()
-      return this.reduced({
-        type: 'StringLit',
-        value: token.value,
-        loc: token.loc,
-      } as StringLitExpr)
+      return this.syntaxEmitter.emitLiteral('StringLit', token.value, token.loc)
     }
     if (this.check('LBRACE')) return this.parseSet()
     if (this.check('LPAREN')) return this.parseRound()
@@ -381,7 +273,7 @@ export class Parser {
     throw new ParseError(`Unexpected token: ${token.type}`, token)
   }
 
-  private parseContextPronoun(): ContextPronounExpr {
+  private parseContextPronoun(): SyntaxAsetReductionRef {
     const first = this.current()
     let up = 0
     while (this.check('CONTEXT_UP')) {
@@ -395,72 +287,71 @@ export class Parser {
     }
     this.advance()
 
-    return this.reduced({
-      type: 'ContextPronoun',
-      pole: pole.type === 'CONTEXT_START' ? 'start' : 'end',
+    return this.syntaxEmitter.emitContextPronoun(
+      pole.type === 'CONTEXT_START' ? 'start' : 'end',
       up,
-      loc: this.mergeLoc(first.loc, pole.loc),
-    } as ContextPronounExpr)
+      this.mergeLoc(first.loc, pole.loc)
+    )
   }
 
-  private parseRound(): RoundExpr {
+  private parseRound(): SyntaxAsetReductionRef {
     const opening = this.expect('LPAREN')
     if (this.check('RPAREN')) {
       const closing = this.advance()
-      return this.reduced({
-        type: 'Round',
-        content: null,
-        loc: this.mergeLoc(opening.loc, closing.loc),
-      })
+      return this.syntaxEmitter.emitContainer(
+        'Round',
+        null,
+        this.mergeLoc(opening.loc, closing.loc)
+      )
     }
 
     if (ROUND_LITERALS.has(this.current().type) && this.peek().type === 'RPAREN') {
       const literalToken = this.advance()
       const closing = this.expect('RPAREN')
-      const literal: LiteralExpr = this.reduced({
-        type: 'Literal',
-        value: literalToken.value,
-        loc: literalToken.loc,
-      })
-      return this.reduced({
-        type: 'Round',
-        content: literal,
-        loc: this.mergeLoc(opening.loc, closing.loc),
-      })
+      const literal = this.syntaxEmitter.emitLiteral(
+        'Literal',
+        literalToken.value,
+        literalToken.loc
+      )
+      return this.syntaxEmitter.emitContainer(
+        'Round',
+        literal,
+        this.mergeLoc(opening.loc, closing.loc)
+      )
     }
 
     const content = this.parseExpr()
     const closing = this.expect('RPAREN')
-    return this.reduced({
-      type: 'Round',
+    return this.syntaxEmitter.emitContainer(
+      'Round',
       content,
-      loc: this.mergeLoc(opening.loc, closing.loc),
-    })
+      this.mergeLoc(opening.loc, closing.loc)
+    )
   }
 
-  private parseSquare(): SquareExpr {
+  private parseSquare(): SyntaxAsetReductionRef {
     const opening = this.expect('LBRACKET')
     if (this.check('RBRACKET')) {
       const closing = this.advance()
-      return this.reduced({
-        type: 'Square',
-        content: null,
-        loc: this.mergeLoc(opening.loc, closing.loc),
-      })
+      return this.syntaxEmitter.emitContainer(
+        'Square',
+        null,
+        this.mergeLoc(opening.loc, closing.loc)
+      )
     }
 
     const content = this.parseExpr()
     const closing = this.expect('RBRACKET')
-    return this.reduced({
-      type: 'Square',
+    return this.syntaxEmitter.emitContainer(
+      'Square',
       content,
-      loc: this.mergeLoc(opening.loc, closing.loc),
-    })
+      this.mergeLoc(opening.loc, closing.loc)
+    )
   }
 
-  private parseSet(): SetExpr {
+  private parseSet(): SyntaxAsetReductionRef {
     const lbrace = this.expect('LBRACE')
-    const elements: ASTNode[] = []
+    const elements: SyntaxAsetReductionRef[] = []
 
     if (!this.check('RBRACE')) {
       elements.push(this.parseExpr())
@@ -471,38 +362,13 @@ export class Parser {
     }
 
     const rbrace = this.expect('RBRACE')
-    return this.reduced({
-      type: 'Set',
-      elements,
-      loc: this.mergeLoc(lbrace.loc, rbrace.loc),
-    })
+    return this.syntaxEmitter.emitSet(elements, this.mergeLoc(lbrace.loc, rbrace.loc))
   }
 }
 
-export function parse(input: string): File {
-  const lexer = new Lexer(input)
-  return new Parser(lexer.tokenize()).parseFile()
-}
-
-export function parseWithRecovery(input: string): ParseResult {
-  const lexer = new Lexer(input)
-  return new Parser(lexer.tokenize()).parseFileWithRecovery()
-}
-
-export function parseExpr(input: string): ASTNode {
-  const lexer = new Lexer(input)
-  const tokens = lexer.tokenize()
-  const file = new Parser(tokens).parseFile()
-  if (file.statements.length !== 1) {
-    throw new ParseError('Expected single expression', tokens[0])
-  }
-  return file.statements[0].expr
-}
-
-/** Canonical A2 path: the existing grammar emits SyntaxAset online. */
+/** Canonical structured source path: grammar reductions materialize SyntaxAset online. */
 export function parseSyntaxAset(input: string): SyntaxAsetParseResult {
   const lexer = new Lexer(input)
   const emitter = new SyntaxAsetDirectEmitter()
-  const file = new Parser(lexer.tokenize(), emitter).parseFile()
-  return emitter.finish(file)
+  return new Parser(lexer.tokenize(), emitter).parseFile()
 }
