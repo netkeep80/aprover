@@ -9,5 +9,9 @@ test('канонический многострочный корень не ск
 
   await expect(page.locator('.error-panel')).toHaveCount(0)
   await expect(page.locator('.app-footer')).toContainText('10 statements parsed')
-  await expect(page.locator('.tree-root')).toBeVisible()
+
+  const graphToggle = page.locator('.graph-btn-toggle')
+  await expect(graphToggle).toBeEnabled()
+  await graphToggle.click()
+  await expect(page.locator('[data-visual-link-network-surface]')).toBeVisible()
 })
