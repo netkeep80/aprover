@@ -1,18 +1,12 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
-import { parseSyntaxAset, parseWithRecovery, ParseError } from './core/parser'
+import { parseSyntaxAset, ParseError } from './core/parser'
 import { projectRootedLinkClosureToVisualLinkNetwork } from './core/visualLinkNetwork'
 import { LexerError } from './core/lexer'
-import type { File as MtsFile } from './core/ast'
 import type { SourceLocation } from './core/sourceProvenance'
 import type { SyntaxAsetParseResult } from './core/syntaxAsetDirectEmitter'
-import {
-  countSyntaxStatements,
-  selectSyntaxOccurrenceAtOffset,
-  selectSyntaxOccurrenceBySourceSpan,
-} from './core/syntaxSourceMap'
+import { countSyntaxStatements } from './core/syntaxSourceMap'
 import Editor from './components/Editor.vue'
-import ASTViewer from './components/ASTViewer.vue'
 import ErrorPanel from './components/ErrorPanel.vue'
 import VisualLinkNetworkViewer from './components/VisualLinkNetworkViewer.vue'
 import AnumDenotationPanel from './components/AnumDenotationPanel.vue'
@@ -57,13 +51,8 @@ const input = ref(CANONICAL_ROOT)
 const error = ref<string | null>(null)
 const errorLocation = ref<SourceLocation | null>(null)
 const canonicalSyntax = ref<SyntaxAsetParseResult | null>(null)
-/** Temporary A4/A5/A8 sidecar for ASTViewer only. */
-const legacyViewerAst = ref<MtsFile | null>(null)
 
-const showAST = ref(true)
 const showGraph = ref(false)
-const highlightedLoc = ref<SourceLocation | null>(null)
-const highlightedNodeLoc = ref<SourceLocation | null>(null)
 
 const currentFileName = ref<string | null>(null)
 const currentFileType = ref<'mtl' | 'astr' | 'anum'>('mtl')
@@ -88,34 +77,12 @@ const graphNetwork = computed(() => {
 })
 
 const handleSplitResize = () => window.dispatchEvent(new Event('resize'))
-const toggleAST = () => (showAST.value = !showAST.value)
 const toggleGraph = () => (showGraph.value = !showGraph.value)
-
-const handleNodeHover = (loc: SourceLocation | null) => {
-  if (loc === null || canonicalSyntax.value === null) {
-    highlightedLoc.value = null
-    return
-  }
-  highlightedLoc.value =
-    selectSyntaxOccurrenceBySourceSpan(canonicalSyntax.value, loc)?.location ?? null
-}
-
-const handleCursorPosition = (loc: SourceLocation | null) => {
-  if (loc === null || canonicalSyntax.value === null) {
-    highlightedNodeLoc.value = null
-    return
-  }
-  highlightedNodeLoc.value =
-    selectSyntaxOccurrenceAtOffset(canonicalSyntax.value, loc.start.offset)?.location ?? null
-}
 
 const parseInput = () => {
   error.value = null
   errorLocation.value = null
   canonicalSyntax.value = null
-  legacyViewerAst.value = null
-  highlightedLoc.value = null
-  highlightedNodeLoc.value = null
 
   try {
     canonicalSyntax.value = parseSyntaxAset(input.value)
@@ -131,13 +98,6 @@ const parseInput = () => {
     } else {
       error.value = 'Unknown error'
     }
-  }
-
-  // Temporary A4/A5/A8 viewer sidecar. It never supplies canonical diagnostics.
-  try {
-    legacyViewerAst.value = parseWithRecovery(input.value).file
-  } catch {
-    legacyViewerAst.value = null
   }
 }
 
@@ -317,9 +277,6 @@ onUnmounted(() => {
           >
             {{ showConversion ? 'Hide Conv' : 'Show Conv' }}
           </button>
-          <button class="toggle-btn" :class="{ active: showAST }" @click="toggleAST">
-            {{ showAST ? 'Hide AST' : 'Show AST' }}
-          </button>
           <button
             class="toggle-btn graph-btn-toggle"
             :class="{ active: showGraph }"
@@ -360,66 +317,7 @@ onUnmounted(() => {
 
     <main class="app-main">
       <SplitPane
-        v-if="showAST && showGraph"
-        key="ast-graph"
-        ref="splitPaneRef"
-        direction="horizontal"
-        :min-size="150"
-        :initial-sizes="[40, 30, 30]"
-        @resize="handleSplitResize"
-      >
-        <template #pane-0>
-          <div class="panel editor-panel">
-            <Editor
-              v-model="input"
-              :highlighted-loc="highlightedLoc"
-              :error-loc="errorLocation"
-              :file-name="currentFileName || undefined"
-              @file-drop="handleFileDrop"
-              @cursor-position="handleCursorPosition"
-            />
-          </div>
-        </template>
-        <template #pane-1>
-          <div class="panel ast-panel">
-            <ASTViewer :ast="legacyViewerAst" :error="error" :highlighted-node-loc="highlightedNodeLoc" @node-hover="handleNodeHover" />
-          </div>
-        </template>
-        <template #pane-2>
-          <div class="panel graph-panel"><VisualLinkNetworkViewer v-if="graphNetwork" :network="graphNetwork" /></div>
-        </template>
-      </SplitPane>
-
-      <SplitPane
-        v-else-if="showAST"
-        key="ast-only"
-        ref="splitPaneRef"
-        direction="horizontal"
-        :min-size="150"
-        :initial-sizes="[55, 45]"
-        @resize="handleSplitResize"
-      >
-        <template #pane-0>
-          <div class="panel editor-panel">
-            <Editor
-              v-model="input"
-              :highlighted-loc="highlightedLoc"
-              :error-loc="errorLocation"
-              :file-name="currentFileName || undefined"
-              @file-drop="handleFileDrop"
-              @cursor-position="handleCursorPosition"
-            />
-          </div>
-        </template>
-        <template #pane-1>
-          <div class="panel ast-panel">
-            <ASTViewer :ast="legacyViewerAst" :error="error" :highlighted-node-loc="highlightedNodeLoc" @node-hover="handleNodeHover" />
-          </div>
-        </template>
-      </SplitPane>
-
-      <SplitPane
-        v-else-if="showGraph"
+        v-if="showGraph"
         key="graph-only"
         ref="splitPaneRef"
         direction="horizontal"
@@ -431,11 +329,9 @@ onUnmounted(() => {
           <div class="panel editor-panel">
             <Editor
               v-model="input"
-              :highlighted-loc="highlightedLoc"
               :error-loc="errorLocation"
               :file-name="currentFileName || undefined"
               @file-drop="handleFileDrop"
-              @cursor-position="handleCursorPosition"
             />
           </div>
         </template>
@@ -447,11 +343,9 @@ onUnmounted(() => {
       <div v-else class="panel editor-panel single-editor">
         <Editor
           v-model="input"
-          :highlighted-loc="highlightedLoc"
           :error-loc="errorLocation"
           :file-name="currentFileName || undefined"
           @file-drop="handleFileDrop"
-          @cursor-position="handleCursorPosition"
         />
       </div>
     </main>
