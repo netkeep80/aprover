@@ -34,5 +34,11 @@ describe('A8 legacy runtime removal boundary', () => {
     }
     expect(packageJson.dependencies?.cytoscape).toBeUndefined()
     expect(packageJson.devDependencies?.['@types/cytoscape']).toBeUndefined()
+
+    const packageLock = read('package-lock.json')
+    expect(packageLock).not.toContain('node_modules/cytoscape')
+    expect(packageLock).not.toContain('node_modules/@types/cytoscape')
+    expect(packageLock).not.toContain('"cytoscape": "^3.33.1"')
+    expect(packageLock).not.toContain('"@types/cytoscape": "^3.21.9"')
   })
 })
