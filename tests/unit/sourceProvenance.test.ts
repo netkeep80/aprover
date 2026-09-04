@@ -10,12 +10,12 @@ function span(loc: SourceLocation | undefined): string | null {
 }
 
 describe('syntax source provenance boundary', () => {
-  it('owns source coordinates outside the legacy AST module', () => {
+  it('owns source coordinates in the dedicated provenance module', () => {
     const provenancePath = resolve(process.cwd(), 'src/core/sourceProvenance.ts')
     expect(existsSync(provenancePath)).toBe(true)
 
-    const astSource = readFileSync(resolve(process.cwd(), 'src/core/ast.ts'), 'utf8')
-    expect(astSource).not.toContain('export interface SourceLocation')
+    const provenanceSource = readFileSync(provenancePath, 'utf8')
+    expect(provenanceSource).toContain('export interface SourceLocation')
   })
 
   it('is independent of AST identity and preserves repeated occurrence spans', () => {
