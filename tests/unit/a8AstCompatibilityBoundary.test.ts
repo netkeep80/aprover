@@ -70,3 +70,51 @@ describe('A8.3a public SyntaxAset boundary', () => {
     expect(runtime(utils)).not.toHaveProperty('parseFileLines')
   })
 })
+
+describe('A8.3b parser-internal AST retirement', () => {
+  it('has no completed AST domain files', () => {
+    for (const path of [
+      'src/core/ast.ts',
+      'src/core/astHelpers.ts',
+      'src/core/mtsSource.ts',
+    ]) {
+      expect(existsSync(repoPath(path)), path).toBe(false)
+    }
+  })
+
+  it('has no completed-AST parser product or import', () => {
+    const parser = readFileSync(repoPath('src/core/parser.ts'), 'utf8')
+
+    expect(parser).not.toContain("from './ast'")
+    expect(parser).not.toContain('export interface ParseResult')
+    expect(parser).not.toContain('export function parse(')
+    expect(parser).not.toContain('export function parseWithRecovery(')
+    expect(parser).not.toContain('export function parseExpr(')
+  })
+
+  it('emits parent occurrences without AST object identity', () => {
+    const emitter = readFileSync(repoPath('src/core/syntaxAsetDirectEmitter.ts'), 'utf8')
+
+    expect(emitter).not.toContain("from './ast'")
+    expect(emitter).not.toContain('ASTNode')
+    expect(emitter).not.toContain('WeakMap<')
+  })
+
+  it('has no legacy AST normalization surface', () => {
+    const normalizer = readFileSync(repoPath('src/core/normalizer.ts'), 'utf8')
+
+    for (const legacy of [
+      'export class NormalizationError',
+      'export function normalize(',
+      'export function normalizeFile(',
+      'export function toCanonicalString(',
+      'export function astEqual(',
+      'export function getNormalizationCache(',
+      'export function clearNormalizationCache(',
+      'export function setNormalizationCacheEnabled(',
+      'export function getNormalizationCacheStats(',
+    ]) {
+      expect(normalizer, legacy).not.toContain(legacy)
+    }
+  })
+})
