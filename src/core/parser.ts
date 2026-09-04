@@ -98,27 +98,24 @@ export class Parser {
     const statements: SyntaxAsetReductionRef[] = []
     const startLoc = this.current().loc
     while (!this.check('EOF')) statements.push(this.parseStatement())
-    return this.syntaxEmitter.finish(
-      statements,
-      this.mergeLoc(startLoc, this.current().loc)
-    )
+    return this.syntaxEmitter.finish(statements, this.mergeLoc(startLoc, this.current().loc))
   }
 
   private parseStatement(): SyntaxAsetReductionRef {
-    const expr = this.parseExpr()
+    const expr = this.parseExpression()
     let endLoc = expr.loc
     if (this.checkAny('COMMA', 'DOT')) endLoc = this.advance().loc
     return this.syntaxEmitter.emitStatement(expr, this.mergeLoc(expr.loc, endLoc))
   }
 
-  private parseExpr(): SyntaxAsetReductionRef {
+  private parseExpression(): SyntaxAsetReductionRef {
     const left = this.parseTerm()
 
     if (this.check('DEFINE')) {
       this.advance()
       // `:` is the weakest canonical infix operator and is right-associative:
       // `a : b = c` => Definition(a, Equality(b,c)); `a : b : c` => a : (b : c).
-      const right = this.parseExpr()
+      const right = this.parseExpression()
       return this.syntaxEmitter.emitBinary(
         'Definition',
         left,
@@ -226,11 +223,7 @@ export class Parser {
 
     while (this.check('MALE')) {
       const loc = this.advance().loc
-      result = this.syntaxEmitter.emitUnary(
-        'Male',
-        result,
-        this.mergeLoc(result.loc, loc)
-      )
+      result = this.syntaxEmitter.emitUnary('Male', result, this.mergeLoc(result.loc, loc))
     }
 
     return result
@@ -320,7 +313,7 @@ export class Parser {
       )
     }
 
-    const content = this.parseExpr()
+    const content = this.parseExpression()
     const closing = this.expect('RPAREN')
     return this.syntaxEmitter.emitContainer(
       'Round',
@@ -340,7 +333,7 @@ export class Parser {
       )
     }
 
-    const content = this.parseExpr()
+    const content = this.parseExpression()
     const closing = this.expect('RBRACKET')
     return this.syntaxEmitter.emitContainer(
       'Square',
@@ -354,10 +347,10 @@ export class Parser {
     const elements: SyntaxAsetReductionRef[] = []
 
     if (!this.check('RBRACE')) {
-      elements.push(this.parseExpr())
+      elements.push(this.parseExpression())
       while (this.check('COMMA')) {
         this.advance()
-        elements.push(this.parseExpr())
+        elements.push(this.parseExpression())
       }
     }
 

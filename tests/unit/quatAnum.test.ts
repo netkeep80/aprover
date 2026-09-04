@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { parseExpr } from '../../src/core/parser'
+import { parseSyntaxAset } from '../../src/core/parser'
 import { deserializeAnumStream } from '../../src/core/anumDenotation'
 import {
   cleanQuatAnum,
@@ -45,7 +45,7 @@ describe('Anum quaternary channel presentation adapter', () => {
     expect(source).toContain("'10'.")
     expect(source).toContain("'[]'.")
     expect(source).not.toContain('R⟼')
-    expect(() => parseExpr("'10'")).not.toThrow()
+    expect(() => parseSyntaxAset("'10'")).not.toThrow()
   })
 
   it('visualizes source positions as transport presentation only', () => {
