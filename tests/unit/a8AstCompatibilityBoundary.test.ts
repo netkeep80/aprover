@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 import * as core from '../../src/core/index'
@@ -7,6 +8,7 @@ import * as stringAnum from '../../src/core/stringAnum'
 import * as utils from '../../src/core/utils'
 
 const runtime = (module: object) => module as Record<string, unknown>
+const repoPath = (...parts: string[]) => resolve(process.cwd(), ...parts)
 
 describe('A8.3a public SyntaxAset boundary', () => {
   it('publishes canonical SyntaxAset parsing and normalization from the application core', () => {
@@ -39,13 +41,13 @@ describe('A8.3a public SyntaxAset boundary', () => {
       expect(runtime(core), name).not.toHaveProperty(name)
     }
 
-    const barrel = readFileSync(new URL('../../src/core/index.ts', import.meta.url), 'utf8')
+    const barrel = readFileSync(repoPath('src/core/index.ts'), 'utf8')
     expect(barrel).not.toContain("from './ast'")
     expect(barrel).not.toContain("from './astHelpers'")
   })
 
   it('removes the expired A1 AST to SyntaxAset oracle', () => {
-    expect(existsSync(new URL('../../src/core/syntaxAsetOracle.ts', import.meta.url))).toBe(false)
+    expect(existsSync(repoPath('src/core/syntaxAsetOracle.ts'))).toBe(false)
   })
 
   it('keeps adapters source-oriented instead of exposing completed AST helpers', () => {
