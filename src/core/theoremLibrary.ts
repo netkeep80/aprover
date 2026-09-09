@@ -1,12 +1,15 @@
 import {
+  approvePortableProofSubAnetProjection,
   approvePortableStructuralProof,
   type PortableProofApprovalDigest,
   type PortableProofApprovalRequest,
   type PortableProofExpectedTheory,
+  type PortableProofSubAnetProjectionApprovalRequest,
   type PortableProofTargetSelection,
 } from './proofApproval'
 
 export const THEOREM_RECORD_SCHEMA = 'aprover-theorem-record/v0.1' as const
+export const THEOREM_PROJECTION_RECORD_SCHEMA = 'aprover-theorem-record/v0.2' as const
 
 export const THEOREM_RECORD_CONSUMER = Object.freeze({
   repository: 'netkeep80/anum_docs',
@@ -41,6 +44,22 @@ export interface TheoremRecordV01 {
   readonly approval: TheoremRecordApprovalV01
 }
 
+export type TheoremProjectionRecordProofV02 = PortableProofSubAnetProjectionApprovalRequest
+
+export interface TheoremProjectionRecordApprovalV02 {
+  readonly semanticBase: string
+  readonly contentDigest: PortableProofApprovalDigest
+}
+
+export interface TheoremProjectionRecordV02 {
+  readonly schema: typeof THEOREM_PROJECTION_RECORD_SCHEMA
+  readonly consumer: TheoremRecordConsumerV01
+  readonly proof: TheoremProjectionRecordProofV02
+  readonly approval: TheoremProjectionRecordApprovalV02
+}
+
+export type TheoremRecord = TheoremRecordV01 | TheoremProjectionRecordV02
+
 export type TheoremRecordRejectionCode =
   | 'invalid-record'
   | 'consumer-mismatch'
@@ -48,7 +67,7 @@ export type TheoremRecordRejectionCode =
   | 'approval-mismatch'
 
 export type TheoremRecordReapproval =
-  | { readonly verdict: 'ACCEPT'; readonly record: TheoremRecordV01 }
+  | { readonly verdict: 'ACCEPT'; readonly record: TheoremRecord }
   | { readonly verdict: 'REJECT'; readonly code: TheoremRecordRejectionCode }
 
 type UnknownRecord = Record<string, unknown>
@@ -121,7 +140,7 @@ function parseDigest(value: unknown): PortableProofApprovalDigest | undefined {
   return scheme !== undefined && digestValue !== undefined ? { scheme, value: digestValue } : undefined
 }
 
-function parseRecord(value: unknown): TheoremRecordV01 | undefined {
+function parseRecordV01(value: unknown): TheoremRecordV01 | undefined {
   const root = exactRecord(value, ['schema', 'consumer', 'proof', 'approval'])
   if (root === undefined || root.schema !== THEOREM_RECORD_SCHEMA) return undefined
   const consumer = parseConsumer(root.consumer)
@@ -150,6 +169,27 @@ function parseRecord(value: unknown): TheoremRecordV01 | undefined {
   }
 }
 
+function parseProjectionRecordV02(value: unknown): TheoremProjectionRecordV02 | undefined {
+  const root = exactRecord(value, ['schema', 'consumer', 'proof', 'approval'])
+  if (root === undefined || root.schema !== THEOREM_PROJECTION_RECORD_SCHEMA) return undefined
+  const consumer = parseConsumer(root.consumer)
+  const proof = exactRecord(root.proof, ['artifact', 'expectedTheory'])
+  const approval = exactRecord(root.approval, ['semanticBase', 'contentDigest'])
+  if (consumer === undefined || proof === undefined || approval === undefined) return undefined
+  const expectedTheory = parseExpectedTheory(proof.expectedTheory)
+  const semanticBase = exactString(approval.semanticBase)
+  const contentDigest = parseDigest(approval.contentDigest)
+  if (expectedTheory === undefined || semanticBase === undefined || contentDigest === undefined) {
+    return undefined
+  }
+  return {
+    schema: THEOREM_PROJECTION_RECORD_SCHEMA,
+    consumer,
+    proof: { artifact: proof.artifact, expectedTheory },
+    approval: { semanticBase, contentDigest },
+  }
+}
+
 function sameConsumer(value: TheoremRecordConsumerV01): boolean {
   return Object.entries(THEOREM_RECORD_CONSUMER).every(
     ([key, expected]) => value[key as keyof TheoremRecordConsumerV01] === expected,
@@ -164,6 +204,15 @@ function sameApproval(
     && stored.occurrenceCount === fresh.occurrenceCount
     && stored.provenanceDigest.scheme === fresh.provenanceDigest.scheme
     && stored.provenanceDigest.value === fresh.provenanceDigest.value
+}
+
+function sameProjectionApproval(
+  stored: TheoremProjectionRecordApprovalV02,
+  fresh: { semanticBase: string; contentDigest: PortableProofApprovalDigest },
+): boolean {
+  return stored.semanticBase === fresh.semanticBase
+    && stored.contentDigest.scheme === fresh.contentDigest.scheme
+    && stored.contentDigest.value === fresh.contentDigest.value
 }
 
 function deepFreeze<T>(value: T): T {
@@ -192,14 +241,49 @@ export async function createTheoremRecord(input: PortableProofApprovalRequest): 
   })
 }
 
+export async function createProofSubAnetProjectionTheoremRecord(
+  input: PortableProofSubAnetProjectionApprovalRequest,
+): Promise<TheoremProjectionRecordV02> {
+  const accepted = await approvePortableProofSubAnetProjection(input)
+  if (accepted.verdict !== 'ACCEPT') throw new Error(`projection approval rejected: ${accepted.code}`)
+  return snapshot({
+    schema: THEOREM_PROJECTION_RECORD_SCHEMA,
+    consumer: THEOREM_RECORD_CONSUMER,
+    proof: input,
+    approval: {
+      semanticBase: accepted.semanticBase,
+      contentDigest: accepted.contentDigest,
+    },
+  })
+}
+
 export async function reapproveTheoremRecord(input: unknown): Promise<TheoremRecordReapproval> {
-  const parsed = parseRecord(input)
-  if (parsed === undefined) return { verdict: 'REJECT', code: 'invalid-record' }
-  if (!sameConsumer(parsed.consumer)) return { verdict: 'REJECT', code: 'consumer-mismatch' }
+  const root = record(input)
+  if (root === undefined) return { verdict: 'REJECT', code: 'invalid-record' }
 
-  const fresh = await approvePortableStructuralProof(parsed.proof)
-  if (fresh.verdict !== 'ACCEPT') return { verdict: 'REJECT', code: 'proof-rejected' }
-  if (!sameApproval(parsed.approval, fresh)) return { verdict: 'REJECT', code: 'approval-mismatch' }
+  if (root.schema === THEOREM_RECORD_SCHEMA) {
+    const parsed = parseRecordV01(input)
+    if (parsed === undefined) return { verdict: 'REJECT', code: 'invalid-record' }
+    if (!sameConsumer(parsed.consumer)) return { verdict: 'REJECT', code: 'consumer-mismatch' }
 
-  return { verdict: 'ACCEPT', record: snapshot(parsed) }
+    const fresh = await approvePortableStructuralProof(parsed.proof)
+    if (fresh.verdict !== 'ACCEPT') return { verdict: 'REJECT', code: 'proof-rejected' }
+    if (!sameApproval(parsed.approval, fresh)) return { verdict: 'REJECT', code: 'approval-mismatch' }
+    return { verdict: 'ACCEPT', record: snapshot(parsed) }
+  }
+
+  if (root.schema === THEOREM_PROJECTION_RECORD_SCHEMA) {
+    const parsed = parseProjectionRecordV02(input)
+    if (parsed === undefined) return { verdict: 'REJECT', code: 'invalid-record' }
+    if (!sameConsumer(parsed.consumer)) return { verdict: 'REJECT', code: 'consumer-mismatch' }
+
+    const fresh = await approvePortableProofSubAnetProjection(parsed.proof)
+    if (fresh.verdict !== 'ACCEPT') return { verdict: 'REJECT', code: 'proof-rejected' }
+    if (!sameProjectionApproval(parsed.approval, fresh)) {
+      return { verdict: 'REJECT', code: 'approval-mismatch' }
+    }
+    return { verdict: 'ACCEPT', record: snapshot(parsed) }
+  }
+
+  return { verdict: 'REJECT', code: 'invalid-record' }
 }
