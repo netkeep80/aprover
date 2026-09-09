@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import type { TheoremRecordV01 } from '../../src/core/theoremLibrary'
+import {
+  THEOREM_RECORD_CONSUMER,
+  type TheoremProjectionRecordV02,
+  type TheoremRecordV01,
+} from '../../src/core/theoremLibrary'
 import { InMemoryTheoremRepository } from '../../src/core/theoremRepository'
 
 function record(
@@ -38,6 +42,24 @@ function record(
   }
 }
 
+function projectionRecord(revision: unknown, marker: string): TheoremProjectionRecordV02 {
+  return {
+    schema: 'aprover-theorem-record/v0.2',
+    consumer: THEOREM_RECORD_CONSUMER,
+    proof: {
+      artifact: { marker },
+      expectedTheory: {
+        artifact: { marker: `theory-${marker}` },
+        revision,
+      },
+    },
+    approval: {
+      semanticBase: 'mts-contract/v0.11',
+      contentDigest: { scheme: 'sha256', value: marker.padEnd(64, 'f').slice(0, 64) },
+    },
+  }
+}
+
 describe('non-authoritative theorem repository', () => {
   it('snapshots stored evidence and rejects duplicate ids instead of silently replacing records', () => {
     const repository = new InMemoryTheoremRepository()
@@ -62,6 +84,22 @@ describe('non-authoritative theorem repository', () => {
     expect(repository.findByTheoryRevision({ scheme: 'sha256', value: 'same' })).toEqual(['T1', 'T2'])
     expect(repository.findByClaimCoordinate(7)).toEqual(['T1', 'T2'])
     expect(repository.findByClaimCoordinate(9)).toEqual(['T3'])
+  })
+
+  it('stores projection records under the exact Theory index without inventing a claim-coordinate index', () => {
+    const repository = new InMemoryTheoremRepository()
+    const revision = { scheme: 'sha256', value: 'same' }
+    const projection = projectionRecord(revision, 'p')
+
+    repository.put({ id: 'P2', record: projection, dependencies: ['L2', 'L1'] })
+    repository.put({ id: 'T1', record: record(revision, 7, 'a') })
+    ;(projection.proof.artifact as { marker: string }).marker = 'mutated'
+
+    expect((repository.get('P2')?.record.proof.artifact as { marker: string }).marker).toBe('p')
+    expect(repository.findByTheoryRevision(revision)).toEqual(['P2', 'T1'])
+    expect(repository.findByClaimCoordinate(7)).toEqual(['T1'])
+    expect(repository.dependencies('P2')).toEqual(['L1', 'L2'])
+    expect(repository.dependents('L1')).toEqual(['P2'])
   })
 
   it('keeps dependency metadata explicit, snapshotted, and non-inferred', () => {
@@ -120,5 +158,16 @@ describe('non-authoritative theorem repository', () => {
     expect(await repository.use('missing')).toEqual({ verdict: 'REJECT', code: 'not-found' })
     const result = await repository.use('forged')
     expect(result.verdict).toBe('REJECT')
+  })
+
+  it('fresh-reapproves stored projection evidence instead of trusting repository membership', async () => {
+    const repository = new InMemoryTheoremRepository()
+    repository.put({
+      id: 'projection-forged',
+      record: projectionRecord({ scheme: 'sha256', value: 'not-a-real-theory' }, 'x'),
+    })
+
+    expect(await repository.use('projection-forged'))
+      .toEqual({ verdict: 'REJECT', code: 'proof-rejected' })
   })
 })
