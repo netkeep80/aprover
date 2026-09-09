@@ -13,6 +13,10 @@ import {
   THEOREM_RECORD_CONSUMER,
 } from '../../src/core/theoremLibrary'
 
+const ACCEPTED_A_SYNC1_UPSTREAM = 'd3714a3f209567109412cea5687e2d6d011d9ebc' as const
+const ACCEPTED_A_SYNC1_ARTIFACT_SHA256 =
+  '638abe4247a300686f37018378985208dd88a59b0608be41177138899199187d' as const
+
 const ARTIFACT = {
   schema: 'mts-portable-structural-derivation/v0.2',
   mtsSemanticBase: 'mts-contract/v0.11',
@@ -73,6 +77,13 @@ function clone<T>(value: T): T {
 }
 
 describe('theorem library record v0.1', () => {
+  it('requires the exact accepted A-SYNC1 upstream source and artifact identity', () => {
+    expect(consumerLock.commit).toBe(ACCEPTED_A_SYNC1_UPSTREAM)
+    expect(consumerLock.package.version).toBe('0.10.0')
+    expect(consumerLock.package.sha256).toBe(ACCEPTED_A_SYNC1_ARTIFACT_SHA256)
+    expect(consumerLock.package.producer).toEqual({ node: '24.20.0', npm: '11.19.0' })
+  })
+
   it('binds its audit identity to the exact canonical consumer lock', () => {
     expect(THEOREM_RECORD_SCHEMA).toBe('aprover-theorem-record/v0.1')
     expect(THEOREM_RECORD_CONSUMER).toEqual({

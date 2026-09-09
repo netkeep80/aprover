@@ -10,11 +10,11 @@ export const THEOREM_RECORD_SCHEMA = 'aprover-theorem-record/v0.1' as const
 
 export const THEOREM_RECORD_CONSUMER = Object.freeze({
   repository: 'netkeep80/anum_docs',
-  upstreamCommit: '1bc6de1f5c06f46858100807b5fe9191d057c6a2',
+  upstreamCommit: 'd3714a3f209567109412cea5687e2d6d011d9ebc',
   semanticBase: 'mts-contract/v0.11',
   packageName: '@mts/core',
   packageVersion: '0.10.0',
-  artifactSha256: '22a4d3dc2da7ec90a23734b814bb71b3ebdb87714f946af3ef31a5644c73e808',
+  artifactSha256: '638abe4247a300686f37018378985208dd88a59b0608be41177138899199187d',
 })
 
 export interface TheoremRecordConsumerV01 {
