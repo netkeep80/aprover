@@ -210,11 +210,11 @@ async function projectionRecordRequest() {
   const conclusionTemplate = memory.ensure(A, A)
   const rule = producer.defineRule(dictionary, conclusionTemplate)
   const schemaDerivationRule = producer.defineDerivationRule(rule, [premiseTemplate])
-  const artifact = core.exportPortableProofSubAnetProjection(memory, {
+  const artifact = structuredClone(core.exportPortableProofSubAnetProjection(memory, {
     theory,
     schemaDerivationRule,
     premiseProofOccurrence: relationProof,
-  })
+  }))
   const theoryArtifact = core.exportPortableStructuralTheory(memory, theory)
 
   return {
