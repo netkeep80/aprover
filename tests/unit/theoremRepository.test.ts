@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import type {
-  TheoremProjectionRecordV02,
-  TheoremRecordV01,
+import {
+  THEOREM_RECORD_CONSUMER,
+  type TheoremProjectionRecordV02,
+  type TheoremRecordV01,
 } from '../../src/core/theoremLibrary'
 import { InMemoryTheoremRepository } from '../../src/core/theoremRepository'
 
@@ -44,14 +45,7 @@ function record(
 function projectionRecord(revision: unknown, marker: string): TheoremProjectionRecordV02 {
   return {
     schema: 'aprover-theorem-record/v0.2',
-    consumer: {
-      repository: 'netkeep80/anum_docs',
-      upstreamCommit: marker.padEnd(40, '0').slice(0, 40),
-      semanticBase: 'mts-contract/v0.11',
-      packageName: '@mts/core',
-      packageVersion: '0.10.0',
-      artifactSha256: marker.padEnd(64, '0').slice(0, 64),
-    },
+    consumer: THEOREM_RECORD_CONSUMER,
     proof: {
       artifact: { marker },
       expectedTheory: {
@@ -166,14 +160,14 @@ describe('non-authoritative theorem repository', () => {
     expect(result.verdict).toBe('REJECT')
   })
 
-  it('fails closed when semantic use reapproves stored projection evidence', async () => {
+  it('fresh-reapproves stored projection evidence instead of trusting repository membership', async () => {
     const repository = new InMemoryTheoremRepository()
     repository.put({
       id: 'projection-forged',
       record: projectionRecord({ scheme: 'sha256', value: 'not-a-real-theory' }, 'x'),
     })
 
-    const result = await repository.use('projection-forged')
-    expect(result.verdict).toBe('REJECT')
+    expect(await repository.use('projection-forged'))
+      .toEqual({ verdict: 'REJECT', code: 'proof-rejected' })
   })
 })
