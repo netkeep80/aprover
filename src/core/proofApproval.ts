@@ -3,10 +3,13 @@ import {
   PORTABLE_STRUCTURAL_DERIVATION_PROVENANCE_SCHEMA,
   PORTABLE_STRUCTURAL_DERIVATION_WITH_ASSUMPTIONS_PROVENANCE_SCHEMA,
   PORTABLE_STRUCTURAL_DERIVATION_WITH_THEOREMS_PROVENANCE_SCHEMA,
+  computePortableProofSubAnetProjectionContentDigest,
   computePortableStructuralDerivationProvenanceDigest,
   computePortableStructuralDerivationWithAssumptionsProvenanceDigest,
   computePortableStructuralDerivationWithTheoremsProvenanceDigest,
+  replayPortableProofSubAnetProjection,
   replayPortableStructuralProof,
+  verifyPortableProofSubAnetProjectionTheoryRevision,
   verifyPortableStructuralDerivationProvenanceClaim,
   verifyPortableStructuralDerivationWithAssumptionsProvenanceClaim,
   verifyPortableStructuralDerivationWithTheoremsProvenanceClaim,
@@ -31,12 +34,22 @@ export interface PortableProofApprovalRequest {
   readonly expectedTheory: PortableProofExpectedTheory
 }
 
+export interface PortableProofSubAnetProjectionApprovalRequest {
+  readonly artifact: unknown
+  readonly expectedTheory: PortableProofExpectedTheory
+}
+
 export type PortableProofApprovalRejectCode =
   | 'invalid-request'
   | 'theory-rejected'
   | 'proof-rejected'
   | 'provenance-rejected'
   | 'target-mismatch'
+
+export type PortableProofSubAnetProjectionApprovalRejectCode =
+  | 'invalid-request'
+  | 'theory-rejected'
+  | 'proof-rejected'
 
 export interface PortableProofApprovalDigest {
   readonly scheme: string
@@ -51,12 +64,26 @@ export interface PortableProofAcceptance {
   readonly provenanceDigest: PortableProofApprovalDigest
 }
 
+export interface PortableProofSubAnetProjectionAcceptance {
+  readonly verdict: 'ACCEPT'
+  readonly semanticBase: typeof PORTABLE_MTS_SEMANTIC_BASE
+  readonly contentDigest: PortableProofApprovalDigest
+}
+
 export interface PortableProofRejection {
   readonly verdict: 'REJECT'
   readonly code: PortableProofApprovalRejectCode
 }
 
+export interface PortableProofSubAnetProjectionRejection {
+  readonly verdict: 'REJECT'
+  readonly code: PortableProofSubAnetProjectionApprovalRejectCode
+}
+
 export type PortableProofApprovalResult = PortableProofAcceptance | PortableProofRejection
+export type PortableProofSubAnetProjectionApprovalResult =
+  | PortableProofSubAnetProjectionAcceptance
+  | PortableProofSubAnetProjectionRejection
 
 type UnknownRecord = Record<string, unknown>
 
@@ -123,6 +150,20 @@ function parseRequest(value: unknown): PortableProofApprovalRequest | undefined 
     artifact: request.artifact,
     provenance: request.provenance,
     target,
+    expectedTheory,
+  })
+}
+
+function parseProjectionRequest(
+  value: unknown,
+): PortableProofSubAnetProjectionApprovalRequest | undefined {
+  const request = exactRecord(value, ['artifact', 'expectedTheory'])
+  if (request === undefined) return undefined
+  const expectedTheory = parseExpectedTheory(request.expectedTheory)
+  if (expectedTheory === undefined) return undefined
+
+  return Object.freeze({
+    artifact: request.artifact,
     expectedTheory,
   })
 }
@@ -207,6 +248,12 @@ function reject(code: PortableProofApprovalRejectCode): PortableProofRejection {
   return Object.freeze({ verdict: 'REJECT', code })
 }
 
+function rejectProjection(
+  code: PortableProofSubAnetProjectionApprovalRejectCode,
+): PortableProofSubAnetProjectionRejection {
+  return Object.freeze({ verdict: 'REJECT', code })
+}
+
 /**
  * Consumer-owned trusted boundary only. Proof truth stays in the exact accepted
  * @mts/core portable replay kernel; provenance can bind origin but cannot make
@@ -249,5 +296,49 @@ export async function approvePortableStructuralProof(
     target: request.target,
     occurrenceCount: occurrenceCount(replay),
     provenanceDigest,
+  })
+}
+
+/**
+ * Trusted portable K1e boundary. The portable artifact never supplies the
+ * projected occurrence/claim: accepted @mts/core replay recomputes them from
+ * topology. Exact Theory/revision selection constrains authority, while the
+ * content digest is returned only as deterministic audit identity.
+ */
+export async function approvePortableProofSubAnetProjection(
+  input: unknown,
+): Promise<PortableProofSubAnetProjectionApprovalResult> {
+  const request = parseProjectionRequest(input)
+  if (request === undefined) return rejectProjection('invalid-request')
+
+  try {
+    replayPortableProofSubAnetProjection(request.artifact)
+  } catch {
+    return rejectProjection('proof-rejected')
+  }
+
+  try {
+    await verifyPortableProofSubAnetProjectionTheoryRevision(
+      request.artifact,
+      request.expectedTheory.artifact,
+      request.expectedTheory.revision,
+    )
+  } catch {
+    return rejectProjection('theory-rejected')
+  }
+
+  let contentDigest: PortableProofApprovalDigest
+  try {
+    contentDigest = Object.freeze(
+      await computePortableProofSubAnetProjectionContentDigest(request.artifact),
+    )
+  } catch {
+    return rejectProjection('proof-rejected')
+  }
+
+  return Object.freeze({
+    verdict: 'ACCEPT',
+    semanticBase: PORTABLE_MTS_SEMANTIC_BASE,
+    contentDigest,
   })
 }
