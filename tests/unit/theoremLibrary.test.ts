@@ -177,3 +177,109 @@ describe('theorem library record v0.1', () => {
     expect(await reapproveTheoremRecord(forged)).toEqual({ verdict: 'REJECT', code: 'proof-rejected' })
   })
 })
+
+async function projectionRecordRequest() {
+  const core = await import('@mts/core')
+  const memory = new core.Memory()
+  const { R, O, C, L, U } = core.ensureRootBasis(memory)
+  const producer = core.createStructuralProofProducer(memory)
+  const theory = memory.ensure(C, U)
+  const sequence = (values: readonly number[]) => producer.definePremiseOccurrenceSequence(values)
+  const identityProof = (left: number, right: number, children: readonly number[]) =>
+    memory.ensure(memory.ensure(left, right), sequence(children))
+
+  const rootProof = identityProof(R, R, [])
+  const oProof = identityProof(O, O, [rootProof])
+  const cProof = identityProof(C, C, [rootProof])
+  const lProof = identityProof(L, L, [oProof, cProof])
+  const uProof = identityProof(U, U, [cProof, oProof])
+  const left = memory.ensure(O, U)
+  const right = memory.ensure(C, L)
+  const leftProof = identityProof(left, left, [oProof, uProof])
+  const rightProof = identityProof(right, right, [cProof, lProof])
+  const relation = memory.ensure(left, right)
+  const relationProof = identityProof(relation, relation, [leftProof, rightProof])
+
+  let roleCursor = memory.ensure(L, R)
+  const freshRole = () => (roleCursor = memory.ensure(roleCursor, R))
+  const A = freshRole()
+  const B = freshRole()
+  const dictionary = producer.defineRoleDictionary([A, B])
+  const relationTemplate = memory.ensure(A, B)
+  const premiseTemplate = memory.ensure(relationTemplate, relationTemplate)
+  const conclusionTemplate = memory.ensure(A, A)
+  const rule = producer.defineRule(dictionary, conclusionTemplate)
+  const schemaDerivationRule = producer.defineDerivationRule(rule, [premiseTemplate])
+  const artifact = core.exportPortableProofSubAnetProjection(memory, {
+    theory,
+    schemaDerivationRule,
+    premiseProofOccurrence: relationProof,
+  })
+  const theoryArtifact = core.exportPortableStructuralTheory(memory, theory)
+
+  return {
+    artifact,
+    expectedTheory: {
+      artifact: theoryArtifact,
+      revision: await core.computePortableStructuralTheoryRevision(theoryArtifact),
+    },
+  }
+}
+
+describe('theorem library portable projection record v0.2', () => {
+  it('stores only replayable K1e evidence plus audit identity and snapshots caller data', async () => {
+    const library: any = await import('../../src/core/theoremLibrary')
+    const input = await projectionRecordRequest()
+    const record = await library.createProofSubAnetProjectionTheoremRecord(input)
+
+    expect(record.schema).toBe('aprover-theorem-record/v0.2')
+    expect(record.consumer).toEqual(THEOREM_RECORD_CONSUMER)
+    expect(record.proof).toEqual(input)
+    expect(record.approval).toMatchObject({ semanticBase: 'mts-contract/v0.11' })
+    expect(record.approval.contentDigest.value).toMatch(/^[0-9a-f]{64}$/)
+    expect(record.proof).not.toHaveProperty('target')
+    expect(record.approval).not.toHaveProperty('projectedOccurrence')
+    expect(record.approval).not.toHaveProperty('projectedClaim')
+    expect(record.approval).not.toHaveProperty('proved')
+
+    ;(input.artifact as { theoryCoordinate: number }).theoryCoordinate = 0
+    expect(record.proof.artifact.theoryCoordinate).not.toBe(0)
+    expect(Object.isFrozen(record)).toBe(true)
+  })
+
+  it('fresh-reapproves stored K1e evidence every time instead of trusting storage metadata', async () => {
+    const library: any = await import('../../src/core/theoremLibrary')
+    const record = await library.createProofSubAnetProjectionTheoremRecord(
+      await projectionRecordRequest(),
+    )
+    expect(await library.reapproveTheoremRecord(record)).toEqual({ verdict: 'ACCEPT', record })
+    expect(await library.reapproveTheoremRecord(record)).toEqual({ verdict: 'ACCEPT', record })
+  })
+
+  it.each([
+    ['top-level authority', (r: any) => ({ ...r, approved: true })],
+    ['consumer identity', (r: any) => ({ ...r, consumer: { ...r.consumer, upstreamCommit: '0'.repeat(40) } })],
+    ['stored digest', (r: any) => ({ ...r, approval: { ...r.approval, contentDigest: { ...r.approval.contentDigest, value: '0'.repeat(64) } } })],
+    ['nested authority', (r: any) => ({ ...r, approval: { ...r.approval, projectedOccurrence: 1 } })],
+    ['forged revision', (r: any) => ({
+      ...r,
+      proof: {
+        ...r.proof,
+        expectedTheory: {
+          ...r.proof.expectedTheory,
+          revision: { ...r.proof.expectedTheory.revision, value: '0'.repeat(64) },
+        },
+      },
+    })],
+    ['mutated artifact', (r: any) => ({
+      ...r,
+      proof: { ...r.proof, artifact: { ...r.proof.artifact, theoryCoordinate: 0 } },
+    })],
+  ])('fails closed for %s', async (_name, mutate) => {
+    const library: any = await import('../../src/core/theoremLibrary')
+    const record = await library.createProofSubAnetProjectionTheoremRecord(
+      await projectionRecordRequest(),
+    )
+    expect((await library.reapproveTheoremRecord(mutate(clone(record)))).verdict).toBe('REJECT')
+  })
+})
