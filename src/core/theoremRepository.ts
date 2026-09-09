@@ -1,18 +1,19 @@
 import {
+  THEOREM_RECORD_SCHEMA,
   reapproveTheoremRecord,
+  type TheoremRecord,
   type TheoremRecordReapproval,
-  type TheoremRecordV01,
 } from './theoremLibrary'
 
 export interface TheoremRepositoryPut {
   readonly id: string
-  readonly record: TheoremRecordV01
+  readonly record: TheoremRecord
   readonly dependencies?: readonly string[]
 }
 
 export interface TheoremRepositoryEntry {
   readonly id: string
-  readonly record: TheoremRecordV01
+  readonly record: TheoremRecord
   readonly dependencies: readonly string[]
 }
 
@@ -105,7 +106,9 @@ export class InMemoryTheoremRepository {
 
     this.entries.set(entry.id, entry)
     addIndex(this.byTheoryRevision, revisionKey, entry.id)
-    addIndex(this.byClaimCoordinate, String(entry.record.proof.target.claimCoordinate), entry.id)
+    if (entry.record.schema === THEOREM_RECORD_SCHEMA) {
+      addIndex(this.byClaimCoordinate, String(entry.record.proof.target.claimCoordinate), entry.id)
+    }
     for (const dependency of dependencies) addIndex(this.byDependency, dependency, entry.id)
     return entry
   }
