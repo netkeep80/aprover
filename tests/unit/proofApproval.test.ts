@@ -2,18 +2,24 @@ import { describe, expect, it } from 'vitest'
 
 import {
   Memory,
+  computePortableProofSubAnetProjectionContentDigest,
   computePortableStructuralTheoryRevision,
   createPortableStructuralDerivationProvenanceClaim,
   createPortableStructuralDerivationWithTheoremsProvenanceClaim,
   createStructuralProofProducer,
   ensureRootBasis,
+  exportPortableProofSubAnetProjection,
   exportPortableStructuralDerivationWithTheorems,
   exportPortableStructuralTheory,
+  replayPortableProofSubAnetProjection,
   replayPortableStructuralProof,
   type LinkHandle,
 } from '@mts/core'
 
-import { approvePortableStructuralProof } from '../../src/core/proofApproval'
+import {
+  approvePortableProofSubAnetProjection,
+  approvePortableStructuralProof,
+} from '../../src/core/proofApproval'
 
 const VALID_ARTIFACT = {
   schema: 'mts-portable-structural-derivation/v0.2',
@@ -361,5 +367,153 @@ describe('portable proof approval', () => {
       await approvalRequest(forged, TARGET, provenance),
     )
     expect(result).toEqual({ verdict: 'REJECT', code: 'theory-rejected' })
+  })
+})
+
+async function projectionApprovalFixture() {
+  const memory = new Memory()
+  const { R, O, C, L, U } = ensureRootBasis(memory)
+  const producer = createStructuralProofProducer(memory)
+  const theory = memory.ensure(C, U)
+  const sequence = (values: readonly LinkHandle[]) => producer.definePremiseOccurrenceSequence(values)
+  const identityProof = (
+    left: LinkHandle,
+    right: LinkHandle,
+    children: readonly LinkHandle[],
+  ) => memory.ensure(memory.ensure(left, right), sequence(children))
+
+  const rootProof = identityProof(R, R, [])
+  const oProof = identityProof(O, O, [rootProof])
+  const cProof = identityProof(C, C, [rootProof])
+  const lProof = identityProof(L, L, [oProof, cProof])
+  const uProof = identityProof(U, U, [cProof, oProof])
+  const left = memory.ensure(O, U)
+  const right = memory.ensure(C, L)
+  const leftProof = identityProof(left, left, [oProof, uProof])
+  const rightProof = identityProof(right, right, [cProof, lProof])
+  const relation = memory.ensure(left, right)
+  const relationProof = identityProof(relation, relation, [leftProof, rightProof])
+
+  let roleCursor = memory.ensure(L, R)
+  const freshRole = (): LinkHandle => (roleCursor = memory.ensure(roleCursor, R))
+  const A = freshRole()
+  const B = freshRole()
+  const dictionary = producer.defineRoleDictionary([A, B])
+  const relationTemplate = memory.ensure(A, B)
+  const premiseTemplate = memory.ensure(relationTemplate, relationTemplate)
+  const conclusionTemplate = memory.ensure(A, A)
+  const rule = producer.defineRule(dictionary, conclusionTemplate)
+  const schemaDerivationRule = producer.defineDerivationRule(rule, [premiseTemplate])
+
+  expect(memory.find(theory, rule)).toBeUndefined()
+  expect(memory.find(theory, schemaDerivationRule)).toBeUndefined()
+
+  const artifact = exportPortableProofSubAnetProjection(memory, {
+    theory,
+    schemaDerivationRule,
+    premiseProofOccurrence: relationProof,
+  })
+  const replayed = replayPortableProofSubAnetProjection(artifact)
+  expect(replayed.replay.projectedOccurrence).not.toBe(replayed.evidence.premiseProofOccurrence)
+
+  const theoryArtifact = exportPortableStructuralTheory(memory, theory)
+  const revision = await computePortableStructuralTheoryRevision(theoryArtifact)
+
+  return {
+    memory,
+    basis: { R, O, C, L, U },
+    artifact,
+    request: {
+      artifact,
+      expectedTheory: { artifact: theoryArtifact, revision },
+    },
+  }
+}
+
+describe('portable proof-subAnet projection approval', () => {
+  it('accepts only fresh exact-Theory K1e replay and returns audit identity, not projected authority', async () => {
+    const fixture = await projectionApprovalFixture()
+    const accepted = await approvePortableProofSubAnetProjection(fixture.request)
+
+    expect(accepted).toMatchObject({
+      verdict: 'ACCEPT',
+      semanticBase: 'mts-contract/v0.11',
+    })
+    if (accepted.verdict === 'ACCEPT') {
+      expect(accepted.contentDigest).toEqual(
+        await computePortableProofSubAnetProjectionContentDigest(fixture.artifact),
+      )
+      expect(accepted.contentDigest.value).toMatch(/^[0-9a-f]{64}$/)
+      expect(accepted).not.toHaveProperty('projectedOccurrence')
+      expect(accepted).not.toHaveProperty('projectedClaim')
+      expect(accepted).not.toHaveProperty('rho')
+      expect(accepted).not.toHaveProperty('proved')
+
+      const repeated = await approvePortableProofSubAnetProjection(fixture.request)
+      expect(repeated.verdict).toBe('ACCEPT')
+      if (repeated.verdict === 'ACCEPT') {
+        expect(repeated.contentDigest).toEqual(accepted.contentDigest)
+      }
+    }
+  })
+
+  it('requires an externally selected Theory envelope', async () => {
+    const { artifact } = await projectionApprovalFixture()
+    expect(await approvePortableProofSubAnetProjection({ artifact })).toEqual({
+      verdict: 'REJECT',
+      code: 'invalid-request',
+    })
+  })
+
+  it('rejects a forged expected Theory revision', async () => {
+    const fixture = await projectionApprovalFixture()
+    const result = await approvePortableProofSubAnetProjection({
+      ...fixture.request,
+      expectedTheory: {
+        ...fixture.request.expectedTheory,
+        revision: { ...fixture.request.expectedTheory.revision, value: '0'.repeat(64) },
+      },
+    })
+    expect(result).toEqual({ verdict: 'REJECT', code: 'theory-rejected' })
+  })
+
+  it('rejects a different valid Theory even when its own revision is exact', async () => {
+    const fixture = await projectionApprovalFixture()
+    const otherTheory = fixture.memory.ensure(fixture.basis.U, fixture.basis.C)
+    const otherTheoryArtifact = exportPortableStructuralTheory(fixture.memory, otherTheory)
+    const result = await approvePortableProofSubAnetProjection({
+      ...fixture.request,
+      expectedTheory: {
+        artifact: otherTheoryArtifact,
+        revision: await computePortableStructuralTheoryRevision(otherTheoryArtifact),
+      },
+    })
+    expect(result).toEqual({ verdict: 'REJECT', code: 'theory-rejected' })
+  })
+
+  it('rejects mutated projection evidence before any audit digest can grant authority', async () => {
+    const fixture = await projectionApprovalFixture()
+    const result = await approvePortableProofSubAnetProjection({
+      ...fixture.request,
+      artifact: {
+        ...fixture.artifact,
+        schemaDerivationRuleCoordinate: fixture.artifact.theoryCoordinate,
+      },
+    })
+    expect(result).toEqual({ verdict: 'REJECT', code: 'proof-rejected' })
+  })
+
+  it.each([
+    ['projectedOccurrence', 0],
+    ['rho', [[0, 0]]],
+    ['proofKind', 'identity'],
+    ['proved', true],
+  ])('rejects host proof-authority field %s inside the portable artifact', async (field, value) => {
+    const fixture = await projectionApprovalFixture()
+    const result = await approvePortableProofSubAnetProjection({
+      ...fixture.request,
+      artifact: { ...fixture.artifact, [field]: value },
+    })
+    expect(result).toEqual({ verdict: 'REJECT', code: 'proof-rejected' })
   })
 })
